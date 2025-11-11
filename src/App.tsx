@@ -16,9 +16,16 @@ import Checkout from "./pages/Checkout";
 import OrderSuccess from "./pages/OrderSuccess";
 import Orders from "./pages/Orders";
 import Auth from "./pages/Auth";
+import Profile from "./pages/Profile";
 import AdminDashboard from "./pages/AdminDashboard";
 import Overview from "./pages/admin/Overview";
 import OrdersManagement from "./pages/admin/OrdersManagement";
+import ProductsManagement from "./pages/admin/ProductsManagement";
+import CategoriesManagement from "./pages/admin/CategoriesManagement";
+import FlashSalesManagement from "./pages/admin/FlashSalesManagement";
+import BannersManagement from "./pages/admin/BannersManagement";
+import UsersManagement from "./pages/admin/UsersManagement";
+import VouchersManagement from "./pages/admin/VouchersManagement";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -47,7 +54,7 @@ const App = () => (
                         <Route path="/checkout" element={<Checkout />} />
                         <Route path="/order-success" element={<OrderSuccess />} />
                         <Route path="/orders" element={<Orders />} />
-                        <Route path="/profile" element={<div className="min-h-screen flex items-center justify-center text-muted-foreground">Page profil - À développer</div>} />
+                        <Route path="/profile" element={<Profile />} />
                       </Routes>
                     </>
                   }
@@ -59,13 +66,13 @@ const App = () => (
                 {/* Admin Routes (no navbar, has own layout) */}
                 <Route path="/admin" element={<AdminDashboard />}>
                   <Route index element={<Overview />} />
-                  <Route path="products" element={<div className="text-center p-12 text-muted-foreground">Module de gestion des produits - À développer</div>} />
-                  <Route path="categories" element={<div className="text-center p-12 text-muted-foreground">Module de gestion des catégories - À développer</div>} />
+                  <Route path="products" element={<ProductsManagement />} />
+                  <Route path="categories" element={<CategoriesManagement />} />
                   <Route path="orders" element={<OrdersManagement />} />
-                  <Route path="flash-sales" element={<div className="text-center p-12 text-muted-foreground">Module de gestion des ventes flash - À développer</div>} />
-                  <Route path="banners" element={<div className="text-center p-12 text-muted-foreground">Module de gestion des bannières - À développer</div>} />
-                  <Route path="users" element={<div className="text-center p-12 text-muted-foreground">Module de gestion des utilisateurs - À développer</div>} />
-                  <Route path="vouchers" element={<div className="text-center p-12 text-muted-foreground">Module de génération des bons d'achat - À développer</div>} />
+                  <Route path="flash-sales" element={<FlashSalesManagement />} />
+                  <Route path="banners" element={<BannersManagement />} />
+                  <Route path="users" element={<UsersManagement />} />
+                  <Route path="vouchers" element={<VouchersManagement />} />
                 </Route>
 
                 {/* 404 */}

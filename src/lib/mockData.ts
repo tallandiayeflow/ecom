@@ -337,3 +337,13 @@ export const mockOrders: Order[] = [
     updatedAt: new Date().toISOString(),
   },
 ];
+
+// Export unified mockData object for easier imports
+export const mockData = {
+  users: mockUsers,
+  categories: mockCategories,
+  products: mockProducts,
+  flashSales: mockFlashSales,
+  banners: mockBanners,
+  orders: mockOrders,
+};
