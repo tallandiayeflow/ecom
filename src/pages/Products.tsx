@@ -22,7 +22,7 @@ const Products = () => {
   
   // Filters
   const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
-  const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || '');
+  const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || 'all');
   const [priceRange, setPriceRange] = useState([0, 2000]);
   const [inStockOnly, setInStockOnly] = useState(false);
 
@@ -48,7 +48,7 @@ const Products = () => {
     try {
       const { products: data, totalPages: pages } = await getProducts({
         search: searchParams.get('search') || undefined,
-        category: selectedCategory || undefined,
+        category: selectedCategory === 'all' ? undefined : selectedCategory,
         minPrice: priceRange[0],
         maxPrice: priceRange[1],
         inStock: inStockOnly || undefined,
@@ -86,7 +86,7 @@ const Products = () => {
 
   const resetFilters = () => {
     setSearchQuery('');
-    setSelectedCategory('');
+    setSelectedCategory('all');
     setPriceRange([0, 2000]);
     setInStockOnly(false);
     setSearchParams({});
@@ -102,7 +102,7 @@ const Products = () => {
             <SelectValue placeholder="Toutes les catégories" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Toutes les catégories</SelectItem>
+            <SelectItem value="all">Toutes les catégories</SelectItem>
             {categories.map((cat) => (
               <SelectItem key={cat.id} value={cat.slug}>
                 {cat.icon} {cat.name}
