@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { Navbar } from "@/components/Navbar";
+import { Footer } from "@/components/Footer";
 
 import Index from "./pages/Index";
 import Products from "./pages/Products";
@@ -44,19 +45,22 @@ const App = () => (
                 <Route
                   path="/*"
                   element={
-                    <>
+                    <div className="flex flex-col min-h-screen">
                       <Navbar />
-                      <Routes>
-                        <Route path="/" element={<Index />} />
-                        <Route path="/products" element={<Products />} />
-                        <Route path="/product/:id" element={<ProductDetail />} />
-                        <Route path="/cart" element={<Cart />} />
-                        <Route path="/checkout" element={<Checkout />} />
-                        <Route path="/order-success" element={<OrderSuccess />} />
-                        <Route path="/orders" element={<Orders />} />
-                        <Route path="/profile" element={<Profile />} />
-                      </Routes>
-                    </>
+                      <main className="flex-1">
+                        <Routes>
+                          <Route path="/" element={<Index />} />
+                          <Route path="/products" element={<Products />} />
+                          <Route path="/product/:id" element={<ProductDetail />} />
+                          <Route path="/cart" element={<Cart />} />
+                          <Route path="/checkout" element={<Checkout />} />
+                          <Route path="/order-success" element={<OrderSuccess />} />
+                          <Route path="/orders" element={<Orders />} />
+                          <Route path="/profile" element={<Profile />} />
+                        </Routes>
+                      </main>
+                      <Footer />
+                    </div>
                   }
                 />
 
