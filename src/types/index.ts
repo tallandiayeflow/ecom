@@ -24,6 +24,7 @@ export interface Product {
   specifications: Record<string, string>;
   featured?: boolean;
   createdAt: string;
+  brand:string
 }
 
 export interface Category {

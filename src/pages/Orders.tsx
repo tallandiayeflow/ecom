@@ -1,14 +1,14 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
-import { Order } from '@/types';
-import { getUserOrders } from '@/lib/api';
-import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { useAuth } from '@/contexts/AuthContext';
+import { getOrders } from '@/lib/api';
+import { Order } from '@/types';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { ArrowLeft } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const Orders = () => {
   const { user } = useAuth();
@@ -26,7 +26,7 @@ const Orders = () => {
     if (!user) return;
     
     try {
-      const data = await getUserOrders(user.id);
+      const data = await getOrders();
       setOrders(data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
     } catch (error) {
       console.error('Error loading orders:', error);

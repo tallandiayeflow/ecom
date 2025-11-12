@@ -1,94 +1,138 @@
+import axios, { AxiosInstance } from 'axios';
+
+// Configuration de base
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
+// Instance Axios configurée
+const api: AxiosInstance = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  timeout: 10000, // 10 secondes
+});
+
+// ==================== INTERCEPTORS ====================
+
+// Ajouter automatiquement le token JWT à chaque requête
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Gérer les erreurs globales et le token expiré
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      // Token expiré ou invalide - rediriger vers login
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
+// ==================== TYPES (importés de @/types) ====================
+
+import type {
+  BannerSlide,
+  CartItem,
+  Category,
+  FlashSale,
+  Order,
+  Product,
+  User,
+  Voucher,
+} from '@/types';
+
+// Types de réponse spécifiques
+export interface LoginResponse {
+  user: User;
+  token: string;
+}
+
+export interface RegisterResponse {
+  user: User;
+  token: string;
+}
+
+export interface ProductsResponse {
+  products: Product[];
+  total: number;
+  page: number;
+  totalPages: number;
+}
+
+export interface ApiError {
+  error: string;
+  message?: string;
+}
+
+// ==================== AUTH ENDPOINTS ====================
+
 /**
- * API Endpoints for Phone Shop
- * This file contains all API endpoint definitions for easy backend integration
- * Currently using mock data - replace with actual API calls when backend is ready
+ * Inscription d'un nouvel utilisateur
  */
-
-import { User, Product, Category, Order, CartItem, FlashSale, Voucher, BannerSlide } from '@/types';
-import { mockProducts, mockCategories, mockFlashSales, mockBanners, mockUsers, mockOrders } from './mockData';
-
-// ===========================
-// AUTH ENDPOINTS
-// ===========================
-
-/**
- * POST /auth/register
- * Register a new user
- * @param email - User email
- * @param password - User password
- * @param name - User full name
- */
-export const register = async (email: string, password: string, name: string): Promise<User> => {
-  // Mock implementation
-  await new Promise(resolve => setTimeout(resolve, 500));
-  const newUser: User = {
-    id: Math.random().toString(36).substr(2, 9),
+export const register = async (
+  email: string,
+  password: string,
+  name: string
+): Promise<RegisterResponse> => {
+  const response = await api.post<RegisterResponse>('/auth/register', {
     email,
+    password,
     name,
-    role: 'user',
-    loyaltyPoints: 0,
-    createdAt: new Date().toISOString(),
-    isActive: true,
-  };
-  return newUser;
+  });
+  return response.data;
 };
 
 /**
- * POST /auth/login
- * Login user
- * @param email - User email
- * @param password - User password
+ * Connexion utilisateur
  */
-export const login = async (email: string, password: string): Promise<{ user: User; token: string }> => {
-  // Mock implementation
-  await new Promise(resolve => setTimeout(resolve, 500));
-  
-  // Demo accounts
-  if (email === 'admin@demo.com' && password === 'admin123') {
-    return {
-      user: mockUsers.find(u => u.role === 'admin')!,
-      token: 'mock-admin-token',
-    };
-  }
-  
-  if (email === 'user@demo.com' && password === 'user123') {
-    return {
-      user: mockUsers.find(u => u.role === 'user')!,
-      token: 'mock-user-token',
-    };
-  }
-  
-  throw new Error('Invalid credentials');
+export const login = async (
+  email: string,
+  password: string
+): Promise<LoginResponse> => {
+  const response = await api.post<LoginResponse>('/auth/login', {
+    email,
+    password,
+  });
+  return response.data;
 };
 
 /**
- * POST /auth/reset-password
- * Request password reset
- * @param email - User email
- */
-export const resetPassword = async (email: string): Promise<void> => {
-  await new Promise(resolve => setTimeout(resolve, 500));
-};
-
-/**
- * GET /auth/me
- * Get current user profile
+ * Obtenir l'utilisateur actuellement connecté
  */
 export const getCurrentUser = async (): Promise<User> => {
-  await new Promise(resolve => setTimeout(resolve, 300));
-  return mockUsers[1]; // Return demo user
+  const response = await api.get<User>('/auth/me');
+  return response.data;
 };
 
-// ===========================
-// PRODUCTS ENDPOINTS
-// ===========================
-
 /**
- * GET /products
- * Get all products with filters
- * @param params - Filter parameters (category, minPrice, maxPrice, search, inStock)
+ * Réinitialiser le mot de passe
  */
-export const getProducts = async (params?: {
+export const resetPassword = async (email: string): Promise<{ message: string }> => {
+  const response = await api.post<{ message: string }>('/auth/reset-password', {
+    email,
+  });
+  return response.data;
+};
+
+// ==================== PRODUCTS ENDPOINTS ====================
+
+export interface ProductFilters {
   category?: string;
   minPrice?: number;
   maxPrice?: number;
@@ -96,478 +140,337 @@ export const getProducts = async (params?: {
   inStock?: boolean;
   page?: number;
   limit?: number;
-}): Promise<{ products: Product[]; total: number; page: number; totalPages: number }> => {
-  await new Promise(resolve => setTimeout(resolve, 300));
+}
+
+/**
+ * Obtenir la liste des produits avec filtres
+ */
+export const getProducts = async (filters?: ProductFilters): Promise<ProductsResponse> => {
+  const params = new URLSearchParams();
   
-  let filtered = [...mockProducts];
-  
-  if (params?.category) {
-    filtered = filtered.filter(p => p.category === params.category);
-  }
-  if (params?.minPrice) {
-    filtered = filtered.filter(p => p.price >= params.minPrice!);
-  }
-  if (params?.maxPrice) {
-    filtered = filtered.filter(p => p.price <= params.maxPrice!);
-  }
-  if (params?.search) {
-    const search = params.search.toLowerCase();
-    filtered = filtered.filter(p => 
-      p.name.toLowerCase().includes(search) || 
-      p.description.toLowerCase().includes(search)
-    );
-  }
-  if (params?.inStock !== undefined) {
-    filtered = filtered.filter(p => p.inStock === params.inStock);
-  }
-  
-  const page = params?.page || 1;
-  const limit = params?.limit || 12;
-  const start = (page - 1) * limit;
-  const end = start + limit;
-  
-  return {
-    products: filtered.slice(start, end),
-    total: filtered.length,
-    page,
-    totalPages: Math.ceil(filtered.length / limit),
-  };
+  if (filters?.category) params.append('category', filters.category);
+  if (filters?.minPrice !== undefined) params.append('minPrice', filters.minPrice.toString());
+  if (filters?.maxPrice !== undefined) params.append('maxPrice', filters.maxPrice.toString());
+  if (filters?.search) params.append('search', filters.search);
+  if (filters?.inStock) params.append('inStock', 'true');
+  if (filters?.page) params.append('page', filters.page.toString());
+  if (filters?.limit) params.append('limit', filters.limit.toString());
+
+  const response = await api.get<ProductsResponse>(`/products?${params.toString()}`);
+  return response.data;
 };
 
 /**
- * GET /products/:id
- * Get single product by ID
- * @param id - Product ID
+ * Obtenir les détails d'un produit
  */
 export const getProduct = async (id: string): Promise<Product> => {
-  await new Promise(resolve => setTimeout(resolve, 200));
-  const product = mockProducts.find(p => p.id === id);
-  if (!product) throw new Error('Product not found');
-  return product;
+  const response = await api.get<Product>(`/products/${id}`);
+  return response.data;
 };
 
 /**
- * POST /products
- * Create new product (Admin only)
- * @param product - Product data
+ * Créer un nouveau produit (Admin uniquement)
  */
-export const createProduct = async (product: Omit<Product, 'id' | 'createdAt'>): Promise<Product> => {
-  await new Promise(resolve => setTimeout(resolve, 500));
-  const newProduct: Product = {
-    ...product,
-    id: Math.random().toString(36).substr(2, 9),
-    createdAt: new Date().toISOString(),
-  };
-  mockProducts.push(newProduct);
-  return newProduct;
+export const createProduct = async (productData: Partial<Product>): Promise<Product> => {
+  const response = await api.post<Product>('/products', productData);
+  return response.data;
 };
 
 /**
- * PUT /products/:id
- * Update product (Admin only)
- * @param id - Product ID
- * @param updates - Product updates
+ * Mettre à jour un produit (Admin uniquement)
  */
-export const updateProduct = async (id: string, updates: Partial<Product>): Promise<Product> => {
-  await new Promise(resolve => setTimeout(resolve, 500));
-  const index = mockProducts.findIndex(p => p.id === id);
-  if (index === -1) throw new Error('Product not found');
-  mockProducts[index] = { ...mockProducts[index], ...updates };
-  return mockProducts[index];
+export const updateProduct = async (id: string, productData: Partial<Product>): Promise<Product> => {
+  const response = await api.put<Product>(`/products/${id}`, productData);
+  return response.data;
 };
 
 /**
- * DELETE /products/:id
- * Delete product (Admin only)
- * @param id - Product ID
+ * Supprimer un produit (Admin uniquement)
  */
-export const deleteProduct = async (id: string): Promise<void> => {
-  await new Promise(resolve => setTimeout(resolve, 300));
-  const index = mockProducts.findIndex(p => p.id === id);
-  if (index !== -1) {
-    mockProducts.splice(index, 1);
-  }
+export const deleteProduct = async (id: string): Promise<{ message: string }> => {
+  const response = await api.delete<{ message: string }>(`/products/${id}`);
+  return response.data;
 };
 
-// ===========================
-// CATEGORIES ENDPOINTS
-// ===========================
+// ==================== CATEGORIES ENDPOINTS ====================
 
 /**
- * GET /categories
- * Get all categories
+ * Obtenir toutes les catégories
  */
 export const getCategories = async (): Promise<Category[]> => {
-  await new Promise(resolve => setTimeout(resolve, 200));
-  return mockCategories;
+  const response = await api.get<Category[]>('/categories');
+  return response.data;
 };
 
 /**
- * POST /categories
- * Create new category (Admin only)
- * @param category - Category data
+ * Créer une catégorie (Admin uniquement)
  */
-export const createCategory = async (category: Omit<Category, 'id'>): Promise<Category> => {
-  await new Promise(resolve => setTimeout(resolve, 300));
-  const newCategory: Category = {
-    ...category,
-    id: Math.random().toString(36).substr(2, 9),
-  };
-  mockCategories.push(newCategory);
-  return newCategory;
+export const createCategory = async (categoryData: Partial<Category>): Promise<Category> => {
+  const response = await api.post<Category>('/categories', categoryData);
+  return response.data;
 };
 
 /**
- * PUT /categories/:id
- * Update category (Admin only)
+ * Mettre à jour une catégorie (Admin uniquement)
  */
-export const updateCategory = async (id: string, updates: Partial<Category>): Promise<Category> => {
-  await new Promise(resolve => setTimeout(resolve, 300));
-  const index = mockCategories.findIndex(c => c.id === id);
-  if (index === -1) throw new Error('Category not found');
-  mockCategories[index] = { ...mockCategories[index], ...updates };
-  return mockCategories[index];
+export const updateCategory = async (id: string, categoryData: Partial<Category>): Promise<Category> => {
+  const response = await api.put<Category>(`/categories/${id}`, categoryData);
+  return response.data;
 };
 
 /**
- * DELETE /categories/:id
- * Delete category (Admin only)
+ * Supprimer une catégorie (Admin uniquement)
  */
-export const deleteCategory = async (id: string): Promise<void> => {
-  await new Promise(resolve => setTimeout(resolve, 300));
-  const index = mockCategories.findIndex(c => c.id === id);
-  if (index !== -1) {
-    mockCategories.splice(index, 1);
-  }
+export const deleteCategory = async (id: string): Promise<{ message: string }> => {
+  const response = await api.delete<{ message: string }>(`/categories/${id}`);
+  return response.data;
 };
 
-// ===========================
-// CART ENDPOINTS
-// ===========================
+// ==================== CART ENDPOINTS ====================
 
 /**
- * GET /cart
- * Get user's cart
+ * Obtenir le panier de l'utilisateur
  */
 export const getCart = async (): Promise<CartItem[]> => {
-  await new Promise(resolve => setTimeout(resolve, 200));
-  // Return from localStorage or empty array
-  const cart = localStorage.getItem('cart');
-  return cart ? JSON.parse(cart) : [];
+  const response = await api.get<CartItem[]>('/cart');
+  return response.data;
 };
 
 /**
- * POST /cart/add
- * Add item to cart
- * @param productId - Product ID
- * @param quantity - Quantity to add
+ * Ajouter un produit au panier
  */
-export const addToCart = async (productId: string, quantity: number): Promise<CartItem[]> => {
-  await new Promise(resolve => setTimeout(resolve, 200));
-  const cart = await getCart();
-  const existingItem = cart.find(item => item.productId === productId);
-  
-  if (existingItem) {
-    existingItem.quantity += quantity;
-  } else {
-    const product = await getProduct(productId);
-    cart.push({ productId, quantity, product });
-  }
-  
-  localStorage.setItem('cart', JSON.stringify(cart));
-  return cart;
+export const addToCart = async (productId: string, quantity: number = 1): Promise<CartItem[]> => {
+  const response = await api.post<CartItem[]>('/cart', {
+    productId,
+    quantity,
+  });
+  return response.data;
 };
 
 /**
- * PUT /cart/update
- * Update cart item quantity
- * @param productId - Product ID
- * @param quantity - New quantity
+ * Mettre à jour la quantité d'un produit dans le panier
  */
 export const updateCartItem = async (productId: string, quantity: number): Promise<CartItem[]> => {
-  await new Promise(resolve => setTimeout(resolve, 200));
-  const cart = await getCart();
-  const item = cart.find(item => item.productId === productId);
-  
-  if (item) {
-    if (quantity === 0) {
-      const filtered = cart.filter(item => item.productId !== productId);
-      localStorage.setItem('cart', JSON.stringify(filtered));
-      return filtered;
-    }
-    item.quantity = quantity;
+  if (quantity === 0) {
+    // Si quantité = 0, supprimer l'article
+    return await removeFromCart(productId);
   }
   
-  localStorage.setItem('cart', JSON.stringify(cart));
-  return cart;
+  const response = await api.put<CartItem[]>(`/cart/${productId}`, { quantity });
+  return response.data;
 };
 
 /**
- * POST /cart/clear
- * Clear entire cart
+ * Retirer un produit du panier
+ */
+export const removeFromCart = async (productId: string): Promise<CartItem[]> => {
+  const response = await api.delete<CartItem[]>(`/cart/${productId}`);
+  return response.data;
+};
+
+/**
+ * Vider complètement le panier
  */
 export const clearCart = async (): Promise<void> => {
-  await new Promise(resolve => setTimeout(resolve, 200));
-  localStorage.removeItem('cart');
+  await api.delete('/cart');
 };
 
-// ===========================
-// ORDERS ENDPOINTS
-// ===========================
+// ==================== ORDERS ENDPOINTS ====================
 
-/**
- * POST /orders
- * Create new order
- * @param orderData - Order data
- */
-export const createOrder = async (orderData: {
-  items: CartItem[];
-  total: number;
-  shippingAddress: Order['shippingAddress'];
-  voucherCode?: string;
-}): Promise<Order> => {
-  await new Promise(resolve => setTimeout(resolve, 500));
-  
-  const loyaltyPointsEarned = Math.floor(orderData.total / 10);
-  
-  const order: Order = {
-    id: Math.random().toString(36).substr(2, 9).toUpperCase(),
-    userId: 'current-user-id',
-    items: orderData.items,
-    total: orderData.total,
-    discount: 0,
-    finalTotal: orderData.total,
-    status: 'pending',
-    shippingAddress: orderData.shippingAddress,
-    voucherCode: orderData.voucherCode,
-    loyaltyPointsEarned,
-    qrCode: `ORDER-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+export interface CreateOrderData {
+  shippingAddress: {
+    name: string;
+    phone: string;
+    address: string;
+    city: string;
   };
-  
-  mockOrders.push(order);
-  return order;
+  voucherCode?: string;
+  useLoyaltyPoints?: boolean;
+}
+
+/**
+ * Obtenir les commandes de l'utilisateur
+ */
+export const getOrders = async (): Promise<Order[]> => {
+  const response = await api.get<Order[]>('/orders');
+  return response.data;
 };
 
 /**
- * GET /orders/:id
- * Get order by ID
- * @param id - Order ID
+ * Obtenir les détails d'une commande
  */
 export const getOrder = async (id: string): Promise<Order> => {
-  await new Promise(resolve => setTimeout(resolve, 200));
-  const order = mockOrders.find(o => o.id === id);
-  if (!order) throw new Error('Order not found');
-  return order;
+  const response = await api.get<Order>(`/orders/${id}`);
+  return response.data;
 };
 
 /**
- * GET /orders/user/:id
- * Get user's order history
- * @param userId - User ID
+ * Créer une nouvelle commande
  */
-export const getUserOrders = async (userId: string): Promise<Order[]> => {
-  await new Promise(resolve => setTimeout(resolve, 300));
-  return mockOrders.filter(o => o.userId === userId);
+export const createOrder = async (orderData: CreateOrderData): Promise<Order> => {
+  const response = await api.post<Order>('/orders', orderData);
+  return response.data;
 };
 
 /**
- * PUT /orders/:id/status
- * Update order status (Admin only)
- * @param id - Order ID
- * @param status - New status
+ * Mettre à jour le statut d'une commande (Admin uniquement)
  */
-export const updateOrderStatus = async (id: string, status: Order['status']): Promise<Order> => {
-  await new Promise(resolve => setTimeout(resolve, 300));
-  const order = mockOrders.find(o => o.id === id);
-  if (!order) throw new Error('Order not found');
-  order.status = status;
-  order.updatedAt = new Date().toISOString();
-  return order;
+export const updateOrderStatus = async (
+  id: string,
+  status: Order['status']
+): Promise<{ message: string }> => {
+  const response = await api.put<{ message: string }>(`/orders/${id}/status`, { status });
+  return response.data;
 };
 
-// ===========================
-// FLASH SALES ENDPOINTS
-// ===========================
+// ==================== FLASH SALES ENDPOINTS ====================
 
 /**
- * GET /flash-sales
- * Get all active flash sales
+ * Obtenir les ventes flash actives
  */
 export const getFlashSales = async (): Promise<FlashSale[]> => {
-  await new Promise(resolve => setTimeout(resolve, 200));
-  return mockFlashSales.filter(fs => fs.isActive);
+  const response = await api.get<FlashSale[]>('/flash-sales');
+  return response.data;
 };
 
 /**
- * POST /flash-sales
- * Create flash sale (Admin only)
- * @param flashSale - Flash sale data
+ * Créer une vente flash (Admin uniquement)
  */
-export const createFlashSale = async (flashSale: Omit<FlashSale, 'id' | 'product'>): Promise<FlashSale> => {
-  await new Promise(resolve => setTimeout(resolve, 300));
-  const product = await getProduct(flashSale.productId);
-  const newFlashSale: FlashSale = {
-    ...flashSale,
-    id: Math.random().toString(36).substr(2, 9),
-    product,
-  };
-  mockFlashSales.push(newFlashSale);
-  return newFlashSale;
+export const createFlashSale = async (flashSaleData: Partial<FlashSale>): Promise<FlashSale> => {
+  const response = await api.post<FlashSale>('/flash-sales', flashSaleData);
+  return response.data;
 };
 
 /**
- * DELETE /flash-sales/:id
- * Delete flash sale (Admin only)
+ * Supprimer une vente flash (Admin uniquement)
  */
-export const deleteFlashSale = async (id: string): Promise<void> => {
-  await new Promise(resolve => setTimeout(resolve, 200));
-  const index = mockFlashSales.findIndex(fs => fs.id === id);
-  if (index !== -1) {
-    mockFlashSales.splice(index, 1);
-  }
+export const deleteFlashSale = async (id: string): Promise<{ message: string }> => {
+  const response = await api.delete<{ message: string }>(`/flash-sales/${id}`);
+  return response.data;
 };
 
-// ===========================
-// BANNER ENDPOINTS
-// ===========================
+// ==================== VOUCHERS ENDPOINTS ====================
 
 /**
- * GET /banner
- * Get all banner slides
+ * Obtenir les vouchers disponibles
+ */
+export const getVouchers = async (): Promise<Voucher[]> => {
+  const response = await api.get<Voucher[]>('/vouchers');
+  return response.data;
+};
+
+/**
+ * Valider un code voucher
+ */
+export const validateVoucher = async (
+  code: string,
+  orderTotal: number
+): Promise<{ valid: boolean; discount: number; message: string }> => {
+  const response = await api.post<{ valid: boolean; discount: number; message: string }>(
+    '/vouchers/validate',
+    { code, orderTotal }
+  );
+  return response.data;
+};
+
+/**
+ * Créer un voucher (Admin uniquement)
+ */
+export const createVoucher = async (voucherData: Partial<Voucher>): Promise<Voucher> => {
+  const response = await api.post<Voucher>('/vouchers', voucherData);
+  return response.data;
+};
+
+// ==================== BANNERS ENDPOINTS ====================
+
+/**
+ * Obtenir les bannières actives
  */
 export const getBanners = async (): Promise<BannerSlide[]> => {
-  await new Promise(resolve => setTimeout(resolve, 200));
-  return mockBanners.filter(b => b.isActive).sort((a, b) => a.order - b.order);
+  const response = await api.get<BannerSlide[]>('/banners');
+  return response.data;
 };
 
 /**
- * POST /banner
- * Add product to banner (Admin only)
- * @param banner - Banner data
+ * Créer une bannière (Admin uniquement)
  */
-export const createBanner = async (banner: Omit<BannerSlide, 'id' | 'product'>): Promise<BannerSlide> => {
-  await new Promise(resolve => setTimeout(resolve, 300));
-  const product = await getProduct(banner.productId);
-  const newBanner: BannerSlide = {
-    ...banner,
-    id: Math.random().toString(36).substr(2, 9),
-    product,
-  };
-  mockBanners.push(newBanner);
-  return newBanner;
+export const createBanner = async (bannerData: Partial<BannerSlide>): Promise<BannerSlide> => {
+  const response = await api.post<BannerSlide>('/banners', bannerData);
+  return response.data;
 };
 
 /**
- * DELETE /banner/:id
- * Remove banner slide (Admin only)
+ * Supprimer une bannière (Admin uniquement)
  */
-export const deleteBanner = async (id: string): Promise<void> => {
-  await new Promise(resolve => setTimeout(resolve, 200));
-  const index = mockBanners.findIndex(b => b.id === id);
-  if (index !== -1) {
-    mockBanners.splice(index, 1);
-  }
+export const deleteBanner = async (id: string): Promise<{ message: string }> => {
+  const response = await api.delete<{ message: string }>(`/banners/${id}`);
+  return response.data;
 };
 
-// ===========================
-// VOUCHERS ENDPOINTS
-// ===========================
+// ==================== ADMIN ENDPOINTS ====================
+
+export interface AdminStats {
+  totalUsers: number;
+  totalOrders: number;
+  totalRevenue: number;
+  pendingOrders: number;
+}
 
 /**
- * POST /vouchers/generate
- * Generate new voucher (Admin only)
- * @param voucher - Voucher data
- */
-export const generateVoucher = async (voucher: Omit<Voucher, 'id' | 'usedCount' | 'createdAt'>): Promise<Voucher> => {
-  await new Promise(resolve => setTimeout(resolve, 300));
-  const newVoucher: Voucher = {
-    ...voucher,
-    id: Math.random().toString(36).substr(2, 9),
-    usedCount: 0,
-    createdAt: new Date().toISOString(),
-  };
-  return newVoucher;
-};
-
-/**
- * POST /vouchers/validate
- * Validate voucher code
- * @param code - Voucher code
- * @param orderTotal - Order total amount
- */
-export const validateVoucher = async (code: string, orderTotal: number): Promise<{
-  valid: boolean;
-  discount: number;
-  message: string;
-}> => {
-  await new Promise(resolve => setTimeout(resolve, 300));
-  
-  // Mock validation
-  if (code === 'WELCOME10') {
-    if (orderTotal >= 100) {
-      return { valid: true, discount: orderTotal * 0.1, message: '10% discount applied' };
-    }
-    return { valid: false, discount: 0, message: 'Minimum purchase of $100 required' };
-  }
-  
-  return { valid: false, discount: 0, message: 'Invalid voucher code' };
-};
-
-/**
- * GET /vouchers/user/:id
- * Get user's available vouchers
- */
-export const getUserVouchers = async (userId: string): Promise<Voucher[]> => {
-  await new Promise(resolve => setTimeout(resolve, 200));
-  return [];
-};
-
-// ===========================
-// LOYALTY POINTS ENDPOINTS
-// ===========================
-
-/**
- * GET /loyalty/:userId
- * Get user's loyalty points
- */
-export const getLoyaltyPoints = async (userId: string): Promise<number> => {
-  await new Promise(resolve => setTimeout(resolve, 200));
-  const user = mockUsers.find(u => u.id === userId);
-  return user?.loyaltyPoints || 0;
-};
-
-// ===========================
-// USERS ENDPOINTS (Admin)
-// ===========================
-
-/**
- * GET /users
- * Get all users (Admin only)
+ * Obtenir tous les utilisateurs (Admin uniquement)
  */
 export const getAllUsers = async (): Promise<User[]> => {
-  await new Promise(resolve => setTimeout(resolve, 300));
-  return mockUsers;
+  const response = await api.get<User[]>('/admin/users');
+  return response.data;
 };
 
 /**
- * PUT /users/:id/toggle
- * Toggle user active status (Admin only)
+ * Activer/Désactiver un utilisateur (Admin uniquement)
  */
-export const toggleUserStatus = async (id: string): Promise<User> => {
-  await new Promise(resolve => setTimeout(resolve, 300));
-  const user = mockUsers.find(u => u.id === id);
-  if (!user) throw new Error('User not found');
-  user.isActive = !user.isActive;
-  return user;
+export const toggleUserStatus = async (userId: string): Promise<{ message: string }> => {
+  const response = await api.put<{ message: string }>(`/admin/users/${userId}/toggle-status`);
+  return response.data;
 };
 
 /**
- * GET /orders
- * Get all orders (Admin only)
+ * Obtenir toutes les commandes (Admin uniquement)
  */
 export const getAllOrders = async (): Promise<Order[]> => {
-  await new Promise(resolve => setTimeout(resolve, 300));
-  return mockOrders;
+  const response = await api.get<Order[]>('/admin/orders');
+  return response.data;
 };
+
+/**
+ * Obtenir les statistiques (Admin uniquement)
+ */
+export const getAdminStats = async (): Promise<AdminStats> => {
+  const response = await api.get<AdminStats>('/admin/stats');
+  return response.data;
+};
+
+// ==================== UTILITY FUNCTIONS ====================
+
+/**
+ * Vérifier si l'utilisateur est authentifié
+ */
+export const isAuthenticated = (): boolean => {
+  return !!localStorage.getItem('token');
+};
+
+/**
+ * Obtenir le token stocké
+ */
+export const getToken = (): string | null => {
+  return localStorage.getItem('token');
+};
+
+/**
+ * Déconnexion (nettoyer le localStorage)
+ */
+export const logout = (): void => {
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+};
+
+// Export par défaut de l'instance axios
+export default api;
