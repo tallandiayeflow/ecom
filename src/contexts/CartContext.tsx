@@ -1,9 +1,4 @@
-import {
-  addToCart as apiAddToCart,
-  clearCart as apiClearCart,
-  updateCartItem as apiUpdateCartItem,
-  getCart
-} from '@/lib/api';
+import { addToCart as apiAddToCart, clearCart as apiClearCart, removeCartItem as apiRemoveCartItem, updateCartItem as apiUpdateCartItem, getCart } from '@/lib/api';
 import { CartItem, Product } from '@/types';
 import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 import { toast } from 'sonner';
@@ -13,8 +8,8 @@ interface CartContextType {
   cart: CartItem[];
   cartCount: number;
   cartTotal: number;
-  isLoading: boolean;
-  addToCart: (product: Product, quantity?: number) => Promise<void>;
+  loading: boolean;
+  addToCart: (product: Product, quantity: number) => Promise<void>;
   updateQuantity: (productId: string, quantity: number) => Promise<void>;
   removeFromCart: (productId: string) => Promise<void>;
   clearCart: () => Promise<void>;
@@ -25,110 +20,141 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const { isAuthenticated } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const { user } = useAuth();
 
+  // Charger le panier au montage et quand l'utilisateur change
   useEffect(() => {
-    if (isAuthenticated) {
+    if (user) {
       loadCart();
     } else {
-      setCart([]);
+      setCart([]); // Vider le panier si déconnecté
     }
-  }, [isAuthenticated]);
+  }, [user]);
 
+  // Charger le panier depuis l'API
   const loadCart = async () => {
+    if (!user) return;
+    
     try {
-      setIsLoading(true);
+      setLoading(true);
       const cartData = await getCart();
       setCart(cartData);
     } catch (error) {
       console.error('Error loading cart:', error);
-      // Si l'utilisateur n'est pas connecté, initialiser un panier vide
-      setCart([]);
+      // Ne pas afficher d'erreur si l'utilisateur n'est pas connecté
+      if (error.response?.status !== 401) {
+        toast.error('Erreur lors du chargement du panier');
+      }
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
+  // Ajouter un produit au panier
   const addToCart = async (product: Product, quantity: number = 1) => {
+    if (!user) {
+      toast.error('Veuillez vous connecter pour ajouter des produits au panier');
+      return;
+    }
+
     try {
-      setIsLoading(true);
+      setLoading(true);
       const updatedCart = await apiAddToCart(product.id, quantity);
       setCart(updatedCart);
       toast.success(`${product.name} ajouté au panier 🛒`);
     } catch (error: any) {
+      console.error('Error adding to cart:', error);
       const errorMessage = error.response?.data?.error || 'Erreur lors de l\'ajout au panier';
       toast.error(errorMessage);
       throw error;
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
+  // Mettre à jour la quantité d'un produit
   const updateQuantity = async (productId: string, quantity: number) => {
+    if (!user) return;
+
     try {
-      setIsLoading(true);
+      setLoading(true);
+      
+      if (quantity === 0) {
+        await removeFromCart(productId);
+        return;
+      }
+
       const updatedCart = await apiUpdateCartItem(productId, quantity);
       setCart(updatedCart);
-      toast.success('Quantité mise à jour ✅');
     } catch (error: any) {
-      const errorMessage = error.response?.data?.error || 'Erreur lors de la mise à jour';
-      toast.error(errorMessage);
+      console.error('Error updating quantity:', error);
+      toast.error('Erreur lors de la mise à jour');
       throw error;
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
+  // Supprimer un produit du panier
   const removeFromCart = async (productId: string) => {
+    if (!user) return;
+
     try {
-      setIsLoading(true);
-      const updatedCart = await apiUpdateCartItem(productId, 0);
+      setLoading(true);
+      const updatedCart = await apiRemoveCartItem(productId);
       setCart(updatedCart);
-      toast.success('Produit retiré du panier 🗑️');
+      toast.success('Produit retiré du panier');
     } catch (error: any) {
-      const errorMessage = error.response?.data?.error || 'Erreur lors de la suppression';
-      toast.error(errorMessage);
+      console.error('Error removing from cart:', error);
+      toast.error('Erreur lors de la suppression');
       throw error;
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
+  // Vider tout le panier
   const clearCart = async () => {
+    if (!user) return;
+
     try {
-      setIsLoading(true);
+      setLoading(true);
       await apiClearCart();
       setCart([]);
       toast.success('Panier vidé');
     } catch (error: any) {
-      const errorMessage = error.response?.data?.error || 'Erreur lors du vidage du panier';
-      toast.error(errorMessage);
+      console.error('Error clearing cart:', error);
+      toast.error('Erreur lors de la suppression du panier');
       throw error;
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
+  // Rafraîchir le panier
   const refreshCart = async () => {
     await loadCart();
   };
 
+  // Calculer le nombre total d'articles
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+
+  // Calculer le total du panier
   const cartTotal = cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
 
   return (
-    <CartContext.Provider 
-      value={{ 
-        cart, 
-        cartCount, 
-        cartTotal, 
-        isLoading,
-        addToCart, 
-        updateQuantity, 
-        removeFromCart, 
+    <CartContext.Provider
+      value={{
+        cart,
+        cartCount,
+        cartTotal,
+        loading,
+        addToCart,
+        updateQuantity,
+        removeFromCart,
         clearCart,
-        refreshCart
+        refreshCart,
       }}
     >
       {children}

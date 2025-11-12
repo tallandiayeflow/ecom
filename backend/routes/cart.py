@@ -1,39 +1,58 @@
 from flask import Blueprint, request, jsonify
-from utils.database import execute_query, get_db_connection
+from utils.database import execute_query
 from utils.auth import token_required
 import uuid
 import json
 
 bp = Blueprint('cart', __name__)
 
-@bp.route('', methods=['GET'])
-@token_required
-def get_cart(current_user):
-    """Get user's cart"""
+
+def _get_cart_items(user_id):
+    """Helper function to get cart items (without decorator)"""
     cart_items = execute_query(
-        """SELECT ci.*, p.name, p.price, p.image_url, p.stock, c.name as category_name
+        """SELECT ci.*, 
+           p.name, p.description, p.price, p.original_price, p.image_url, p.images,
+           p.stock, p.brand, c.name as category_name, c.slug as category_slug
            FROM cart_items ci
            JOIN products p ON ci.product_id = p.id
            LEFT JOIN categories c ON p.category_id = c.id
            WHERE ci.user_id = %s""",
-        (current_user['user_id'],),
+        (user_id,),
         fetch_all=True
     )
     
-    formatted_items = [{
-        'id': item['id'],
-        'product': {
-            'id': item['product_id'],
-            'name': item['name'],
-            'price': float(item['price']),
-            'image': item['image_url'],
-            'category': item['category_name'],
-            'stock': item['stock']
-        },
-        'quantity': item['quantity']
-    } for item in cart_items]
+    formatted_items = []
+    for item in cart_items:
+        # Parser les images JSON
+        images_list = json.loads(item['images']) if item.get('images') else []
+        
+        formatted_items.append({
+            'productId': item['product_id'],
+            'quantity': item['quantity'],
+            'product': {
+                'id': item['product_id'],
+                'name': item['name'],
+                'description': item.get('description', ''),
+                'price': float(item['price']),
+                'originalPrice': float(item['original_price']) if item.get('original_price') else None,
+                'images': images_list,
+                'category': item['category_slug'],
+                'inStock': item['stock'] > 0,
+                'stockQuantity': item['stock'],
+                'brand': item.get('brand')
+            }
+        })
     
-    return jsonify(formatted_items), 200
+    return formatted_items
+
+
+@bp.route('', methods=['GET'])
+@token_required
+def get_cart(current_user):
+    """Get user's cart with full product details"""
+    cart_items = _get_cart_items(current_user['user_id'])
+    return jsonify(cart_items), 200
+
 
 @bp.route('', methods=['POST'])
 @token_required
@@ -46,6 +65,16 @@ def add_to_cart(current_user):
     if not product_id or quantity < 1:
         return jsonify({'error': 'Invalid product or quantity'}), 400
     
+    # Vérifier le stock
+    product = execute_query(
+        "SELECT stock FROM products WHERE id = %s",
+        (product_id,),
+        fetch_one=True
+    )
+    
+    if not product:
+        return jsonify({'error': 'Product not found'}), 404
+    
     # Check if item already in cart
     existing = execute_query(
         "SELECT id, quantity FROM cart_items WHERE user_id = %s AND product_id = %s",
@@ -56,12 +85,21 @@ def add_to_cart(current_user):
     if existing:
         # Update quantity
         new_quantity = existing['quantity'] + quantity
+        
+        # Vérifier le stock disponible
+        if new_quantity > product['stock']:
+            return jsonify({'error': f'Stock insuffisant. Disponible: {product["stock"]}'}), 400
+        
         execute_query(
             "UPDATE cart_items SET quantity = %s WHERE id = %s",
             (new_quantity, existing['id']),
             commit=True
         )
     else:
+        # Vérifier le stock disponible
+        if quantity > product['stock']:
+            return jsonify({'error': f'Stock insuffisant. Disponible: {product["stock"]}'}), 400
+        
         # Insert new item
         cart_item_id = str(uuid.uuid4())
         execute_query(
@@ -70,7 +108,10 @@ def add_to_cart(current_user):
             commit=True
         )
     
-    return get_cart(current_user)
+    # ✅ CORRECTION : Utiliser la fonction helper au lieu d'appeler get_cart
+    cart_items = _get_cart_items(current_user['user_id'])
+    return jsonify(cart_items), 200
+
 
 @bp.route('/<product_id>', methods=['PUT'])
 @token_required
@@ -82,13 +123,29 @@ def update_cart_item(current_user, product_id):
     if quantity < 1:
         return jsonify({'error': 'Invalid quantity'}), 400
     
+    # Vérifier le stock
+    product = execute_query(
+        "SELECT stock FROM products WHERE id = %s",
+        (product_id,),
+        fetch_one=True
+    )
+    
+    if not product:
+        return jsonify({'error': 'Product not found'}), 404
+    
+    if quantity > product['stock']:
+        return jsonify({'error': f'Stock insuffisant. Disponible: {product["stock"]}'}), 400
+    
     execute_query(
         "UPDATE cart_items SET quantity = %s WHERE user_id = %s AND product_id = %s",
         (quantity, current_user['user_id'], product_id),
         commit=True
     )
     
-    return get_cart(current_user)
+    # ✅ CORRECTION : Utiliser la fonction helper
+    cart_items = _get_cart_items(current_user['user_id'])
+    return jsonify(cart_items), 200
+
 
 @bp.route('/<product_id>', methods=['DELETE'])
 @token_required
@@ -100,7 +157,10 @@ def remove_from_cart(current_user, product_id):
         commit=True
     )
     
-    return get_cart(current_user)
+    # ✅ CORRECTION : Utiliser la fonction helper
+    cart_items = _get_cart_items(current_user['user_id'])
+    return jsonify(cart_items), 200
+
 
 @bp.route('', methods=['DELETE'])
 @token_required

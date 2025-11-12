@@ -71,6 +71,7 @@ export interface FlashSale {
   startDate: string;
   endDate: string;
   stock: number;
+  soldCount?: number;
   isActive: boolean;
 }
 

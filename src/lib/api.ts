@@ -228,18 +228,13 @@ export const deleteCategory = async (id: string): Promise<{ message: string }> =
 
 // ==================== CART ENDPOINTS ====================
 
-/**
- * Obtenir le panier de l'utilisateur
- */
+
 export const getCart = async (): Promise<CartItem[]> => {
   const response = await api.get<CartItem[]>('/cart');
   return response.data;
 };
 
-/**
- * Ajouter un produit au panier
- */
-export const addToCart = async (productId: string, quantity: number = 1): Promise<CartItem[]> => {
+export const addToCart = async (productId: string, quantity: number): Promise<CartItem[]> => {
   const response = await api.post<CartItem[]>('/cart', {
     productId,
     quantity,
@@ -247,30 +242,18 @@ export const addToCart = async (productId: string, quantity: number = 1): Promis
   return response.data;
 };
 
-/**
- * Mettre à jour la quantité d'un produit dans le panier
- */
 export const updateCartItem = async (productId: string, quantity: number): Promise<CartItem[]> => {
-  if (quantity === 0) {
-    // Si quantité = 0, supprimer l'article
-    return await removeFromCart(productId);
-  }
-  
-  const response = await api.put<CartItem[]>(`/cart/${productId}`, { quantity });
+  const response = await api.put<CartItem[]>(`/cart/${productId}`, {
+    quantity,
+  });
   return response.data;
 };
 
-/**
- * Retirer un produit du panier
- */
-export const removeFromCart = async (productId: string): Promise<CartItem[]> => {
+export const removeCartItem = async (productId: string): Promise<CartItem[]> => {
   const response = await api.delete<CartItem[]>(`/cart/${productId}`);
   return response.data;
 };
 
-/**
- * Vider complètement le panier
- */
 export const clearCart = async (): Promise<void> => {
   await api.delete('/cart');
 };
