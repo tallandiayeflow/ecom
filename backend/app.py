@@ -1,7 +1,7 @@
 from flask import Flask, jsonify
 from flask_cors import CORS
 from config import Config
-from routes import auth, products, categories, cart, orders, flash_sales, banners, vouchers, admin
+from routes import auth, products, categories, cart, orders, flash_sales, banners, vouchers, admin,user
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -25,6 +25,7 @@ app.register_blueprint(flash_sales.bp, url_prefix='/api/flash-sales')
 app.register_blueprint(banners.bp, url_prefix='/api/banners')
 app.register_blueprint(vouchers.bp, url_prefix='/api/vouchers')
 app.register_blueprint(admin.bp, url_prefix='/api/admin')
+app.register_blueprint(user.bp, url_prefix='/api/user')
 
 # Health check endpoint
 @app.route('/api/health')

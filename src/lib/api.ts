@@ -348,6 +348,51 @@ export const getAdminStats = async (): Promise<AdminStats> => {
   return response.data;
 };
 
+// ==================== USER ====================
+
+export interface UpdateUserProfileData {
+  name: string;
+  email: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+}
+
+/**
+ * Récupérer les infos utilisateur (profil, points fidélité)
+ */
+export const getUserInfo = async (): Promise<{
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  loyaltyPoints: number;
+}> => {
+  const response = await api.get('/user');
+  return response.data;
+};
+
+/**
+ * Modifier le profil utilisateur
+ */
+export const updateUserProfile = async (
+  data: UpdateUserProfileData
+): Promise<{ message: string }> => {
+  const response = await api.put('/user', data);
+  return response.data;
+};
+
+/**
+ * Récupérer les commandes de l'utilisateur
+ */
+export const getUserOrders = async (): Promise<Order[]> => {
+  const response = await api.get('/user/orders');
+  return response.data;
+};
+
+
 // ==================== UTILITY ====================
 
 export const isAuthenticated = (): boolean => {
