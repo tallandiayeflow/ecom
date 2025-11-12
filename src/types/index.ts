@@ -1,3 +1,4 @@
+// ==================== USER ====================
 export interface User {
   id: string;
   email: string;
@@ -6,11 +7,13 @@ export interface User {
   address?: string;
   city?: string;
   role: 'user' | 'admin';
+  isAdmin?: boolean;  // ✅ Ajout pour compatibilité
   loyaltyPoints: number;
   createdAt: string;
   isActive: boolean;
 }
 
+// ==================== PRODUCT ====================
 export interface Product {
   id: string;
   name: string;
@@ -18,30 +21,36 @@ export interface Product {
   price: number;
   originalPrice?: number;
   category: string;
+  categoryId?: string;  // ✅ Ajout pour l'ID de catégorie
   images: string[];
+  image_url?: string;  // ✅ Fallback pour une seule image
   inStock: boolean;
   stockQuantity: number;
   specifications: Record<string, string>;
   featured?: boolean;
   createdAt: string;
-  brand:string
+  brand: string;
 }
 
+// ==================== CATEGORY ====================
 export interface Category {
   id: string;
   name: string;
   slug: string;
   icon?: string;
-  productCount: number;
+  productCount?: number;  // ✅ Optionnel car calculé dynamiquement
 }
 
+// ==================== CART ====================
 export interface CartItem {
   productId: string;
   quantity: number;
   product: Product;
 }
 
-// Types pour la création de commande
+// ==================== ORDERS ====================
+
+// Interface pour créer une commande
 export interface CreateOrderData {
   items: {
     productId: string;
@@ -59,14 +68,25 @@ export interface CreateOrderData {
   discount?: number;
 }
 
-// Interface pour la commande créée (retour API)
+// Interface pour un item de commande
+export interface OrderItem {
+  id: string;
+  productId?: string;  // ✅ Optionnel
+  productName: string;  // ✅ Nom principal
+  productImage?: string;  // ✅ Optionnel
+  price: number;
+  quantity: number;
+  name:string
+}
+
+// Interface pour une commande
 export interface Order {
   id: string;
-  userId: string;
+  userId?: string;  // ✅ Optionnel pour le frontend
   items: OrderItem[];
   total: number;
-  discount: number;
-  finalTotal: number;
+  discount?: number;  // ✅ Optionnel
+  finalTotal?: number;  // ✅ Optionnel
   status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
   shippingAddress: {
     name: string;
@@ -75,40 +95,19 @@ export interface Order {
     city: string;
   };
   voucherCode?: string;
-  loyaltyPointsEarned: number;
+  loyaltyPointsEarned?: number;  // ✅ Optionnel
   qrCode?: string;
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;  // ✅ Optionnel
+  updatedAt?: string;  // ✅ Optionnel
 }
 
-export interface OrderItem {
-  id: string;
-  productId: string;
-  productName: string;
-  productImage: string;
-  price: number;
-  quantity: number;
-}
+// ==================== VOUCHERS ====================
 
-// Type pour la validation de voucher
+// Interface pour la validation de voucher
 export interface VoucherValidationResult {
   valid: boolean;
   discount: number;
   message?: string;
-}
-
-
-export interface FlashSale {
-  id: string;
-  productId: string;
-  product: Product;
-  discountPrice: number;
-  discountPercentage: number;
-  startDate: string;
-  endDate: string;
-  stock: number;
-  soldCount?: number;
-  isActive: boolean;
 }
 
 export interface Voucher {
@@ -124,14 +123,38 @@ export interface Voucher {
   createdAt: string;
 }
 
-export interface BannerSlide {
-  images: string[];
+// ==================== FLASH SALES ====================
+export interface FlashSale {
   id: string;
   productId: string;
-  product: Product;
+  product?: Product;  // ✅ Optionnel car pas toujours retourné
+  discountPrice: number;
+  discountPercentage: number;
+  startDate: string;
+  endDate: string;
+  stock: number;
+  soldCount?: number;
+  isActive: boolean;
+}
+
+// ==================== BANNERS ====================
+export interface BannerSlide {
+  id: string;
   title: string;
-  subtitle: string;
+  subtitle?: string;  // ✅ Optionnel
   imageUrl: string;
+  productId?: string;  // ✅ Optionnel
+  product?: Product;  // ✅ Optionnel
+  images?: string[];  // ✅ Optionnel pour compatibilité
   order: number;
   isActive: boolean;
+  link?: string;  // ✅ Ajout pour lien externe
+}
+
+// ==================== ADMIN ====================
+export interface AdminStats {
+  totalUsers: number;
+  totalOrders: number;
+  totalRevenue: number;
+  pendingOrders: number;
 }

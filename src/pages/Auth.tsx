@@ -144,8 +144,8 @@ const Auth = () => {
       toast.info('Identifiants admin chargés');
     } else {
       setLoginData({
-        email: 'user@phoneshop.com',
-        password: 'user123',
+        email: 'diourbel200901@gmail.com',
+        password: 'azerty',
       });
       toast.info('Identifiants utilisateur chargés');
     }

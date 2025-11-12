@@ -1,20 +1,19 @@
-import { useEffect } from 'react';
-import { useNavigate, Outlet } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
-import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import {
-  LayoutDashboard,
-  Package,
   FolderTree,
-  ShoppingBag,
-  Zap,
   Image,
-  Users,
-  Ticket,
+  LayoutDashboard,
   LogOut,
+  Package,
+  ShoppingBag,
+  Ticket,
+  Users,
+  Zap,
 } from 'lucide-react';
+import { useEffect } from 'react';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 const AdminDashboard = () => {
   const { user, logout } = useAuth();
