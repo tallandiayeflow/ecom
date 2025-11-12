@@ -88,6 +88,7 @@ export interface Voucher {
 }
 
 export interface BannerSlide {
+  images: string[];
   id: string;
   productId: string;
   product: Product;
