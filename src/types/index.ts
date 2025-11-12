@@ -41,10 +41,29 @@ export interface CartItem {
   product: Product;
 }
 
+// Types pour la création de commande
+export interface CreateOrderData {
+  items: {
+    productId: string;
+    quantity: number;
+    price: number;
+    name: string;
+  }[];
+  shippingAddress: {
+    name: string;
+    phone: string;
+    address: string;
+    city: string;
+  };
+  voucherCode?: string;
+  discount?: number;
+}
+
+// Interface pour la commande créée (retour API)
 export interface Order {
   id: string;
   userId: string;
-  items: CartItem[];
+  items: OrderItem[];
   total: number;
   discount: number;
   finalTotal: number;
@@ -57,10 +76,27 @@ export interface Order {
   };
   voucherCode?: string;
   loyaltyPointsEarned: number;
-  qrCode: string;
+  qrCode?: string;
   createdAt: string;
   updatedAt: string;
 }
+
+export interface OrderItem {
+  id: string;
+  productId: string;
+  productName: string;
+  productImage: string;
+  price: number;
+  quantity: number;
+}
+
+// Type pour la validation de voucher
+export interface VoucherValidationResult {
+  valid: boolean;
+  discount: number;
+  message?: string;
+}
+
 
 export interface FlashSale {
   id: string;

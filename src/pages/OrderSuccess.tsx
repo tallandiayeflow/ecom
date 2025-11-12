@@ -1,143 +1,319 @@
-import { useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { CheckCircle, Download, Home } from 'lucide-react';
+import { getOrder } from '@/lib/api';
+import confetti from 'canvas-confetti';
+import {
+  ArrowRight,
+  CheckCircle,
+  Download,
+  Gift,
+  Home,
+  MapPin,
+  Package,
+  Phone,
+  ShoppingBag,
+  User
+} from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 const OrderSuccess = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { order, qrCode } = location.state || {};
+  const [order, setOrder] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Récupérer les données depuis location.state (passées depuis Checkout)
+  const { orderId, total, loyaltyPoints } = location.state || {};
 
   useEffect(() => {
-    if (!order) {
+    // Animation confetti
+    confetti({
+      particleCount: 100,
+      spread: 70,
+      origin: { y: 0.6 }
+    });
+
+    // Charger les détails de la commande depuis l'API
+    if (orderId) {
+      loadOrderDetails();
+    } else {
+      // Si pas d'orderId, rediriger vers l'accueil
       navigate('/');
     }
-  }, [order, navigate]);
+  }, [orderId, navigate]);
 
-  if (!order) return null;
+  const loadOrderDetails = async () => {
+    try {
+      setLoading(true);
+      const orderData = await getOrder(orderId);
+      setOrder(orderData);
+    } catch (error) {
+      console.error('Error loading order:', error);
+      // Utiliser les données du state si l'API échoue
+      setOrder({
+        id: orderId,
+        total: total,
+        loyaltyPointsEarned: loyaltyPoints,
+        status: 'pending'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const downloadQRCode = () => {
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-16">
+        <div className="flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!order) {
+    return null;
+  }
+
+  const downloadReceipt = () => {
+    // Générer un reçu simple en texte
+    const receipt = `
+=================================
+        REÇU DE COMMANDE
+=================================
+
+Commande N°: ${order.id}
+Date: ${new Date().toLocaleDateString('fr-FR')}
+Statut: En attente
+
+${order.shippingAddress ? `
+---------------------------------
+ADRESSE DE LIVRAISON
+---------------------------------
+${order.shippingAddress.name}
+${order.shippingAddress.phone}
+${order.shippingAddress.address}
+${order.shippingAddress.city}
+` : ''}
+
+${order.items ? `
+---------------------------------
+ARTICLES
+---------------------------------
+${order.items.map((item: any) => `
+${item.name}
+Quantité: ${item.quantity}
+Prix: ${item.price.toFixed(2)} DH
+Sous-total: ${(item.price * item.quantity).toFixed(2)} DH
+`).join('\n')}
+` : ''}
+
+---------------------------------
+TOTAL: ${(total || order.total).toFixed(2)} DH
+---------------------------------
+
+${loyaltyPoints || order.loyaltyPointsEarned ? `
+Points de fidélité gagnés: ${loyaltyPoints || order.loyaltyPointsEarned}
+` : ''}
+
+Merci pour votre commande !
+=================================
+    `;
+
+    const blob = new Blob([receipt], { type: 'text/plain' });
     const link = document.createElement('a');
-    link.download = `order-${order.id}.png`;
-    link.href = qrCode;
+    link.download = `commande-${order.id}.txt`;
+    link.href = URL.createObjectURL(blob);
     link.click();
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <Card className="max-w-2xl w-full">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-success/20 flex items-center justify-center">
-            <CheckCircle className="h-10 w-10 text-success" />
-          </div>
-          <CardTitle className="text-3xl">Commande confirmée !</CardTitle>
-          <p className="text-muted-foreground">
-            Merci pour votre achat. Votre commande a été enregistrée avec succès.
-          </p>
-        </CardHeader>
-
-        <CardContent className="space-y-6">
-          {/* Order Info */}
-          <div className="p-4 bg-muted rounded-lg">
-            <div className="flex items-center justify-between mb-2">
-              <span className="font-semibold">Numéro de commande</span>
-              <Badge variant="outline" className="text-base">
-                {order.id}
+    <div className="container mx-auto px-4 py-8 max-w-4xl">
+      {/* En-tête de succès */}
+      <Card className="mb-6 border-green-200 bg-gradient-to-r from-green-50 to-emerald-50">
+        <CardContent className="pt-6">
+          <div className="flex flex-col items-center text-center space-y-4">
+            <div className="rounded-full bg-green-100 p-3">
+              <CheckCircle className="h-16 w-16 text-green-600" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-green-900 mb-2">
+                Commande confirmée ! 🎉
+              </h1>
+              <p className="text-green-700">
+                Merci pour votre achat. Votre commande a été enregistrée avec succès.
+              </p>
+            </div>
+            
+            <div className="flex flex-wrap gap-3 justify-center">
+              <Badge variant="outline" className="text-base py-2 px-4">
+                Commande N° <span className="font-mono ml-2">{order.id.substring(0, 8)}</span>
+              </Badge>
+              <Badge className="text-base py-2 px-4 bg-green-600">
+                {(total || order.total)?.toFixed(2)} DH
               </Badge>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="font-semibold">Montant total</span>
-              <span className="text-2xl font-bold text-primary">
-                {order.finalTotal.toFixed(2)}€
-              </span>
-            </div>
           </div>
+        </CardContent>
+      </Card>
 
-          <Separator />
-
-          {/* QR Code */}
-          <div className="text-center space-y-4">
-            <h3 className="text-lg font-semibold">Votre QR Code de commande</h3>
-            <p className="text-sm text-muted-foreground">
-              Présentez ce code lors de la réception de votre commande
-            </p>
-            <div className="flex justify-center">
-              <div className="p-4 bg-white rounded-lg border">
-                <img src={qrCode} alt="QR Code" className="w-64 h-64" />
+      {/* Points de fidélité */}
+      {(loyaltyPoints || order.loyaltyPointsEarned) && (
+        <Card className="mb-6 border-purple-200 bg-gradient-to-r from-purple-50 to-pink-50">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-4">
+              <div className="rounded-full bg-purple-100 p-3">
+                <Gift className="h-8 w-8 text-purple-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-bold text-purple-900">Programme de fidélité</h3>
+                <p className="text-purple-700">
+                  <strong className="text-2xl">{loyaltyPoints || order.loyaltyPointsEarned}</strong> points ajoutés à votre compte
+                </p>
               </div>
             </div>
-            <Button onClick={downloadQRCode} variant="outline">
-              <Download className="mr-2 h-4 w-4" />
-              Télécharger le QR Code
-            </Button>
-          </div>
+          </CardContent>
+        </Card>
+      )}
 
-          <Separator />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        {/* Informations de livraison */}
+        {order.shippingAddress && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MapPin className="h-5 w-5" />
+                Adresse de livraison
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-start gap-2">
+                <User className="h-4 w-4 text-muted-foreground mt-0.5" />
+                <span>{order.shippingAddress.name}</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <Phone className="h-4 w-4 text-muted-foreground mt-0.5" />
+                <span>{order.shippingAddress.phone}</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
+                <div>
+                  <p>{order.shippingAddress.address}</p>
+                  <p className="text-muted-foreground">{order.shippingAddress.city}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
-          {/* Loyalty Points */}
-          <div className="p-4 bg-gradient-primary text-primary-foreground rounded-lg text-center">
-            <div className="text-3xl font-bold mb-2">
-              🎉 +{order.loyaltyPointsEarned} points
+        {/* Statut de la commande */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5" />
+              Statut de la commande
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Statut actuel</span>
+              <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
+                En attente
+              </Badge>
             </div>
-            <p className="text-sm opacity-90">
-              Points de fidélité ajoutés à votre compte
+            <Separator />
+            <p className="text-sm text-muted-foreground">
+              Vous recevrez un email de confirmation avec le suivi de votre commande sous 24h.
             </p>
-          </div>
+            <p className="text-sm text-muted-foreground">
+              Livraison estimée : <strong>2-5 jours ouvrés</strong>
+            </p>
+          </CardContent>
+        </Card>
+      </div>
 
-          {/* Shipping Info */}
-          <div>
-            <h3 className="font-semibold mb-2">Adresse de livraison</h3>
-            <div className="p-4 bg-muted rounded-lg space-y-1 text-sm">
-              <p className="font-medium">{order.shippingAddress.name}</p>
-              <p>{order.shippingAddress.phone}</p>
-              <p>{order.shippingAddress.address}</p>
-              <p>{order.shippingAddress.city}</p>
-            </div>
-          </div>
-
-          {/* Products */}
-          <div>
-            <h3 className="font-semibold mb-2">Produits commandés</h3>
-            <div className="space-y-2">
-              {order.items.map((item: any) => (
-                <div
-                  key={item.productId}
-                  className="flex items-center gap-3 p-3 bg-muted rounded-lg"
-                >
-                  <img
-                    src={item.product.images[0]}
-                    alt={item.product.name}
-                    className="h-16 w-16 object-cover rounded"
-                  />
-                  <div className="flex-1">
-                    <p className="font-medium">{item.product.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      Quantité: {item.quantity}
-                    </p>
+      {/* Articles commandés */}
+      {order.items && order.items.length > 0 && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ShoppingBag className="h-5 w-5" />
+              Articles commandés ({order.items.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {order.items.map((item: any, index: number) => (
+                <div key={index}>
+                  <div className="flex gap-4">
+                    <div className="w-20 h-20 bg-gray-100 rounded-lg flex-shrink-0 flex items-center justify-center">
+                      {item.image || item.product?.images?.[0] ? (
+                        <img
+                          src={item.image || item.product.images[0]}
+                          alt={item.name || item.product?.name}
+                          className="w-full h-full object-cover rounded-lg"
+                        />
+                      ) : (
+                        <Package className="h-8 w-8 text-muted-foreground" />
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-semibold">{item.name || item.product?.name}</h4>
+                      <p className="text-sm text-muted-foreground">
+                        Quantité: {item.quantity}
+                      </p>
+                      <p className="text-sm font-medium mt-1">
+                        {((item.price || item.product?.price) * item.quantity).toFixed(2)} DH
+                      </p>
+                    </div>
                   </div>
-                  <p className="font-semibold">
-                    {(item.product.price * item.quantity).toFixed(2)}€
-                  </p>
+                  {index < order.items.length - 1 && <Separator className="mt-4" />}
                 </div>
               ))}
             </div>
-          </div>
+          </CardContent>
+        </Card>
+      )}
 
-          <Separator />
+      {/* Actions */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <Button
+          variant="outline"
+          onClick={downloadReceipt}
+          className="flex-1"
+        >
+          <Download className="mr-2 h-4 w-4" />
+          Télécharger le reçu
+        </Button>
+        
+        <Button
+          onClick={() => navigate('/orders')}
+          className="flex-1"
+        >
+          Voir mes commandes
+          <ArrowRight className="ml-2 h-4 w-4" />
+        </Button>
+        
+        <Button
+          variant="outline"
+          onClick={() => navigate('/')}
+          className="flex-1"
+        >
+          <Home className="mr-2 h-4 w-4" />
+          Retour à l'accueil
+        </Button>
+      </div>
 
-          {/* Actions */}
-          <div className="flex gap-4">
-            <Button onClick={() => navigate('/')} className="flex-1">
-              <Home className="mr-2 h-4 w-4" />
-              Retour à l'accueil
-            </Button>
-            <Button onClick={() => navigate('/orders')} variant="outline" className="flex-1">
-              Mes commandes
-            </Button>
-          </div>
+      {/* Informations supplémentaires */}
+      <Card className="mt-6 bg-blue-50 border-blue-200">
+        <CardContent className="p-4">
+          <p className="text-sm text-blue-900">
+            <strong>Besoin d'aide ?</strong> Contactez notre service client au +212 XXX XXX XXX 
+            ou par email à support@votresite.com
+          </p>
         </CardContent>
       </Card>
     </div>
