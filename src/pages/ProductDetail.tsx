@@ -183,17 +183,17 @@ const ProductDetail = () => {
           <div className="space-y-1">
             <div className="flex items-baseline gap-2">
               <span className="text-3xl font-bold text-primary">
-                {product.price.toFixed(2)} DH
+                {product.price.toFixed(2)} Fcfa
               </span>
               {product.originalPrice && product.originalPrice !== product.price && (
                 <span className="text-lg text-muted-foreground line-through">
-                  {product.originalPrice.toFixed(2)} DH
+                  {product.originalPrice.toFixed(2)} Fcfa
                 </span>
               )}
             </div>
             {discount > 0 && (
               <p className="text-xs text-green-600 font-medium">
-                Économisez {(product.originalPrice! - product.price).toFixed(2)} DH
+                Économisez {(product.originalPrice! - product.price).toFixed(2)} Fcfa
               </p>
             )}
           </div>
