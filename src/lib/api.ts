@@ -30,8 +30,8 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
+      if (window.location.pathname !== '/auth') {
+        window.location.href = '/auth';
       }
     }
     return Promise.reject(error);
@@ -299,6 +299,12 @@ export const getOrder = async (orderId: string): Promise<Order> => {
   const response = await api.get(`/orders/${orderId}`);
   return response.data;
 };
+
+export const getOrderPubic = async (orderId: string): Promise<Order> => {
+  const response = await api.get(`/orders/public/${orderId}`);
+  return response.data;
+};
+
 
 export const updateOrderStatus = async (
   id: string,

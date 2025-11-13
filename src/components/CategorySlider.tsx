@@ -41,9 +41,7 @@ export const CategorySlider = () => {
     const container = document.getElementById('category-slider');
     if (container) {
       setShowLeftButton(container.scrollLeft > 0);
-      setShowRightButton(
-        container.scrollLeft < container.scrollWidth - container.clientWidth - 10
-      );
+      setShowRightButton(container.scrollLeft < container.scrollWidth - container.clientWidth - 10);
     }
   };
 
@@ -63,9 +61,7 @@ export const CategorySlider = () => {
     );
   }
 
-  if (categories.length === 0) {
-    return null;
-  }
+  if (categories.length === 0) return null;
 
   return (
     <div className="relative group">
@@ -77,43 +73,40 @@ export const CategorySlider = () => {
           className="absolute left-0 top-1/2 -translate-y-1/2 z-10 shadow-lg bg-background opacity-0 group-hover:opacity-100 transition-opacity duration-300 hidden md:flex"
           onClick={() => scroll('left')}
         >
-          <ChevronLeft className="h-4 w-4" />
+          <ChevronLeft className="h-5 w-5" />
         </Button>
       )}
 
-      {/* Container des catégories - ✅ Style inline pour masquer la scrollbar */}
+      {/* Container Slider */}
       <div
         id="category-slider"
         className="flex gap-4 overflow-x-auto scroll-smooth py-2 px-1"
-        style={{ 
+        style={{
           scrollbarWidth: 'none',
           msOverflowStyle: 'none',
           WebkitOverflowScrolling: 'touch'
         }}
       >
         {categories.map((category) => (
-          <button
+          <div
             key={category.id}
             onClick={() => navigate(`/products?category=${category.slug}`)}
-            className="flex-shrink-0 flex flex-col items-center gap-2 p-4 rounded-lg border bg-card hover:bg-accent hover:shadow-md transition-all duration-200 min-w-[120px] group/item"
+            className="flex-shrink-0 flex flex-col items-center justify-center p-5 rounded-xl border bg-card hover:bg-accent/10 hover:shadow-lg transition-all duration-300 min-w-[140px] max-w-[180px] cursor-pointer text-center"
           >
-            {/* Icône */}
-            <div className="text-4xl transition-transform group-hover/item:scale-110">
-              {category.icon || '📱'}
-            </div>
-            
-            {/* Nom de la catégorie */}
-            <span className="text-sm font-medium text-center line-clamp-2">
+            {/* Nom catégorie uniquement */}
+            <h3 className="text-sm font-semibold line-clamp-2">
               {category.name}
-            </span>
-            
+            </h3>
+
             {/* Nombre de produits */}
             {category.productCount > 0 && (
-              <span className="text-xs text-muted-foreground">
+              <span className="text-xs text-muted-foreground mt-1">
                 {category.productCount} {category.productCount === 1 ? 'produit' : 'produits'}
               </span>
             )}
-          </button>
+
+            
+          </div>
         ))}
       </div>
 
@@ -125,7 +118,7 @@ export const CategorySlider = () => {
           className="absolute right-0 top-1/2 -translate-y-1/2 z-10 shadow-lg bg-background opacity-0 group-hover:opacity-100 transition-opacity duration-300 hidden md:flex"
           onClick={() => scroll('right')}
         >
-          <ChevronRight className="h-4 w-4" />
+          <ChevronRight className="h-5 w-5" />
         </Button>
       )}
     </div>
