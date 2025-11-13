@@ -110,18 +110,20 @@ export interface VoucherValidationResult {
   message?: string;
 }
 
-export interface Voucher {
-  id: string;
+export interface VoucherData {
+  id?: string;
   code: string;
   discountType: 'percentage' | 'fixed';
   discountValue: number;
   minPurchase: number;
   maxUses: number;
-  usedCount: number;
-  expiryDate: string;
+  usedCount?: number; // readonly
+  expiryDate: string; // ISO format
   isActive: boolean;
-  createdAt: string;
+  discount: number; // champ supplémentaire
 }
+
+
 
 // ==================== FLASH SALES ====================
 export interface FlashSale {

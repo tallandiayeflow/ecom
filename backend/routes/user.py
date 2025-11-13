@@ -5,13 +5,12 @@ import json
 
 bp = Blueprint('user', __name__)
 
-# Récupérer infos utilisateur
 @bp.route('', methods=['GET'])
 @token_required
 def get_user_info(current_user):
     user_id = current_user['user_id']
     user = execute_query(
-        "SELECT id, name, email, loyalty_points FROM users WHERE id = %s",
+        "SELECT id, name, email, phone, address, loyalty_points FROM users WHERE id = %s",
         (user_id,),
         fetch_one=True
     )
@@ -22,10 +21,11 @@ def get_user_info(current_user):
         'id': user['id'],
         'name': user['name'],
         'email': user['email'],
+        'phone': user.get('phone'),
+        'address': user.get('address'),
         'loyaltyPoints': user.get('loyalty_points', 0)
     })
 
-# Modifier infos utilisateur
 @bp.route('', methods=['PUT'])
 @token_required
 def update_user_info(current_user):
@@ -34,26 +34,24 @@ def update_user_info(current_user):
 
     name = data.get('name')
     email = data.get('email')
-    
+    phone = data.get('phone')
+    address = data.get('address')
 
-    # Simple validation
     if not name or not email:
         return jsonify({'error': 'Nom et email sont requis'}), 400
 
-    # Vérifier que email n'est pas déjà pris par un autre utilisateur
     existing = execute_query("SELECT id FROM users WHERE email = %s AND id != %s", (email, user_id), fetch_one=True)
     if existing:
         return jsonify({'error': 'Email déjà utilisé'}), 409
 
     execute_query(
-        "UPDATE users SET name = %s, email = %s",
-        (name, email),
+        "UPDATE users SET name = %s, email = %s, phone = %s, address = %s WHERE id = %s",
+        (name, email, phone, address, user_id),
         commit=True
     )
 
     return jsonify({'message': 'Profil mis à jour avec succès'}), 200
 
-# Récupérer commandes utilisateur
 @bp.route('/orders', methods=['GET'])
 @token_required
 def get_user_orders(current_user):
@@ -83,7 +81,7 @@ def get_user_orders(current_user):
             'items': [{
                 'id': item['id'],
                 'productId': item.get('product_id'),
-                'name': item['product_name'],  # Note : 'name' ici selon frontend
+                'name': item['product_name'],
                 'productImage': item.get('product_image'),
                 'price': float(item['price']),
                 'quantity': item['quantity']

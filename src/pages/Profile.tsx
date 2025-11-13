@@ -12,7 +12,7 @@ import type { Order } from '@/types';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@radix-ui/react-dialog';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { Award, Loader2, Mail, MapPin, Package, Phone, User } from 'lucide-react';
+import { Award, Loader2, Mail, Package, Phone, User } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -25,7 +25,6 @@ const Profile = () => {
     email: '',
     phone: '',
     address: '',
-    city: '',
   });
   const [orders, setOrders] = useState<Order[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
@@ -49,7 +48,7 @@ const Profile = () => {
         email: data.email || '',
         phone: data.phone || '',
         address: data.address || '',
-        city: data.city || '',
+
       });
       setloyaltyPoints(data.loyaltyPoints)
     } catch {
@@ -126,11 +125,8 @@ const Profile = () => {
                       <Label htmlFor="phone"><Phone className="inline h-4 w-4 mr-2" />Téléphone</Label>
                       <Input id="phone" value={formData.phone} onChange={e => handleInputChange('phone', e.target.value)} />
                     </div>
-                    <div>
-                      <Label htmlFor="city"><MapPin className="inline h-4 w-4 mr-2" />Ville</Label>
-                      <Input id="city" value={formData.city} onChange={e => handleInputChange('city', e.target.value)} />
-                    </div>
-                    <div className="sm:col-span-2">
+
+                    <div >
                       <Label htmlFor="address">Adresse</Label>
                       <Input id="address" value={formData.address} onChange={e => handleInputChange('address', e.target.value)} />
                     </div>

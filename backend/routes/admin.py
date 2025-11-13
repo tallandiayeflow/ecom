@@ -2,32 +2,86 @@ from flask import Blueprint, request, jsonify
 from utils.database import execute_query
 from utils.auth import admin_required
 import json
+from utils.auth import hash_password
 
 bp = Blueprint('admin', __name__)
+def is_admin(current_user):
+    return current_user.get('role') == 'admin'
 
 @bp.route('/users', methods=['GET'])
 @admin_required
-def get_all_users(current_user):
-    """Get all users (admin only)"""
+def admin_list_users(current_user):
+    if not is_admin(current_user):
+        return jsonify({"error": "Access denied"}), 403
+    
     users = execute_query(
-        """SELECT id, email, name, role, is_active, loyalty_points, created_at
-           FROM users
-           ORDER BY created_at DESC""",
+        "SELECT id, name, email, phone, address FROM users ORDER BY name ASC",
         fetch_all=True
     )
-    
-    formatted_users = [{
-        'id': u['id'],
-        'email': u['email'],
-        'name': u['name'],
-        'role': u['role'],
-        'isActive': bool(u['is_active']),
-        'loyaltyPoints': u['loyalty_points'],
-        'createdAt': u['created_at'].isoformat() if u['created_at'] else None
-    } for u in users]
-    
-    return jsonify(formatted_users), 200
+    return jsonify(users), 200
 
+@bp.route('/users/<user_id>', methods=['PUT'])
+@admin_required
+def admin_update_user(current_user, user_id):
+    if not is_admin(current_user):
+        return jsonify({"error": "Access denied"}), 403
+
+    data = request.get_json()
+    name = data.get('name')
+    email = data.get('email')
+    phone = data.get('phone')
+    address = data.get('address')
+    password = data.get('password')
+
+    if not name or not email:
+        return jsonify({"error": "Name and email are required"}), 400
+
+    existing = execute_query("SELECT id FROM users WHERE email = %s AND id != %s", (email, user_id), fetch_one=True)
+    if existing:
+        return jsonify({"error": "Email already in use"}), 409
+
+    if password:
+        hashed_password = hash_password(password)
+        execute_query(
+            "UPDATE users SET name = %s, email = %s, phone = %s, address = %s, password_hash = %s WHERE id = %s",
+            (name, email, phone, address, hashed_password, user_id),
+            commit=True
+        )
+    else:
+        execute_query(
+            "UPDATE users SET name = %s, email = %s, phone = %s, address = %s WHERE id = %s",
+            (name, email, phone, address, user_id),
+            commit=True
+        )
+    return jsonify({"message": "User updated successfully"}), 200
+
+@bp.route('/users', methods=['POST'])
+@admin_required
+def admin_create_user(current_user):
+    if not is_admin(current_user):
+        return jsonify({"error": "Access denied"}), 403
+
+    data = request.get_json()
+    name = data.get('name')
+    email = data.get('email')
+    phone = data.get('phone')
+    address = data.get('address')
+    password = data.get('password')
+
+    if not name or not email or not password:
+        return jsonify({"error": "Name, email and password are required"}), 400
+
+    existing = execute_query("SELECT id FROM users WHERE email = %s", (email,), fetch_one=True)
+    if existing:
+        return jsonify({"error": "Email already in use"}), 409
+
+    hashed_password = hash_password(password)
+    execute_query(
+        "INSERT INTO users (name, email, phone, address, password_hash) VALUES (%s, %s, %s, %s, %s)",
+        (name, email, phone, address, hashed_password),
+        commit=True
+    )
+    return jsonify({"message": "User created successfully"}), 201
 @bp.route('/users/<user_id>/toggle-status', methods=['PUT'])
 @admin_required
 def toggle_user_status(current_user, user_id):

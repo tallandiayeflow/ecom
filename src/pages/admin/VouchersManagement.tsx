@@ -1,270 +1,343 @@
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { Plus, Copy } from 'lucide-react';
-import { toast } from 'sonner';
-import type { Voucher } from '@/types';
-import { format } from 'date-fns';
+"use client";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { motion } from "framer-motion";
+import { Loader2, PlusCircle, RefreshCcw, Search, Trash } from "lucide-react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+
+import { createVoucher, deleteVoucher, getVouchers, updateVoucher } from "@/lib/api";
+import type { VoucherData } from "@/types";
 
 const VouchersManagement = () => {
-  const [vouchers, setVouchers] = useState<Voucher[]>([]);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [formData, setFormData] = useState({
-    code: '',
-    discountType: 'percentage' as 'percentage' | 'fixed',
-    discountValue: '',
-    minPurchase: '',
-    maxUses: '',
-    expiryDate: '',
+  const [vouchers, setVouchers] = useState<VoucherData[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [isNew, setIsNew] = useState(false);
+  const [selectedVoucher, setSelectedVoucher] = useState<VoucherData | null>(null);
+  const [form, setForm] = useState<Omit<VoucherData, "id" | "usedCount" | "discount">>({
+    code: "",
+    discountType: "percentage",
+    discountValue: 0,
+    minPurchase: 0,
+    maxUses: 0,
+    expiryDate: "",
+    isActive: true,
   });
+  const [search, setSearch] = useState("");
 
-  const generateCode = () => {
-    const code = 'PROMO' + Math.random().toString(36).substring(2, 8).toUpperCase();
-    setFormData({ ...formData, code });
+  useEffect(() => {
+    fetchVouchers();
+  }, []);
+
+  const fetchVouchers = async () => {
+    try {
+      setLoading(true);
+      const data = await getVouchers();
+      setVouchers(data);
+    } catch {
+      toast.error("Erreur lors du chargement des codes promo");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-
-    const newVoucher: Voucher = {
-      id: `voucher-${Date.now()}`,
-      code: formData.code,
-      discountType: formData.discountType,
-      discountValue: parseFloat(formData.discountValue),
-      minPurchase: parseFloat(formData.minPurchase),
-      maxUses: parseInt(formData.maxUses),
-      usedCount: 0,
-      expiryDate: new Date(formData.expiryDate).toISOString(),
-      isActive: true,
-      createdAt: new Date().toISOString(),
-    };
-
-    setVouchers([...vouchers, newVoucher]);
-    toast.success('Bon d\'achat créé avec succès');
-    setIsDialogOpen(false);
-    setFormData({
-      code: '',
-      discountType: 'percentage',
-      discountValue: '',
-      minPurchase: '',
-      maxUses: '',
-      expiryDate: '',
-    });
+  const openDialog = (voucher?: VoucherData) => {
+    if (voucher) {
+      setSelectedVoucher(voucher);
+      setIsNew(false);
+      setForm({
+        code: voucher.code,
+        discountType: voucher.discountType,
+        discountValue: voucher.discountValue,
+        minPurchase: voucher.minPurchase,
+        maxUses: voucher.maxUses,
+        expiryDate: voucher.expiryDate.slice(0, 10),
+        isActive: voucher.isActive,
+      });
+    } else {
+      setSelectedVoucher(null);
+      setIsNew(true);
+      setForm({
+        code: "",
+        discountType: "percentage",
+        discountValue: 0,
+        minPurchase: 0,
+        maxUses: 0,
+        expiryDate: "",
+        isActive: true,
+      });
+    }
+    setDialogOpen(true);
   };
 
-  const copyCode = (code: string) => {
-    navigator.clipboard.writeText(code);
-    toast.success('Code copié dans le presse-papier');
+  const handleChange = (field: keyof typeof form, value: string | number | boolean) => {
+    setForm((prev) => ({ ...prev, [field]: value }));
   };
+
+  const handleSave = async () => {
+    if (!form.code.trim()) {
+      toast.error("Le code est obligatoire");
+      return;
+    }
+    try {
+      if (isNew) {
+        await createVoucher(form);
+        toast.success("Code promo créé avec succès 🎉");
+      } else if (selectedVoucher) {
+        await updateVoucher(selectedVoucher.id!, form);
+        toast.success("Code promo mis à jour ✅");
+      }
+      setDialogOpen(false);
+      fetchVouchers();
+    } catch {
+      toast.error("Erreur lors de la sauvegarde");
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Confirmez-vous la suppression de ce code promo ?")) return;
+    try {
+      await deleteVoucher(id);
+      toast.success("Code promo supprimé 🗑️");
+      fetchVouchers();
+    } catch {
+      toast.error("Erreur lors de la suppression");
+    }
+  };
+
+  const filteredVouchers = vouchers.filter(v => v.code.toLowerCase().includes(search.toLowerCase()));
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="p-8 max-w-7xl mx-auto space-y-8">
+      {/* Header */}
+      <motion.header
+        className="flex flex-col sm:flex-row justify-between items-center gap-4"
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+      >
         <div>
-          <h1 className="text-3xl font-bold">Gestion des Bons d'Achat</h1>
-          <p className="text-muted-foreground mt-1">
-            Créez des codes promotionnels
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
+            🎁 Gestion des Codes Promo
+          </h1>
+          <p className="text-muted-foreground mt-1 text-sm">
+            Créez, modifiez et gérez vos coupons de réduction facilement.
           </p>
         </div>
-        <Button onClick={() => setIsDialogOpen(true)} className="w-full sm:w-auto">
-          <Plus className="mr-2 h-4 w-4" />
-          Générer un bon d'achat
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={fetchVouchers} disabled={loading}>
+            {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <RefreshCcw className="w-4 h-4 mr-2" />}
+            Actualiser
+          </Button>
+          <Button
+            onClick={() => openDialog()}
+            className="bg-gradient-to-r from-purple-500 to-blue-500 hover:opacity-90 transition-opacity"
+          >
+            <PlusCircle className="w-4 h-4 mr-1" />
+            Nouveau code
+          </Button>
+        </div>
+      </motion.header>
+
+      {/* Search Bar */}
+      <div className="relative max-w-md">
+        <Search className="absolute left-3 top-3 text-muted-foreground w-4 h-4" />
+        <Input
+          placeholder="Rechercher un code promo..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="pl-10 py-2"
+        />
       </div>
 
-      <div className="rounded-lg border bg-card overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Code</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Réduction</TableHead>
-              <TableHead>Achat minimum</TableHead>
-              <TableHead>Utilisations</TableHead>
-              <TableHead>Date d'expiration</TableHead>
-              <TableHead>Statut</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {vouchers.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                  Aucun bon d'achat créé pour le moment
-                </TableCell>
+      {/* Table */}
+      <motion.div
+        className="bg-card rounded-2xl border shadow-md overflow-hidden"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+      >
+        {filteredVouchers.length === 0 ? (
+          <p className="text-center text-muted-foreground py-10 text-sm">
+            Aucun code promo trouvé 💤
+          </p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/40 text-sm">
+                <TableHead>Code</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Valeur</TableHead>
+                <TableHead>Min Achat</TableHead>
+                <TableHead>Max Utilisations</TableHead>
+                <TableHead>Utilisées</TableHead>
+                <TableHead>Expiration</TableHead>
+                <TableHead>Actif</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
-            ) : (
-              vouchers.map((voucher) => (
-                <TableRow key={voucher.id}>
+            </TableHeader>
+            <TableBody>
+              {filteredVouchers.map((voucher, idx) => (
+                <motion.tr
+                  key={voucher.id}
+                  initial={{ opacity: 0, y: 5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.04 }}
+                  className="hover:bg-muted/20 transition-colors"
+                >
+                  <TableCell className="font-medium">{voucher.code}</TableCell>
                   <TableCell>
-                    <code className="font-mono font-bold text-primary">{voucher.code}</code>
+                    {voucher.discountType === "percentage" ? "Pourcentage" : "Fixe"}
                   </TableCell>
+                  <TableCell>{voucher.discountValue}</TableCell>
+                  <TableCell>{voucher.minPurchase}</TableCell>
+                  <TableCell>{voucher.maxUses}</TableCell>
+                  <TableCell>{voucher.usedCount || 0}</TableCell>
+                  <TableCell>{voucher.expiryDate?.slice(0, 10)}</TableCell>
                   <TableCell>
-                    <Badge variant="outline">
-                      {voucher.discountType === 'percentage' ? 'Pourcentage' : 'Fixe'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="font-medium">
-                    {voucher.discountType === 'percentage'
-                      ? `${voucher.discountValue}%`
-                      : `${voucher.discountValue} DH`}
-                  </TableCell>
-                  <TableCell>{voucher.minPurchase} DH</TableCell>
-                  <TableCell>
-                    {voucher.usedCount} / {voucher.maxUses}
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {format(new Date(voucher.expiryDate), 'dd/MM/yyyy')}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={voucher.isActive ? 'default' : 'secondary'}>
-                      {voucher.isActive ? 'Actif' : 'Expiré'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => copyCode(voucher.code)}
-                      title="Copier le code"
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                        voucher.isActive
+                          ? "bg-green-100 text-green-700"
+                          : "bg-red-100 text-red-700"
+                      }`}
                     >
-                      <Copy className="h-4 w-4" />
+                      {voucher.isActive ? "Oui" : "Non"}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-right space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openDialog(voucher)}
+                      className="hover:bg-blue-50"
+                    >
+                      Modifier
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleDelete(voucher.id!)}
+                    >
+                      <Trash className="w-4 h-4" />
                     </Button>
                   </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+                </motion.tr>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </motion.div>
 
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+      {/* Dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-lg bg-background text-foreground border-border rounded-2xl shadow-xl">
           <DialogHeader>
-            <DialogTitle>Générer un bon d'achat</DialogTitle>
-            <DialogDescription>
-              Créez un code promotionnel pour vos clients
-            </DialogDescription>
+            <DialogTitle className="text-lg font-semibold">
+              {isNew ? "Créer un nouveau code promo" : "Modifier le code promo"}
+            </DialogTitle>
           </DialogHeader>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="code">Code du bon</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="code"
-                  value={formData.code}
-                  onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
-                  placeholder="PROMO2024"
-                  required
-                />
-                <Button type="button" variant="outline" onClick={generateCode}>
-                  Générer
-                </Button>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="discountType">Type de réduction</Label>
-                <Select
-                  value={formData.discountType}
-                  onValueChange={(value: 'percentage' | 'fixed') =>
-                    setFormData({ ...formData, discountType: value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="percentage">Pourcentage</SelectItem>
-                    <SelectItem value="fixed">Montant fixe</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="discountValue">
-                  Valeur {formData.discountType === 'percentage' ? '(%)' : '(DH)'}
-                </Label>
-                <Input
-                  id="discountValue"
-                  type="number"
-                  step="0.01"
-                  value={formData.discountValue}
-                  onChange={(e) => setFormData({ ...formData, discountValue: e.target.value })}
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="minPurchase">Achat minimum (DH)</Label>
-                <Input
-                  id="minPurchase"
-                  type="number"
-                  step="0.01"
-                  value={formData.minPurchase}
-                  onChange={(e) => setFormData({ ...formData, minPurchase: e.target.value })}
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="maxUses">Utilisations max</Label>
-                <Input
-                  id="maxUses"
-                  type="number"
-                  value={formData.maxUses}
-                  onChange={(e) => setFormData({ ...formData, maxUses: e.target.value })}
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="expiryDate">Date d'expiration</Label>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSave();
+            }}
+            className="space-y-4 mt-4"
+          >
+            <div>
+              <Label htmlFor="code">Code</Label>
               <Input
-                id="expiryDate"
-                type="date"
-                value={formData.expiryDate}
-                onChange={(e) => setFormData({ ...formData, expiryDate: e.target.value })}
+                id="code"
+                value={form.code}
+                onChange={(e) => handleChange("code", e.target.value)}
                 required
               />
             </div>
-
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+            <div>
+              <Label htmlFor="discountType">Type de réduction</Label>
+              <select
+                id="discountType"
+                value={form.discountType}
+                onChange={(e) =>
+                  handleChange("discountType", e.target.value)
+                }
+                className="w-full px-3 py-2 border rounded-md bg-background"
+              >
+                <option value="percentage">Pourcentage</option>
+                <option value="fixed">Fixe</option>
+              </select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="discountValue">Valeur</Label>
+                <Input
+                  id="discountValue"
+                  type="number"
+                  value={form.discountValue}
+                  onChange={(e) =>
+                    handleChange("discountValue", Number(e.target.value))
+                  }
+                />
+              </div>
+              <div>
+                <Label htmlFor="minPurchase">Min Achat</Label>
+                <Input
+                  id="minPurchase"
+                  type="number"
+                  value={form.minPurchase}
+                  onChange={(e) =>
+                    handleChange("minPurchase", Number(e.target.value))
+                  }
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="maxUses">Max Utilisations</Label>
+                <Input
+                  id="maxUses"
+                  type="number"
+                  value={form.maxUses}
+                  onChange={(e) =>
+                    handleChange("maxUses", Number(e.target.value))
+                  }
+                />
+              </div>
+              <div>
+                <Label htmlFor="expiryDate">Expiration</Label>
+                <Input
+                  id="expiryDate"
+                  type="date"
+                  value={form.expiryDate}
+                  onChange={(e) =>
+                    handleChange("expiryDate", e.target.value)
+                  }
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                id="isActive"
+                type="checkbox"
+                checked={form.isActive}
+                onChange={(e) => handleChange("isActive", e.target.checked)}
+                className="accent-blue-500"
+              />
+              <Label htmlFor="isActive">Actif</Label>
+            </div>
+            <div className="flex justify-end gap-2 pt-4">
+              <Button variant="outline" onClick={() => setDialogOpen(false)}>
                 Annuler
               </Button>
-              <Button type="submit">Créer le bon</Button>
-            </DialogFooter>
+              <Button
+                type="submit"
+                className="bg-gradient-to-r from-blue-500 to-purple-500 hover:opacity-90"
+              >
+                {isNew ? "Créer" : "Enregistrer"}
+              </Button>
+            </div>
           </form>
         </DialogContent>
       </Dialog>

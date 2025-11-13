@@ -51,7 +51,7 @@ import type {
   Order,
   Product,
   User,
-  Voucher,
+  VoucherData,
 } from '@/types';
 
 export interface LoginResponse {
@@ -288,10 +288,31 @@ export const deleteFlashSale = async (id: string): Promise<{ message: string }> 
 
 // ==================== VOUCHERS ====================
 
-export const getVouchers = async (): Promise<Voucher[]> => {
-  const response = await api.get<Voucher[]>('/vouchers');
+export const getVouchers = async (): Promise<VoucherData[]> => {
+  const response = await api.get<VoucherData[]>('/vouchers');
   return response.data;
 };
+
+export const updateVoucher = async (
+  id: string,
+  voucherData: Partial<Omit<VoucherData, 'id' | 'usedCount' | 'discount' | 'discountValue'>>
+): Promise<{ message: string }> => {
+  const response = await api.put<{ message: string }>(`/vouchers/${id}`, voucherData);
+  return response.data;
+};
+export const deleteVoucher = async (id: string): Promise<{ message: string }> => {
+  const response = await api.delete<{ message: string }>(`/vouchers/${id}`);
+  return response.data;
+};
+
+
+export const createVoucher = async (
+  voucherData: Partial<Omit<VoucherData, 'id' | 'usedCount' | 'discount' | 'discountValue'>>
+): Promise<{ message: string }> => {
+  const response = await api.post<{ message: string }>('/vouchers', voucherData);
+  return response.data;
+};
+
 
 export const validateVoucher = async (
   code: string,
@@ -304,10 +325,6 @@ export const validateVoucher = async (
   return response.data;
 };
 
-export const createVoucher = async (voucherData: Partial<Voucher>): Promise<Voucher> => {
-  const response = await api.post<Voucher>('/vouchers', voucherData);
-  return response.data;
-};
 
 // ==================== BANNERS ====================
 
@@ -389,6 +406,27 @@ export const updateUserProfile = async (
  */
 export const getUserOrders = async (): Promise<Order[]> => {
   const response = await api.get('/user/orders');
+  return response.data;
+};
+// Récupérer tous les utilisateurs (admin)
+export const getUsers = async (): Promise<User[]> => {
+  const response = await api.get<User[]>('/admin/users');
+  return response.data;
+};
+
+// Mettre à jour un utilisateur (admin)
+export const updateUser = async (
+  id: string,
+  userData: Partial<{ name: string; email: string; phone?: string; address?: string; password?: string }>
+): Promise<{ message: string }> => {
+  const response = await api.put<{ message: string }>(`/admin/users/${id}`, userData);
+  return response.data;
+};
+
+export const createUser = async (
+  userData: Partial<{ name: string; email: string; phone?: string; address?: string; password?: string }>
+): Promise<{ message: string }> => {
+  const response = await api.post<{ message: string }>(`/admin/users`, userData);
   return response.data;
 };
 
