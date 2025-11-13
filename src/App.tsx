@@ -28,6 +28,8 @@ import FlashSalesManagement from "./pages/admin/FlashSalesManagement";
 import BannersManagement from "./pages/admin/BannersManagement";
 import UsersManagement from "./pages/admin/UsersManagement";
 import VouchersManagement from "./pages/admin/VouchersManagement";
+import InvoicesManagement from "./pages/admin/InvoicesManagement";
+import StockManagement from "./pages/admin/StockManagement";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -79,6 +81,8 @@ const App = () => (
                   <Route path="banners" element={<BannersManagement />} />
                   <Route path="users" element={<UsersManagement />} />
                   <Route path="vouchers" element={<VouchersManagement />} />
+                  <Route path="invoices" element={<InvoicesManagement />} />
+                  <Route path="stock" element={<StockManagement />} />
                 </Route>
 
                 {/* 404 */}

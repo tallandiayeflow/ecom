@@ -56,6 +56,7 @@ export const mockProducts: Product[] = [
       'Batterie': '4422 mAh',
     },
     featured: true,
+    brand: 'Apple',
     createdAt: '2024-01-01T00:00:00Z',
   },
   {
@@ -78,6 +79,7 @@ export const mockProducts: Product[] = [
       'Batterie': '5000 mAh',
     },
     featured: true,
+    brand: 'Samsung',
     createdAt: '2024-01-02T00:00:00Z',
   },
   {
@@ -100,6 +102,7 @@ export const mockProducts: Product[] = [
       'Batterie': '5050 mAh',
     },
     featured: false,
+    brand: 'Google',
     createdAt: '2024-01-03T00:00:00Z',
   },
   {
@@ -123,6 +126,7 @@ export const mockProducts: Product[] = [
       'Autonomie': '10 heures',
     },
     featured: true,
+    brand: 'Apple',
     createdAt: '2024-01-04T00:00:00Z',
   },
   {
@@ -145,6 +149,7 @@ export const mockProducts: Product[] = [
       'Poids': '1.24 kg',
     },
     featured: false,
+    brand: 'Apple',
     createdAt: '2024-01-05T00:00:00Z',
   },
   {
@@ -167,6 +172,7 @@ export const mockProducts: Product[] = [
       'Audio': 'Spatial personnalisé',
     },
     featured: false,
+    brand: 'Apple',
     createdAt: '2024-01-06T00:00:00Z',
   },
   {
@@ -189,6 +195,7 @@ export const mockProducts: Product[] = [
       'Batterie': '5400 mAh',
     },
     featured: false,
+    brand: 'OnePlus',
     createdAt: '2024-01-07T00:00:00Z',
   },
   {
@@ -212,6 +219,7 @@ export const mockProducts: Product[] = [
       'Batterie': '3279 mAh',
     },
     featured: false,
+    brand: 'Apple',
     createdAt: '2024-01-08T00:00:00Z',
   },
 ];
@@ -291,9 +299,13 @@ export const mockOrders: Order[] = [
     userId: 'user-1',
     items: [
       {
+        id: 'item-1',
         productId: 'prod-6',
         quantity: 1,
-        product: mockProducts[5],
+        productName: 'AirPods Pro 2',
+        productImage: 'https://images.unsplash.com/photo-1606841837239-c5a1a4a07af7?w=800',
+        price: 249,
+        name: 'AirPods Pro 2',
       },
     ],
     total: 249,
@@ -316,9 +328,13 @@ export const mockOrders: Order[] = [
     userId: 'user-1',
     items: [
       {
+        id: 'item-2',
         productId: 'prod-8',
         quantity: 1,
-        product: mockProducts[7],
+        productName: 'iPhone 14',
+        productImage: 'https://images.unsplash.com/photo-1663499482523-1c0d3118c9f7?w=800',
+        price: 799,
+        name: 'iPhone 14',
       },
     ],
     total: 799,

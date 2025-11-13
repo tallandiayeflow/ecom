@@ -2,11 +2,13 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import {
+  FileText,
   FolderTree,
   Image,
   LayoutDashboard,
   LogOut,
   Package,
+  PackageSearch,
   ShoppingBag,
   Ticket,
   Users,
@@ -39,6 +41,8 @@ const AdminDashboard = () => {
     { icon: Image, label: 'Bannières', path: '/admin/banners' },
     { icon: Users, label: 'Utilisateurs', path: '/admin/users' },
     { icon: Ticket, label: 'Bons d\'achat', path: '/admin/vouchers' },
+    { icon: FileText, label: 'Factures', path: '/admin/invoices' },
+    { icon: PackageSearch, label: 'Gestion Stock', path: '/admin/stock' },
   ];
 
   const handleLogout = () => {
