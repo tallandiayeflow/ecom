@@ -11,7 +11,7 @@ class Config:
     DATABASE_NAME = os.getenv('DATABASE_NAME', 'phone_shop')
     DATABASE_PORT = int(os.getenv('DATABASE_PORT', 3306))
     
-    # Flask
+    # Flask   
     SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
     
     # JWT
