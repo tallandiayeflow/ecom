@@ -152,14 +152,14 @@ export const FlashSaleSection = () => {
                   <div className="space-y-1">
                     <div className="flex items-baseline gap-2">
                       <span className="text-2xl font-bold text-red-600">
-                        {sale.discountPrice.toFixed(2)} DH
+                        {sale.discountPrice.toFixed(2)} Fcfa
                       </span>
                       <span className="text-sm text-muted-foreground line-through">
-                        {sale.product.price.toFixed(2)} DH
+                        {sale.product.price.toFixed(2)} Fcfa
                       </span>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Économisez {(sale.product.price - sale.discountPrice).toFixed(2)} DH
+                      Économisez {(sale.product.price - sale.discountPrice).toFixed(2)} Fcfa
                     </p>
                   </div>
 
@@ -185,7 +185,7 @@ export const FlashSaleSection = () => {
                     className="w-full mt-2 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
                     onClick={(e) => {
                       e.stopPropagation();
-                      navigate(`/products/${sale.productId}`);
+                      navigate(`/product/${sale.productId}`);
                     }}
                   >
                     Acheter maintenant

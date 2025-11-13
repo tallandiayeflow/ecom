@@ -33,7 +33,7 @@ const Checkout = () => {
   // ✅ Calculer les totaux AVANT de les utiliser
   const shippingCost = cartTotal >= 500 ? 0 : 50;
   const finalTotal = cartTotal - discount + shippingCost;
-  const loyaltyPointsToEarn = Math.floor(finalTotal / 10);
+  const loyaltyPointsToEarn = Math.floor(finalTotal / 100);
 
   useEffect(() => {
     if (cart.length === 0) {
