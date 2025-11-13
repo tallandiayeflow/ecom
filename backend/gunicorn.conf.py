@@ -1,17 +1,22 @@
-# gunicorn.conf.py
-
 import os
+import multiprocessing
 
-# Configuration du timeout
+# Timeout
 timeout = 300
 
-# Nombre de workers (ajustez selon vos besoins)
-workers = 4
+# Workers basés sur CPU
+workers = multiprocessing.cpu_count() * 2 + 1
 
-# Bind à tous les interfaces sur le port d'environnement (Render l'utilise)
-bind = f"0.0.0.0:{os.getenv('PORT', 5000)}"
+# Bind sur le port Render
+bind = f"0.0.0.0:{os.getenv('PORT', '5000')}"
 
-# Autres configurations optionnelles
+# Classe de workers
 worker_class = "sync"
+
+# Max requests pour éviter les fuites mémoire
 max_requests = 1000
 max_requests_jitter = 50
+
+# Logging optionnel
+accesslog = "-"  # stdout
+errorlog = "-"   # stderr

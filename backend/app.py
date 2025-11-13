@@ -6,7 +6,7 @@ from routes import auth, products, categories, cart, orders, flash_sales, banner
 app = Flask(__name__)
 app.config.from_object(Config)
 
-# Configure CORS
+# CORS
 CORS(app, resources={
     r"/api/*": {
         "origins": Config.CORS_ORIGINS,
@@ -15,7 +15,7 @@ CORS(app, resources={
     }
 })
 
-# Register blueprints
+# Blueprints
 app.register_blueprint(auth.bp, url_prefix='/api/auth')
 app.register_blueprint(products.bp, url_prefix='/api/products')
 app.register_blueprint(categories.bp, url_prefix='/api/categories')
@@ -29,7 +29,7 @@ app.register_blueprint(user.bp, url_prefix='/api/user')
 app.register_blueprint(factures.factures_bp, url_prefix='/api/factures')
 app.register_blueprint(stock.stock_bp, url_prefix='/api/stock')
 
-# Health check endpoint
+# Health check
 @app.route('/api/health')
 def health_check():
     return jsonify({'status': 'ok', 'message': 'Phone Shop API is running'})
