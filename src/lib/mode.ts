@@ -13,6 +13,7 @@ const api: AxiosInstance = axios.create({
 });
 
 // ==================== INTERCEPTORS ====================
+
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
@@ -21,7 +22,9 @@ api.interceptors.request.use(
     }
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => {
+    return Promise.reject(error);
+  }
 );
 
 api.interceptors.response.use(
@@ -39,6 +42,7 @@ api.interceptors.response.use(
 );
 
 // ==================== TYPES ====================
+
 import type {
   BannerSlide,
   CartItem,
@@ -50,20 +54,24 @@ import type {
   VoucherData,
 } from '@/types';
 
+
 export interface LoginResponse {
   user: User;
   token: string;
 }
+
 export interface RegisterResponse {
   user: User;
   token: string;
 }
+
 export interface ProductsResponse {
   products: Product[];
   total: number;
   page: number;
   totalPages: number;
 }
+
 export interface ApiError {
   error: string;
   message?: string;
@@ -122,12 +130,13 @@ export interface InvoicePayload {
 }
 
 // ==================== AUTH ====================
+
 export const register = async (
   email: string,
   password: string,
   name: string
-): Promise<LoginResponse> => {
-  const response = await api.post('/auth/register', {
+): Promise<RegisterResponse> => {
+  const response = await api.post<RegisterResponse>('/auth/register', {
     email,
     password,
     name,
@@ -139,7 +148,7 @@ export const login = async (
   email: string,
   password: string
 ): Promise<LoginResponse> => {
-  const response = await api.post('/auth/login', {
+  const response = await api.post<LoginResponse>('/auth/login', {
     email,
     password,
   });
@@ -147,13 +156,11 @@ export const login = async (
 };
 
 export const getCurrentUser = async (): Promise<User> => {
-  const response = await api.get('/auth/me');
+  const response = await api.get<User>('/auth/me');
   return response.data;
 };
 
-export const resetPassword = async (
-  email: string
-): Promise<{ message: string }> => {
+export const resetPassword = async (email: string): Promise<{ message: string }> => {
   const response = await api.post<{ message: string }>('/auth/reset-password', {
     email,
   });
@@ -161,6 +168,7 @@ export const resetPassword = async (
 };
 
 // ==================== PRODUCTS ====================
+
 export interface ProductFilters {
   category?: string;
   minPrice?: number;
@@ -171,110 +179,87 @@ export interface ProductFilters {
   limit?: number;
 }
 
-export const getProducts = async (
-  filters?: ProductFilters
-): Promise<ProductsResponse> => {
+export const getProducts = async (filters?: ProductFilters): Promise<ProductsResponse> => {
   const params = new URLSearchParams();
+  
   if (filters?.category) params.append('category', filters.category);
-  if (filters?.minPrice !== undefined)
-    params.append('minPrice', filters.minPrice.toString());
-  if (filters?.maxPrice !== undefined)
-    params.append('maxPrice', filters.maxPrice.toString());
+  if (filters?.minPrice !== undefined) params.append('minPrice', filters.minPrice.toString());
+  if (filters?.maxPrice !== undefined) params.append('maxPrice', filters.maxPrice.toString());
   if (filters?.search) params.append('search', filters.search);
   if (filters?.inStock) params.append('inStock', 'true');
   if (filters?.page) params.append('page', filters.page.toString());
   if (filters?.limit) params.append('limit', filters.limit.toString());
 
-  const response = await api.get(`/products?${params.toString()}`);
+  const response = await api.get<ProductsResponse>(`/products?${params.toString()}`);
   return response.data;
 };
 
 export const getProduct = async (id: string): Promise<Product> => {
-  const response = await api.get(`/products/${id}`);
+  const response = await api.get<Product>(`/products/${id}`);
   return response.data;
 };
 
-export const createProduct = async (
-  productData: Partial<Product>
-): Promise<Product> => {
-  const response = await api.post('/products', productData);
+export const createProduct = async (productData: Partial<Product>): Promise<Product> => {
+  const response = await api.post<Product>('/products', productData);
   return response.data;
 };
 
-export const updateProduct = async (
-  id: string,
-  productData: Partial<Product>
-): Promise<Product> => {
-  const response = await api.put(`/products/${id}`, productData);
+export const updateProduct = async (id: string, productData: Partial<Product>): Promise<Product> => {
+  const response = await api.put<Product>(`/products/${id}`, productData);
   return response.data;
 };
 
-export const deleteProduct = async (
-  id: string
-): Promise<{ message: string }> => {
-  const response = await api.delete(`/products/${id}`);
+export const deleteProduct = async (id: string): Promise<{ message: string }> => {
+  const response = await api.delete<{ message: string }>(`/products/${id}`);
   return response.data;
 };
 
 // ==================== CATEGORIES ====================
+
 export const getCategories = async (): Promise<Category[]> => {
-  const response = await api.get('/categories');
+  const response = await api.get<Category[]>('/categories');
   return response.data;
 };
 
-export const createCategory = async (
-  categoryData: Partial<Category>
-): Promise<Category> => {
-  const response = await api.post('/categories', categoryData);
+export const createCategory = async (categoryData: Partial<Category>): Promise<Category> => {
+  const response = await api.post<Category>('/categories', categoryData);
   return response.data;
 };
 
-export const updateCategory = async (
-  id: string,
-  categoryData: Partial<Category>
-): Promise<Category> => {
-  const response = await api.put(`/categories/${id}`, categoryData);
+export const updateCategory = async (id: string, categoryData: Partial<Category>): Promise<Category> => {
+  const response = await api.put<Category>(`/categories/${id}`, categoryData);
   return response.data;
 };
 
-export const deleteCategory = async (
-  id: string
-): Promise<{ message: string }> => {
-  const response = await api.delete(`/categories/${id}`);
+export const deleteCategory = async (id: string): Promise<{ message: string }> => {
+  const response = await api.delete<{ message: string }>(`/categories/${id}`);
   return response.data;
 };
 
 // ==================== CART ====================
+
 export const getCart = async (): Promise<CartItem[]> => {
-  const response = await api.get('/cart');
+  const response = await api.get<CartItem[]>('/cart');
   return response.data;
 };
 
-export const addToCart = async (
-  productId: string,
-  quantity: number
-): Promise<CartItem> => {
-  const response = await api.post('/cart', {
+export const addToCart = async (productId: string, quantity: number): Promise<CartItem[]> => {
+  const response = await api.post<CartItem[]>('/cart', {
     productId,
     quantity,
   });
   return response.data;
 };
 
-export const updateCartItem = async (
-  productId: string,
-  quantity: number
-): Promise<CartItem> => {
-  const response = await api.put(`/cart/${productId}`, {
+export const updateCartItem = async (productId: string, quantity: number): Promise<CartItem[]> => {
+  const response = await api.put<CartItem[]>(`/cart/${productId}`, {
     quantity,
   });
   return response.data;
 };
 
-export const removeCartItem = async (
-  productId: string
-): Promise<{ message: string }> => {
-  const response = await api.delete(`/cart/${productId}`);
+export const removeCartItem = async (productId: string): Promise<CartItem[]> => {
+  const response = await api.delete<CartItem[]>(`/cart/${productId}`);
   return response.data;
 };
 
@@ -283,20 +268,19 @@ export const clearCart = async (): Promise<void> => {
 };
 
 // ==================== ORDERS ====================
-export const createOrder = async (
-  orderData: CreateOrderData
-): Promise<Order> => {
-  const response = await api.post('/orders', orderData);
+
+export const createOrder = async (orderData: CreateOrderData): Promise<Order> => {
+  const response = await api.post<Order>('/orders', orderData);
   return response.data;
 };
 
 export const getOrders = async (): Promise<Order[]> => {
-  const response = await api.get('/orders');
+  const response = await api.get<Order[]>('/orders');
   return response.data;
 };
 
 export const getOrder = async (orderId: string): Promise<Order> => {
-  const response = await api.get(`/orders/${orderId}`);
+  const response = await api.get<Order>(`/orders/${orderId}`);
   return response.data;
 };
 
@@ -304,189 +288,108 @@ export const updateOrderStatus = async (
   id: string,
   status: Order['status']
 ): Promise<{ message: string }> => {
-  const response = await api.put(`/orders/${id}/status`, { status });
+  const response = await api.put<{ message: string }>(`/orders/${id}/status`, { status });
   return response.data;
 };
 
 // ==================== FLASH SALES ====================
+
 export const getFlashSales = async (): Promise<FlashSale[]> => {
-  const response = await api.get('/flash-sales');
+  const response = await api.get<FlashSale[]>('/flash-sales');
   return response.data;
 };
 
-export const createFlashSale = async (
-  flashSaleData: Partial<FlashSale>
-): Promise<FlashSale> => {
-  const response = await api.post('/flash-sales', flashSaleData);
+export const createFlashSale = async (flashSaleData: Partial<FlashSale>): Promise<FlashSale> => {
+  const response = await api.post<FlashSale>('/flash-sales', flashSaleData);
   return response.data;
 };
 
-export const deleteFlashSale = async (
-  id: string
-): Promise<{ message: string }> => {
-  const response = await api.delete(`/flash-sales/${id}`);
+export const deleteFlashSale = async (id: string): Promise<{ message: string }> => {
+  const response = await api.delete<{ message: string }>(`/flash-sales/${id}`);
   return response.data;
 };
 
 // ==================== VOUCHERS ====================
+
 export const getVouchers = async (): Promise<VoucherData[]> => {
-  const response = await api.get('/vouchers');
+  const response = await api.get<VoucherData[]>('/vouchers');
   return response.data;
 };
 
 export const updateVoucher = async (
   id: string,
-  voucherData: Partial<VoucherData>
+  voucherData: Partial<Omit<VoucherData, 'id' | 'usedCount' | 'discount' | 'discountValue'>>
 ): Promise<{ message: string }> => {
-  const response = await api.put(`/vouchers/${id}`, voucherData);
+  const response = await api.put<{ message: string }>(`/vouchers/${id}`, voucherData);
+  return response.data;
+};
+export const deleteVoucher = async (id: string): Promise<{ message: string }> => {
+  const response = await api.delete<{ message: string }>(`/vouchers/${id}`);
   return response.data;
 };
 
-export const deleteVoucher = async (
-  id: string
-): Promise<{ message: string }> => {
-  const response = await api.delete(`/vouchers/${id}`);
-  return response.data;
-};
 
 export const createVoucher = async (
-  voucherData: Partial<VoucherData>
+  voucherData: Partial<Omit<VoucherData, 'id' | 'usedCount' | 'discount' | 'discountValue'>>
 ): Promise<{ message: string }> => {
-  const response = await api.post('/vouchers', voucherData);
+  const response = await api.post<{ message: string }>('/vouchers', voucherData);
   return response.data;
 };
+
 
 export const validateVoucher = async (
   code: string,
   orderTotal: number
 ): Promise<VoucherValidationResult> => {
-  const response = await api.post('/vouchers/validate', {
+  const response = await api.post<VoucherValidationResult>('/vouchers/validate', {
     code,
     orderTotal,
   });
   return response.data;
 };
 
+
 // ==================== BANNERS ====================
+
 export const getBanners = async (): Promise<BannerSlide[]> => {
-  const response = await api.get('/banners');
+  const response = await api.get<BannerSlide[]>('/banners');
   return response.data;
 };
 
-export const createBanner = async (
-  bannerData: Partial<BannerSlide>
-): Promise<BannerSlide> => {
-  const response = await api.post('/banners', bannerData);
+export const createBanner = async (bannerData: Partial<BannerSlide>): Promise<BannerSlide> => {
+  const response = await api.post<BannerSlide>('/banners', bannerData);
   return response.data;
 };
 
-export const deleteBanner = async (
-  id: string
-): Promise<{ message: string }> => {
-  const response = await api.delete(`/banners/${id}`);
+export const deleteBanner = async (id: string): Promise<{ message: string }> => {
+  const response = await api.delete<{ message: string }>(`/banners/${id}`);
   return response.data;
 };
 
 // ==================== ADMIN ====================
+
 export const getAllUsers = async (): Promise<User[]> => {
-  const response = await api.get('/admin/users');
+  const response = await api.get<User[]>('/admin/users');
   return response.data;
 };
 
-export const toggleUserStatus = async (
-  userId: string
-): Promise<{ message: string }> => {
-  const response = await api.put(`/admin/users/${userId}/toggle-status`);
+export const toggleUserStatus = async (userId: string): Promise<{ message: string }> => {
+  const response = await api.put<{ message: string }>(`/admin/users/${userId}/toggle-status`);
   return response.data;
 };
 
 export const getAllOrders = async (): Promise<Order[]> => {
-  const response = await api.get('/admin/orders');
+  const response = await api.get<Order[]>('/admin/orders');
   return response.data;
 };
 
 export const getAdminStats = async (): Promise<AdminStats> => {
-  const response = await api.get('/admin/stats');
+  const response = await api.get<AdminStats>('/admin/stats');
   return response.data;
 };
 
-// ==================== FACTURES (Invoices) ====================
-import type {
-  CreateInvoiceData,
-  Invoice,
-  UpdateInvoiceData,
-} from '@/types/invoices';
+// ==================== USER ====================
 
-/**
- * Récupère la liste des factures avec filtres optionnels
- * @param filters InvoiceFilters optionnel
- */
-export const getInvoices = async (search?: string, date?: string) => {
-  const params = new URLSearchParams();
-  if (search) params.append("search", search);
-  if (date) params.append("date", date);
-
-  const res = await api.get(`/factures?${params.toString()}`);
-  return res.data;
-};
-
-/**
- * Récupère une facture par son ID
- */
-export const getInvoice = async (id: string): Promise<Invoice> => {
-  const response = await api.get(`/factures/${id}`);
-  return response.data;
-};
-
-/**
- * Crée une nouvelle facture
- */
-export const createInvoice = async (
-  data: CreateInvoiceData
-): Promise<Invoice> => {
-  const response = await api.post('/factures', data);
-  return response.data;
-};
-
-/**
- * Met à jour une facture existante
- */
-export const updateInvoice = async (
-  id: string,
-  data: UpdateInvoiceData
-): Promise<Invoice> => {
-  const response = await api.put(`/factures/${id}`, data);
-  return response.data;
-};
-
-/**
- * Supprime une facture par son ID
- */
-export const deleteInvoice = async (id: string): Promise<{ message: string }> => {
-  const response = await api.delete(`/factures/${id}`);
-  return response.data;
-};
-
-/**
- * Génère et télécharge le PDF d'une facture
- */
-export const generateInvoicePdf = async (id: string): Promise<void> => {
-  const response = await api.get(`/factures/${id}/pdf`, {
-    responseType: 'blob',
-  });
-
-  const blob = new Blob([response.data], { type: 'application/pdf' });
-  const url = window.URL.createObjectURL(blob);
-
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `facture_${id}.pdf`;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  window.URL.revokeObjectURL(url);
-};
-// =====================User======================
 export interface UpdateUserProfileData {
   name: string;
   email: string;
@@ -494,6 +397,10 @@ export interface UpdateUserProfileData {
   address?: string;
   city?: string;
 }
+
+/**
+ * Récupérer les infos utilisateur (profil, points fidélité)
+ */
 export const getUserInfo = async (): Promise<{
   id: string;
   name: string;
@@ -507,6 +414,9 @@ export const getUserInfo = async (): Promise<{
   return response.data;
 };
 
+/**
+ * Modifier le profil utilisateur
+ */
 export const updateUserProfile = async (
   data: UpdateUserProfileData
 ): Promise<{ message: string }> => {
@@ -514,6 +424,9 @@ export const updateUserProfile = async (
   return response.data;
 };
 
+/**
+ * Récupérer les commandes de l'utilisateur
+ */
 export const getUserOrders = async (): Promise<Order[]> => {
   const response = await api.get('/user/orders');
   return response.data;
@@ -539,6 +452,10 @@ export const createUser = async (
   const response = await api.post<{ message: string }>(`/admin/users`, userData);
   return response.data;
 };
+
+// ==================== UTILITY ====================
+
+
 // ==================== UTILITY ====================
 
 export const isAuthenticated = (): boolean => {

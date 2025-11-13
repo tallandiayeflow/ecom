@@ -19,7 +19,7 @@ class Config:
     JWT_ACCESS_TOKEN_EXPIRES = int(os.getenv('JWT_ACCESS_TOKEN_EXPIRES', 86400))  # 24 hours
     
     # CORS
-    CORS_ORIGINS = os.getenv('CORS_ORIGINS', 'http://localhost:5173').split(',')
+    CORS_ORIGINS = os.getenv('CORS_ORIGINS', 'http://localhost:8088').split(',')
     
     # Server
     HOST = os.getenv('HOST', '0.0.0.0')

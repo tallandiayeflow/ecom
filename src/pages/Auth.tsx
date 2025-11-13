@@ -138,8 +138,8 @@ const Auth = () => {
   const fillDemoCredentials = (type: 'admin' | 'user') => {
     if (type === 'admin') {
       setLoginData({
-        email: 'admin@phoneshop.com',
-        password: 'admin123',
+        email: 'admin@exemple.com',
+        password: 'azerty',
       });
       toast.info('Identifiants admin chargés');
     } else {

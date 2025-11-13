@@ -1,36 +1,37 @@
-import { Toaster } from "@/components/ui/toaster";
+import { Footer } from "@/components/Footer";
+import { Navbar } from "@/components/Navbar";
 import { Toaster as Sonner } from "@/components/ui/sonner";
+import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
-import { Navbar } from "@/components/Navbar";
-import { Footer } from "@/components/Footer";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
 
-import Index from "./pages/Index";
-import Products from "./pages/Products";
-import ProductDetail from "./pages/ProductDetail";
-import Search from "./pages/Search";
+import InvoicePDF from "@/pages/admin/InvoicePdf";
+import AdminDashboard from "./pages/AdminDashboard";
+import Auth from "./pages/Auth";
 import Cart from "./pages/Cart";
 import Checkout from "./pages/Checkout";
+import Index from "./pages/Index";
+import NotFound from "./pages/NotFound";
 import OrderSuccess from "./pages/OrderSuccess";
 import Orders from "./pages/Orders";
-import Auth from "./pages/Auth";
+import ProductDetail from "./pages/ProductDetail";
+import Products from "./pages/Products";
 import Profile from "./pages/Profile";
-import AdminDashboard from "./pages/AdminDashboard";
-import Overview from "./pages/admin/Overview";
-import OrdersManagement from "./pages/admin/OrdersManagement";
-import ProductsManagement from "./pages/admin/ProductsManagement";
+import Search from "./pages/Search";
+import BannersManagement from "./pages/admin/BannersManagement";
 import CategoriesManagement from "./pages/admin/CategoriesManagement";
 import FlashSalesManagement from "./pages/admin/FlashSalesManagement";
-import BannersManagement from "./pages/admin/BannersManagement";
+import InvoicesManagement from "./pages/admin/InvoicesManagement";
+import OrdersManagement from "./pages/admin/OrdersManagement";
+import Overview from "./pages/admin/Overview";
+import ProductsManagement from "./pages/admin/ProductsManagement";
+import StockManagement from "./pages/admin/StockManagement";
 import UsersManagement from "./pages/admin/UsersManagement";
 import VouchersManagement from "./pages/admin/VouchersManagement";
-import InvoicesManagement from "./pages/admin/InvoicesManagement";
-import StockManagement from "./pages/admin/StockManagement";
-import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
@@ -61,6 +62,7 @@ const App = () => (
                           <Route path="/order-success" element={<OrderSuccess />} />
                           <Route path="/orders" element={<Orders />} />
                           <Route path="/profile" element={<Profile />} />
+                          <Route path="/invoices/:id" element={<InvoicePDF />} />
                         </Routes>
                       </main>
                       <Footer />
@@ -83,6 +85,8 @@ const App = () => (
                   <Route path="vouchers" element={<VouchersManagement />} />
                   <Route path="invoices" element={<InvoicesManagement />} />
                   <Route path="stock" element={<StockManagement />} />
+                 
+
                 </Route>
 
                 {/* 404 */}
