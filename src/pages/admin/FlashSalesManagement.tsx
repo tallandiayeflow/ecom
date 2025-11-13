@@ -29,14 +29,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
   createFlashSale,
   deleteFlashSale,
   getFlashSales,
@@ -112,7 +104,6 @@ const FlashSalesManagement = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (!formData.productId || !formData.discountPrice) {
       toast.error('Veuillez remplir tous les champs requis');
       return;
@@ -120,7 +111,6 @@ const FlashSalesManagement = () => {
 
     try {
       setSubmitting(true);
-
       const saleData = {
         productId: formData.productId,
         discountPrice: parseFloat(formData.discountPrice),
@@ -130,7 +120,6 @@ const FlashSalesManagement = () => {
       };
 
       if (editingSale) {
-        // Pour éditer: supprimer puis recréer
         await deleteFlashSale(editingSale.id);
         await createFlashSale(saleData);
         toast.success('Vente flash modifiée avec succès ! ✅');
@@ -157,7 +146,6 @@ const FlashSalesManagement = () => {
 
   const handleDelete = async () => {
     if (!deletingSale) return;
-
     try {
       setSubmitting(true);
       await deleteFlashSale(deletingSale.id);
@@ -176,121 +164,172 @@ const FlashSalesManagement = () => {
 
   return (
     <div className="space-y-6">
+      {/* Header & Actions */}
       <Card>
-        <CardHeader>
-          <CardTitle>Gestion des Ventes Flash</CardTitle>
-          <CardDescription>
-            Créez des offres limitées dans le temps - {flashSales.length} vente(s) active(s)
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex gap-4">
+        <CardHeader className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+          <div>
+            <CardTitle>Gestion des Ventes Flash</CardTitle>
+            <CardDescription>
+              Créez des offres limitées dans le temps - {flashSales.length} vente(s) active(s)
+            </CardDescription>
+          </div>
+          <div className="flex gap-2 flex-wrap">
             <Button
               onClick={() => handleOpenDialog()}
-              className="w-full sm:w-auto"
               disabled={loading}
             >
               <Plus className="mr-2 h-4 w-4" />
-              Ajouter une vente flash
+              Ajouter
             </Button>
-
             <Button
               variant="outline"
               onClick={loadInitialData}
               disabled={loading}
-              className="w-full sm:w-auto"
             >
               <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
               Actualiser
             </Button>
           </div>
+        </CardHeader>
+        <CardContent>
+          {/* Loader */}
+          {loading ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="h-10 w-10 animate-spin text-primary" />
+            </div>
+          ) : flashSales.length === 0 ? (
+            <div className="text-center py-16 text-muted-foreground">
+              Aucune vente flash active
+            </div>
+          ) : (
+            <>
+              {/* Table pour desktop */}
+              <div className="hidden md:block">
+                <div className="overflow-x-auto">
+                  <table className="w-full table-auto border-collapse border">
+                    <thead className="bg-muted text-left">
+                      <tr>
+                        <th className="p-2">Produit</th>
+                        <th className="p-2">Prix normal</th>
+                        <th className="p-2">Prix flash</th>
+                        <th className="p-2">Réduction</th>
+                        <th className="p-2">Période</th>
+                        <th className="p-2">Stock</th>
+                        <th className="p-2">Statut</th>
+                        <th className="p-2 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {flashSales.map((sale) => (
+                        <tr key={sale.id} className="border-t">
+                          <td className="p-2 flex items-center gap-2">
+                            {sale.product?.images?.[0] && (
+                              <img
+                                src={sale.product.images[0]}
+                                alt={sale.product.name}
+                                className="h-10 w-10 object-cover rounded"
+                              />
+                            )}
+                            {sale.product.name}
+                          </td>
+                          <td className="p-2">{sale.product.price.toFixed(2)} Fcfa</td>
+                          <td className="p-2 font-bold text-destructive">
+                            {sale.discountPrice.toFixed(2)} Fcfa
+                          </td>
+                          <td className="p-2">
+                            <Badge variant="destructive">-{sale.discountPercentage}%</Badge>
+                          </td>
+                          <td className="p-2 text-sm">
+                            <p>{format(new Date(sale.startDate), 'dd/MM/yyyy HH:mm')}</p>
+                            <p className="text-muted-foreground">
+                              {format(new Date(sale.endDate), 'dd/MM/yyyy HH:mm')}
+                            </p>
+                          </td>
+                          <td className="p-2">{sale.stock}</td>
+                          <td className="p-2">
+                            <Badge variant={sale.isActive ? 'default' : 'secondary'}>
+                              {sale.isActive ? 'Active' : 'Inactive'}
+                            </Badge>
+                          </td>
+                          <td className="p-2 text-right flex justify-end gap-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleOpenDialog(sale)}
+                              disabled={submitting}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => handleOpenDeleteDialog(sale)}
+                              disabled={submitting}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
 
-          <div className="rounded-md border">
-            {loading ? (
-              <div className="flex items-center justify-center p-8">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              </div>
-            ) : flashSales.length === 0 ? (
-              <div className="text-center p-8 text-muted-foreground">
-                Aucune vente flash active
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Produit</TableHead>
-                    <TableHead>Prix normal</TableHead>
-                    <TableHead>Prix flash</TableHead>
-                    <TableHead>Réduction</TableHead>
-                    <TableHead>Période</TableHead>
-                    <TableHead>Stock</TableHead>
-                    <TableHead>Statut</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {flashSales.map((sale) => (
-                    <TableRow key={sale.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          {sale.product?.images?.[0] && (
-                            <img
-                              src={sale.product.images[0]}
-                              alt={sale.product.name}
-                              className="h-10 w-10 rounded object-cover"
-                            />
-                          )}
-                          <span className="font-medium">{sale.product.name}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>{sale.product.price.toFixed(2)} DH</TableCell>
-                      <TableCell className="font-bold text-destructive">
-                        {sale.discountPrice.toFixed(2)} DH
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="destructive">-{sale.discountPercentage}%</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-sm">
-                          <p>{format(new Date(sale.startDate), 'dd/MM/yyyy HH:mm')}</p>
-                          <p className="text-muted-foreground">
-                            {format(new Date(sale.endDate), 'dd/MM/yyyy HH:mm')}
-                          </p>
-                        </div>
-                      </TableCell>
-                      <TableCell>{sale.stock}</TableCell>
-                      <TableCell>
+              {/* Cards pour mobile */}
+              <div className="md:hidden grid gap-4">
+                {flashSales.map((sale) => (
+                  <Card key={sale.id} className="border shadow-sm">
+                    <CardContent className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        {sale.product?.images?.[0] && (
+                          <img
+                            src={sale.product.images[0]}
+                            alt={sale.product.name}
+                            className="h-12 w-12 object-cover rounded"
+                          />
+                        )}
+                        <span className="font-medium">{sale.product.name}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span>Prix: {sale.product.price.toFixed(2)} Fcfa</span>
+                        <span className="font-bold text-destructive">{sale.discountPrice.toFixed(2)} Fcfa</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span>Stock: {sale.stock}</span>
                         <Badge variant={sale.isActive ? 'default' : 'secondary'}>
                           {sale.isActive ? 'Active' : 'Inactive'}
                         </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleOpenDialog(sale)}
-                            disabled={submitting}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleOpenDeleteDialog(sale)}
-                            className="text-destructive hover:text-destructive"
-                            disabled={submitting}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </div>
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {format(new Date(sale.startDate), 'dd/MM/yyyy HH:mm')} - {format(new Date(sale.endDate), 'dd/MM/yyyy HH:mm')}
+                      </div>
+                      <div className="flex justify-end gap-2 mt-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleOpenDialog(sale)}
+                          disabled={submitting}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => handleOpenDeleteDialog(sale)}
+                          disabled={submitting}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 
@@ -298,12 +337,8 @@ const FlashSalesManagement = () => {
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>
-              {editingSale ? 'Modifier la vente flash' : 'Ajouter une vente flash'}
-            </DialogTitle>
-            <DialogDescription>
-              Configurez les détails de la vente flash
-            </DialogDescription>
+            <DialogTitle>{editingSale ? 'Modifier la vente flash' : 'Ajouter une vente flash'}</DialogTitle>
+            <DialogDescription>Configurez les détails de la vente flash</DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -321,7 +356,7 @@ const FlashSalesManagement = () => {
                 <SelectContent>
                   {products.map((product) => (
                     <SelectItem key={product.id} value={product.id}>
-                      {product.name} - {product.price.toFixed(2)} DH
+                      {product.name} - {product.price.toFixed(2)} Fcfa
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -329,7 +364,7 @@ const FlashSalesManagement = () => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="discountPrice">Prix promotionnel (DH) *</Label>
+              <Label htmlFor="discountPrice">Prix promotionnel (Fcfa) *</Label>
               <Input
                 id="discountPrice"
                 type="number"
@@ -354,7 +389,7 @@ const FlashSalesManagement = () => {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="startDate">Date de début *</Label>
                 <Input
@@ -366,7 +401,6 @@ const FlashSalesManagement = () => {
                   disabled={submitting}
                 />
               </div>
-
               <div className="space-y-2">
                 <Label htmlFor="endDate">Date de fin *</Label>
                 <Input
@@ -395,16 +429,14 @@ const FlashSalesManagement = () => {
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Enregistrement...
                   </>
-                ) : (
-                  editingSale ? 'Modifier' : 'Ajouter'
-                )}
+                ) : editingSale ? 'Modifier' : 'Ajouter'}
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
-      {/* Dialog de confirmation de suppression */}
+      {/* Dialog de suppression */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>

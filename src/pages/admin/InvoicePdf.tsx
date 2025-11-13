@@ -2,8 +2,8 @@
 
 import { Button } from "@/components/ui/button";
 import { getInvoice } from "@/lib/api";
+import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
 import QRCode from "qrcode";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -40,7 +40,7 @@ const InvoicePDF = () => {
     try {
       const data = await getInvoice(invoiceId);
       setInvoice(data);
-    } catch (error) {
+    } catch {
       toast.error("Erreur chargement facture");
       navigate("/admin/invoices");
     } finally {
@@ -61,166 +61,111 @@ const InvoicePDF = () => {
     }
   };
 
-  const handleDownloadPDF = () => {
-    if (!invoice) return;
-    const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.getWidth();
+  const handleDownloadPDF = async () => {
+    if (!printRef.current) return;
+    try {
+      const canvas = await html2canvas(printRef.current, {
+        scale: 2, // pour plus de qualité
+        useCORS: true,
+      });
+      const imgData = canvas.toDataURL("image/png");
 
-    // Logo
-    doc.addImage(SHOP_INFO.logo, "PNG", 20, 12, 32, 18, undefined, "FAST");
+      const pdf = new jsPDF("p", "mm", "a4");
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
 
-    // Titre facture
-    doc.setFontSize(22);
-    doc.setFont("helvetica", "bold");
-    doc.text("FACTURE", 20, 30);
-
-    // Infos facture
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.text(`Facture n°: ${invoice.invoice_number}`, 20, 40);
-    doc.text(`Date: ${invoice.created_at ? new Date(invoice.created_at).toLocaleDateString("fr-FR") : ""}`, 20, 46);
-
-    // Infos boutique
-    doc.setFont("helvetica", "bold");
-    doc.text(SHOP_INFO.name, pageWidth - 80, 14);
-    doc.setFont("helvetica", "normal");
-    doc.text(SHOP_INFO.address, pageWidth - 80, 20);
-    doc.text(SHOP_INFO.phone, pageWidth - 80, 26);
-
-    doc.setLineWidth(0.5);
-    doc.line(20, 50, pageWidth - 20, 50);
-
-    // Infos client
-    doc.setFont("helvetica", "bold");
-    doc.text("Client :", 20, 58);
-    doc.setFont("helvetica", "normal");
-    doc.text(invoice.customer_name || "", 20, 64);
-    doc.text(invoice.customer_email || "", 20, 70);
-    doc.text(invoice.customer_phone || "", 20, 76);
-
-    // Table des produits avec colonnes centrées
-    const tableData = invoice.items.map((item: any) => [
-      item.product_name,
-      `${Number(item.unit_price).toFixed(2)} Fcfa`,
-      item.quantity.toString(),
-      `${Number(item.total).toFixed(2)} Fcfa`,
-    ]);
-
-    autoTable(doc, {
-      startY: 86,
-      head: [["DESCRIPTION", "PRIX", "QUANTITÉ", "TOTAL"]],
-      body: tableData,
-      theme: "grid",
-      headStyles: { fillColor: [30, 30, 30], textColor: [255, 255, 255], fontStyle: "bold" },
-      styles: { fontSize: 10, cellPadding: 5, halign: "center" },
-    });
-
-    const finalY = (doc as any).lastAutoTable.finalY + 10;
-    const total = Number(invoice.amount || 0);
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(12);
-    doc.text(`TOTAL : ${total.toFixed(2)} Fcfa`, 20, finalY);
-
-    // QR code en bas à gauche avec "Scannez le code"
-    if (qr) {
-      doc.setFontSize(10);
-      doc.setFont("helvetica", "normal");
-      doc.text("Scannez le code", 20, finalY + 30);
-      doc.addImage(qr, "PNG", 20, finalY + 35, 40, 40);
+      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`Facture_${invoice.invoice_number}.pdf`);
+    } catch (err) {
+      toast.error("Erreur lors du téléchargement PDF");
     }
-
-    // Garantie 3 mois en bas à droite
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "bold");
-    doc.text("Garantie : 3 mois", pageWidth - 60, finalY + 60);
-
-    doc.save(`Facture_${invoice.invoice_number}.pdf`);
   };
 
-  if (loading) return <div>Chargement...</div>;
-  if (!invoice) return <div>Facture introuvable</div>;
+  if (loading) return <div className="text-center mt-20">Chargement...</div>;
+  if (!invoice) return <div className="text-center mt-20">Facture introuvable</div>;
 
   return (
-    <div>
+    <div className="min-h-screen p-4 bg-background text-foreground">
+      {/* Facture Card */}
       <div
         ref={printRef}
-        style={{
-          background: "#fff",
-          padding: 32,
-          maxWidth: 700,
-          margin: "auto",
-          boxShadow: "0 2px 12px rgba(0,0,0,0.1)",
-          fontFamily: "Arial, sans-serif",
-          borderRadius: 8,
-        }}
+        className="max-w-3xl mx-auto bg-white dark:bg-gray-900 rounded-xl shadow-lg p-6 sm:p-8"
       >
-        {/* En-tête */}
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 20 }}>
-          <img src={SHOP_INFO.logo} alt="Logo" style={{ height: 52 }} />
-          <div style={{ textAlign: "right" }}>
-            <div style={{ fontWeight: 700, fontSize: 20 }}>{SHOP_INFO.name}</div>
-            <div>{SHOP_INFO.address}</div>
-            <div>{SHOP_INFO.phone}</div>
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row justify-between items-center mb-6">
+          <img src={SHOP_INFO.logo} alt="Logo" className="h-14 sm:h-16 mb-4 sm:mb-0" />
+          <div className="text-right">
+            <div className="font-bold text-lg sm:text-xl">{SHOP_INFO.name}</div>
+            <div className="text-sm text-muted-foreground">{SHOP_INFO.address}</div>
+            <div className="text-sm text-muted-foreground">{SHOP_INFO.phone}</div>
           </div>
         </div>
 
-        {/* Résumé facture */}
-        <div style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 26, fontWeight: 700, color: "#222" }}>FACTURE</div>
-          <div style={{ marginTop: 8, lineHeight: 1.5 }}>
-            <div><strong>Code :</strong> {invoice.invoice_number}</div>
-            <div><strong>Date :</strong> {invoice.created_at ? new Date(invoice.created_at).toLocaleDateString("fr-FR") : ""}</div>
-            <div><strong>Client :</strong> {invoice.customer_name}</div>
+        {/* Invoice Info */}
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-foreground mb-2">FACTURE</h1>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm sm:text-base">
+            <div>
+              <span className="font-semibold">Code :</span> {invoice.invoice_number}
+            </div>
+            <div>
+              <span className="font-semibold">Date :</span>{" "}
+              {invoice.created_at ? new Date(invoice.created_at).toLocaleDateString("fr-FR") : ""}
+            </div>
+            <div>
+              <span className="font-semibold">Client :</span> {invoice.customer_name}
+            </div>
           </div>
         </div>
 
-        {/* Table des produits */}
-        <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 10 }}>
-          <thead>
-            <tr style={{ background: "#222", color: "#fff", textAlign: "center" }}>
-              <th style={{ padding: 8 }}>DESCRIPTION</th>
-              <th style={{ padding: 8 }}>PRIX</th>
-              <th style={{ padding: 8 }}>QUANTITÉ</th>
-              <th style={{ padding: 8 }}>TOTAL</th>
-            </tr>
-          </thead>
-          <tbody>
-            {invoice.items.map((item: any) => (
-              <tr key={item.id} style={{ borderBottom: "1px solid #eee", textAlign: "center" }}>
-                <td style={{ padding: 8 }}>{item.product_name}</td>
-                <td style={{ padding: 8 }}>{Number(item.unit_price).toFixed(2)} Fcfa</td>
-                <td style={{ padding: 8 }}>{item.quantity}</td>
-                <td style={{ padding: 8 }}>{Number(item.total).toFixed(2)} Fcfa</td>
+        {/* Products Table */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm sm:text-base border border-border rounded-md">
+            <thead className="bg-muted text-muted-foreground">
+              <tr>
+                <th className="p-2 text-left">Description</th>
+                <th className="p-2 text-center">Prix</th>
+                <th className="p-2 text-center">Quantité</th>
+                <th className="p-2 text-center">Total</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {invoice.items.map((item: any) => (
+                <tr key={item.id} className="border-b border-border hover:bg-muted/20">
+                  <td className="p-2">{item.product_name}</td>
+                  <td className="p-2 text-center">{Number(item.unit_price).toFixed(2)} Fcfa</td>
+                  <td className="p-2 text-center">{item.quantity}</td>
+                  <td className="p-2 text-center">{Number(item.total).toFixed(2)} Fcfa</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
 
         {/* Total */}
-        <div style={{ marginTop: 20, fontSize: 18, fontWeight: 700, textAlign: "left" }}>
+        <div className="flex justify-end mt-4 text-lg font-bold">
           TOTAL : {Number(invoice.amount).toFixed(2)} Fcfa
         </div>
 
-        {/* Footer : QR code et garantie */}
-        <div style={{ marginTop: 32, display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
-          <div style={{ textAlign: "center" }}>
-            <div>Scannez le code</div>
-            {qr && <img src={qr} alt="QR code" style={{ height: 64, marginTop: 8 }} />}
+        {/* Footer */}
+        <div className="flex flex-col sm:flex-row justify-between items-center mt-8 gap-6 sm:gap-0">
+          <div className="text-center sm:text-left">
+            <div className="text-sm font-semibold">Scannez le code</div>
+            {qr && <img src={qr} alt="QR code" className="h-20 w-20 mx-auto sm:mx-0 mt-2" />}
           </div>
-          <div style={{ fontWeight: 700, fontSize: 14, textAlign: "right" }}>
+          <div className="text-right text-sm font-semibold">
             Garantie : 3 mois
           </div>
         </div>
       </div>
 
-      {/* Boutons */}
-      <div style={{ textAlign: "center", marginTop: 24 }}>
+      {/* Buttons */}
+      <div className="flex flex-col sm:flex-row justify-center gap-3 mt-6">
         <Button onClick={handlePrint}>Imprimer le reçu</Button>
-        <Button onClick={handleDownloadPDF} variant="outline" className="ml-3">
+        <Button variant="outline" onClick={handleDownloadPDF}>
           Télécharger PDF
         </Button>
-        <Button onClick={() => navigate("/admin/invoices")} variant="ghost" className="ml-3">
+        <Button variant="ghost" onClick={() => navigate("/admin/invoices")}>
           Retour
         </Button>
       </div>

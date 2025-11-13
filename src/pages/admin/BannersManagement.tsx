@@ -48,7 +48,6 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
 const BannersManagement = () => {
-  // États
   const [banners, setBanners] = useState<BannerSlide[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -65,20 +64,17 @@ const BannersManagement = () => {
     displayOrder: 0,
   });
 
-  // Charger les données au montage
   useEffect(() => {
     loadInitialData();
   }, []);
 
-  // Charger bannières et produits
   const loadInitialData = async () => {
     try {
       setLoading(true);
       const [bannersData, productsData] = await Promise.all([
         getBanners(),
-        getProducts({ limit: 100 }) // Charger tous les produits
+        getProducts({ limit: 100 })
       ]);
-      
       setBanners(bannersData);
       setProducts(productsData.products);
     } catch (error: any) {
@@ -89,7 +85,6 @@ const BannersManagement = () => {
     }
   };
 
-  // Ouvrir le dialog d'ajout/édition
   const handleOpenDialog = (banner?: BannerSlide) => {
     if (banner) {
       setEditingBanner(banner);
@@ -111,11 +106,8 @@ const BannersManagement = () => {
     setIsDialogOpen(true);
   };
 
-  // Soumettre le formulaire
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Validation
     if (!formData.productId || !formData.title || !formData.subtitle) {
       toast.error('Veuillez remplir tous les champs');
       return;
@@ -123,28 +115,22 @@ const BannersManagement = () => {
 
     try {
       setSubmitting(true);
-      
       const bannerData = {
         productId: formData.productId,
         title: formData.title.trim(),
         subtitle: formData.subtitle.trim(),
         displayOrder: formData.displayOrder,
       };
-
       if (editingBanner) {
-        // Note: Le backend actuel ne supporte pas la mise à jour
-        // On supprime et recrée la bannière
         await deleteBanner(editingBanner.id);
         await createBanner(bannerData);
         toast.success('Bannière modifiée avec succès ! ✅');
       } else {
-        // Création
         await createBanner(bannerData);
         toast.success('Bannière ajoutée avec succès ! 🎉');
       }
-
       setIsDialogOpen(false);
-      loadInitialData(); // Recharger la liste
+      loadInitialData();
     } catch (error: any) {
       console.error('Erreur:', error);
       const errorMessage = error.response?.data?.error || 'Erreur lors de la sauvegarde';
@@ -154,23 +140,20 @@ const BannersManagement = () => {
     }
   };
 
-  // Ouvrir le dialog de confirmation de suppression
   const handleOpenDeleteDialog = (banner: BannerSlide) => {
     setDeletingBanner(banner);
     setIsDeleteDialogOpen(true);
   };
 
-  // Supprimer la bannière
   const handleDelete = async () => {
     if (!deletingBanner) return;
-
     try {
       setSubmitting(true);
       await deleteBanner(deletingBanner.id);
       toast.success('Bannière supprimée avec succès ! 🗑️');
       setIsDeleteDialogOpen(false);
       setDeletingBanner(null);
-      loadInitialData(); // Recharger la liste
+      loadInitialData();
     } catch (error: any) {
       console.error('Erreur:', error);
       const errorMessage = error.response?.data?.error || 'Erreur lors de la suppression';
@@ -180,68 +163,54 @@ const BannersManagement = () => {
     }
   };
 
-  // Déplacer une bannière vers le haut
   const moveUp = async (index: number) => {
     if (index === 0) return;
-    
     const newBanners = [...banners];
     [newBanners[index], newBanners[index - 1]] = [newBanners[index - 1], newBanners[index]];
-    
-    // Mettre à jour localement
     setBanners(newBanners);
-    
-    // TODO: Implémenter un endpoint de mise à jour d'ordre dans le backend
-    toast.info('Position modifiée (temporaire - rechargez pour voir l\'ordre d\'origine)');
+    toast.info('Position modifiée temporairement');
   };
 
-  // Déplacer une bannière vers le bas
   const moveDown = async (index: number) => {
     if (index === banners.length - 1) return;
-    
     const newBanners = [...banners];
     [newBanners[index], newBanners[index + 1]] = [newBanners[index + 1], newBanners[index]];
-    
-    // Mettre à jour localement
     setBanners(newBanners);
-    
-    // TODO: Implémenter un endpoint de mise à jour d'ordre dans le backend
-    toast.info('Position modifiée (temporaire - rechargez pour voir l\'ordre d\'origine)');
+    toast.info('Position modifiée temporairement');
   };
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Gestion des Bannières</CardTitle>
-          <CardDescription>
-            Gérez le slider de la page d'accueil - {banners.length} bannière(s) active(s)
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Actions */}
-          <div className="flex gap-4">
+      <Card className="shadow-md border-gray-200">
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <div>
+            <CardTitle>Gestion des Bannières</CardTitle>
+            <CardDescription>
+              Slider page d'accueil - {banners.length} bannière(s) active(s)
+            </CardDescription>
+          </div>
+          <div className="flex gap-2 flex-wrap">
             <Button 
               onClick={() => handleOpenDialog()} 
-              className="w-full sm:w-auto"
+              className="flex-1 sm:flex-none"
               disabled={loading}
             >
-              <Plus className="mr-2 h-4 w-4" />
-              Ajouter une bannière
+              <Plus className="mr-2 h-4 w-4" /> Ajouter une bannière
             </Button>
-
             <Button
               variant="outline"
               onClick={loadInitialData}
               disabled={loading}
-              className="w-full sm:w-auto"
+              className="flex-1 sm:flex-none"
             >
               <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
               Actualiser
             </Button>
           </div>
+        </CardHeader>
 
-          {/* Table des bannières */}
-          <div className="rounded-md border">
+        <CardContent className="overflow-x-auto">
+          <div className="min-w-[600px]">
             {loading ? (
               <div className="flex items-center justify-center p-8">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -251,7 +220,7 @@ const BannersManagement = () => {
                 Aucune bannière. Créez-en une pour commencer !
               </div>
             ) : (
-              <Table>
+              <Table className="table-auto">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Aperçu</TableHead>
@@ -265,7 +234,7 @@ const BannersManagement = () => {
                 </TableHeader>
                 <TableBody>
                   {banners.map((banner, index) => (
-                    <TableRow key={banner.id}>
+                    <TableRow key={banner.id} className="hover:bg-gray-50 transition-colors">
                       <TableCell>
                         {banner.product?.images?.[0] && (
                           <img
@@ -276,9 +245,7 @@ const BannersManagement = () => {
                         )}
                       </TableCell>
                       <TableCell className="font-medium">{banner.title}</TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {banner.subtitle}
-                      </TableCell>
+                      <TableCell className="text-muted-foreground">{banner.subtitle}</TableCell>
                       <TableCell>
                         <div>
                           <p className="font-medium">{banner.product?.name}</p>
@@ -344,7 +311,7 @@ const BannersManagement = () => {
 
       {/* Dialog d'ajout/édition */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-lg w-full">
           <DialogHeader>
             <DialogTitle>
               {editingBanner ? 'Modifier la bannière' : 'Ajouter une bannière'}
@@ -355,7 +322,6 @@ const BannersManagement = () => {
           </DialogHeader>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Produit */}
             <div className="space-y-2">
               <Label htmlFor="product">Produit vedette *</Label>
               <Select
@@ -377,7 +343,6 @@ const BannersManagement = () => {
               </Select>
             </div>
 
-            {/* Titre */}
             <div className="space-y-2">
               <Label htmlFor="title">Titre *</Label>
               <Input
@@ -390,7 +355,6 @@ const BannersManagement = () => {
               />
             </div>
 
-            {/* Sous-titre */}
             <div className="space-y-2">
               <Label htmlFor="subtitle">Sous-titre *</Label>
               <Input
@@ -403,7 +367,6 @@ const BannersManagement = () => {
               />
             </div>
 
-            {/* Ordre d'affichage */}
             <div className="space-y-2">
               <Label htmlFor="order">Ordre d'affichage</Label>
               <Input
@@ -419,16 +382,17 @@ const BannersManagement = () => {
               </p>
             </div>
 
-            <DialogFooter>
+            <DialogFooter className="flex flex-col sm:flex-row gap-2">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => setIsDialogOpen(false)}
                 disabled={submitting}
+                className="w-full sm:w-auto"
               >
                 Annuler
               </Button>
-              <Button type="submit" disabled={submitting}>
+              <Button type="submit" disabled={submitting} className="w-full sm:w-auto">
                 {submitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -443,7 +407,7 @@ const BannersManagement = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog de confirmation de suppression */}
+      {/* Dialog de suppression */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -452,12 +416,12 @@ const BannersManagement = () => {
               Cette action est irréversible. La bannière "{deletingBanner?.title}" sera définitivement supprimée.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={submitting}>Annuler</AlertDialogCancel>
+          <AlertDialogFooter className="flex flex-col sm:flex-row gap-2">
+            <AlertDialogCancel disabled={submitting} className="w-full sm:w-auto">Annuler</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
               disabled={submitting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 w-full sm:w-auto"
             >
               {submitting ? (
                 <>

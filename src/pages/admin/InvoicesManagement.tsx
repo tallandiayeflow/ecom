@@ -31,32 +31,20 @@ const generateInvoiceNumber = (): string =>
     .toString()
     .padStart(8, "0")}`;
 
-// Couleur badge selon statut
-const getStatusClass = (status: string) => {
-  switch (status) {
-    case "paid":
-      return "bg-green-500";
-    case "pending":
-      return "bg-yellow-500";
-    case "cancelled":
-      return "bg-red-500";
-    default:
-      return "bg-gray-500";
-  }
-};
-
-
-// Libellé statut
 const getStatusLabel = (status: string) => {
   switch (status) {
-    case "paid":
-      return "Payée";
-    case "pending":
-      return "En attente";
-    case "cancelled":
-      return "Annulée";
-    default:
-      return status;
+    case "paid": return "Payée";
+    case "pending": return "En attente";
+    case "cancelled": return "Annulée";
+    default: return status;
+  }
+};
+const getStatusClass = (status: string) => {
+  switch (status) {
+    case "paid": return "bg-green-500 text-white";
+    case "pending": return "bg-yellow-500 text-white";
+    case "cancelled": return "bg-red-500 text-white";
+    default: return "bg-gray-500 text-white";
   }
 };
 
@@ -101,7 +89,7 @@ const InvoicesManagement = () => {
 
       const data = await getInvoices(params.toString());
       setInvoices(data);
-    } catch (error) {
+    } catch {
       toast.error("Erreur chargement factures");
     } finally {
       setLoading(false);
@@ -109,12 +97,7 @@ const InvoicesManagement = () => {
   };
 
   const addItemToInvoice = () => {
-    if (
-      !currentItem.product_name ||
-      !currentItem.unit_price ||
-      Number(currentItem.unit_price) <= 0 ||
-      currentItem.quantity <= 0
-    ) {
+    if (!currentItem.product_name || !currentItem.unit_price || currentItem.quantity <= 0) {
       toast.error("Veuillez remplir tous les champs du produit.");
       return;
     }
@@ -125,19 +108,13 @@ const InvoicesManagement = () => {
       quantity: currentItem.quantity,
       total: (Number(currentItem.unit_price) * currentItem.quantity).toFixed(2),
     };
-    setNewInvoice({
-      ...newInvoice,
-      items: [...newInvoice.items, item],
-    });
+    setNewInvoice({ ...newInvoice, items: [...newInvoice.items, item] });
     setCurrentItem({ product_name: "", unit_price: "", quantity: 1 });
     toast.success("Article ajouté.");
   };
 
   const removeItem = (id: string) => {
-    setNewInvoice({
-      ...newInvoice,
-      items: newInvoice.items.filter((i: any) => i.id !== id),
-    });
+    setNewInvoice({ ...newInvoice, items: newInvoice.items.filter((i: any) => i.id !== id) });
   };
 
   const prepareInvoiceDataForBackend = (invoice: any) => {
@@ -145,11 +122,7 @@ const InvoicesManagement = () => {
       (acc: number, item: any) => acc + Number(item.unit_price) * item.quantity,
       0
     );
-    return {
-      ...invoice,
-      amount: amount.toFixed(2),
-      total: amount.toFixed(2),
-    };
+    return { ...invoice, amount: amount.toFixed(2), total: amount.toFixed(2) };
   };
 
   const saveInvoice = async () => {
@@ -194,9 +167,9 @@ const InvoicesManagement = () => {
   };
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
+    <div className="p-6 bg-background text-foreground min-h-screen">
       <div className="flex flex-col md:flex-row items-center justify-between mb-6 gap-4">
-        <h1 className="text-2xl font-bold text-gray-800">Gestion des Factures</h1>
+        <h1 className="text-2xl md:text-3xl font-bold text-foreground">Gestion des Factures</h1>
         <div className="flex flex-col md:flex-row gap-2">
           <Input
             placeholder="Recherche par nom, email ou téléphone"
@@ -216,11 +189,12 @@ const InvoicesManagement = () => {
                 <Plus /> Nouvelle Facture
               </Button>
             </DialogTrigger>
-            <DialogContent className="w-full max-w-lg">
+            <DialogContent className="w-full max-w-lg bg-background text-foreground border border-border rounded-xl shadow-lg">
               <DialogHeader>
                 <DialogTitle>Création de facture</DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
+                {/* Form client */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label>Nom du client</Label>
@@ -261,16 +235,19 @@ const InvoicesManagement = () => {
                   </div>
                 </div>
 
-                <hr className="my-2" />
-                <h3 className="text-lg font-semibold">Articles</h3>
-                {newInvoice.items.map((item: any) => (
-                  <div key={item.id} className="flex justify-between items-center bg-gray-100 px-2 py-1 rounded mb-1">
-                    <span>{item.product_name} ({item.quantity} × {Number(item.unit_price).toFixed(2)} Fcfa)</span>
-                    <Button variant="ghost" size="sm" onClick={() => removeItem(item.id)}><Trash2 /></Button>
-                  </div>
-                ))}
-
-                <div className="flex gap-2 items-end">
+                {/* Articles */}
+                <h3 className="text-lg font-semibold mt-2">Articles</h3>
+                <div className="space-y-1">
+                  {newInvoice.items.map((item: any) => (
+                    <div key={item.id} className="flex justify-between items-center bg-muted px-2 py-1 rounded">
+                      <span>{item.product_name} ({item.quantity} × {Number(item.unit_price).toFixed(2)} Fcfa)</span>
+                      <Button variant="ghost" size="sm" onClick={() => removeItem(item.id)}>
+                        <Trash2 />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2 items-end mt-2">
                   <Input
                     placeholder="Nom article"
                     value={currentItem.product_name}
@@ -292,13 +269,14 @@ const InvoicesManagement = () => {
                   <Button onClick={addItemToInvoice} type="button" className="flex items-center"><Plus /></Button>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                {/* Statut et méthode paiement */}
+                <div className="grid grid-cols-2 gap-4 mt-2">
                   <div>
                     <Label>Statut</Label>
                     <select
                       value={newInvoice.status}
                       onChange={(e) => setNewInvoice({ ...newInvoice, status: e.target.value })}
-                      className="w-full border rounded px-2 py-1"
+                      className="w-full border rounded px-2 py-1 bg-background text-foreground"
                     >
                       <option value="pending">En attente</option>
                       <option value="paid">Payée</option>
@@ -310,7 +288,7 @@ const InvoicesManagement = () => {
                     <select
                       value={newInvoice.payment_method}
                       onChange={(e) => setNewInvoice({ ...newInvoice, payment_method: e.target.value })}
-                      className="w-full border rounded px-2 py-1"
+                      className="w-full border rounded px-2 py-1 bg-background text-foreground"
                     >
                       <option value="cash_on_delivery">À la livraison</option>
                       <option value="card">Carte</option>
@@ -322,10 +300,13 @@ const InvoicesManagement = () => {
 
                 <div>
                   <Label>Notes</Label>
-                  <Input value={newInvoice.notes || ""} onChange={(e) => setNewInvoice({ ...newInvoice, notes: e.target.value })} />
+                  <Input
+                    value={newInvoice.notes || ""}
+                    onChange={(e) => setNewInvoice({ ...newInvoice, notes: e.target.value })}
+                  />
                 </div>
 
-                <div className="flex justify-end gap-2">
+                <div className="flex justify-end gap-2 mt-2">
                   <Button onClick={saveInvoice}>Enregistrer</Button>
                   <Button variant="ghost" onClick={() => setIsDialogOpen(false)}>Annuler</Button>
                 </div>
@@ -335,10 +316,11 @@ const InvoicesManagement = () => {
         </div>
       </div>
 
-      <div className="overflow-x-auto bg-white rounded shadow">
-        <Table>
+      {/* Table responsive */}
+      <div className="overflow-x-auto mt-4">
+        <Table className="min-w-full border border-border bg-background text-foreground">
           <TableHeader>
-            <TableRow>
+            <TableRow className="bg-muted/50">
               <TableHead className="text-center">N°</TableHead>
               <TableHead className="text-center">Client</TableHead>
               <TableHead className="text-center">Email</TableHead>
@@ -351,17 +333,15 @@ const InvoicesManagement = () => {
           </TableHeader>
           <TableBody>
             {invoices.map((inv) => (
-              <TableRow key={inv.id} className="hover:bg-gray-50">
+              <TableRow key={inv.id} className="hover:bg-muted/30">
                 <TableCell className="text-center">{inv.invoice_number || "N/A"}</TableCell>
                 <TableCell className="text-center">{inv.customer_name || "N/A"}</TableCell>
                 <TableCell className="text-center">{inv.customer_email || "N/A"}</TableCell>
                 <TableCell className="text-center">{inv.customer_phone || "N/A"}</TableCell>
-                <TableCell className="text-center">
-                  {inv.created_at ? new Date(inv.created_at).toLocaleDateString("fr-FR") : "N/A"}
-                </TableCell>
+                <TableCell className="text-center">{inv.created_at ? new Date(inv.created_at).toLocaleDateString("fr-FR") : "N/A"}</TableCell>
                 <TableCell className="text-center">{Number(inv.total).toFixed(2)} Fcfa</TableCell>
                 <TableCell className="text-center">
-                  <span className={`inline-block px-2 py-1 rounded-full text-white text-sm bg-blue-400`}>
+                  <span className={`px-2 py-1 rounded-full text-sm ${getStatusClass(inv.status)}`}>
                     {getStatusLabel(inv.status)}
                   </span>
                 </TableCell>

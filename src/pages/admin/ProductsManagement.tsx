@@ -1,3 +1,5 @@
+"use client";
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -7,10 +9,16 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+} from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -18,16 +26,16 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -35,77 +43,76 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
-import { Textarea } from '@/components/ui/textarea';
+} from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 import {
   createProduct,
   deleteProduct,
   getCategories,
   getProducts,
-  updateProduct
-} from '@/lib/api';
-import type { Category, Product } from '@/types';
-import { Loader2, Pencil, Plus, RefreshCw, Search, Trash2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { toast } from 'sonner';
+  updateProduct,
+} from "@/lib/api";
+import type { Category, Product } from "@/types";
+import { motion } from "framer-motion";
+import {
+  Loader2,
+  Package,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Search,
+  Trash2,
+} from "lucide-react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 const ProductsManagement = () => {
-  // États
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("all");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  
-  // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalProducts, setTotalProducts] = useState(0);
-  
+
   const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    price: '',
-    originalPrice: '',
-    category: '',
-    images: '',
-    stockQuantity: '',
-    brand: '',
-    specifications: '{}',
+    name: "",
+    description: "",
+    price: "",
+    originalPrice: "",
+    category: "",
+    images: "",
+    stockQuantity: "",
+    brand: "",
+    specifications: "{}",
   });
 
-  // Charger les données au montage
   useEffect(() => {
     loadInitialData();
   }, []);
 
-  // Charger les produits quand les filtres changent
   useEffect(() => {
     loadProducts();
   }, [searchTerm, selectedCategory, currentPage]);
 
-  // Charger catégories et produits
   const loadInitialData = async () => {
     try {
       setLoading(true);
-      const [categoriesData] = await Promise.all([
-        getCategories(),
-      ]);
+      const [categoriesData] = await Promise.all([getCategories()]);
       setCategories(categoriesData);
-    } catch (error: any) {
-      console.error('Erreur de chargement:', error);
-      toast.error('Erreur lors du chargement des données');
+    } catch {
+      toast.error("Erreur lors du chargement des données");
     } finally {
       setLoading(false);
     }
   };
 
-  // Charger les produits avec filtres
   const loadProducts = async () => {
     try {
       setLoading(true);
@@ -113,198 +120,168 @@ const ProductsManagement = () => {
         page: currentPage,
         limit: 10,
         ...(searchTerm && { search: searchTerm }),
-        ...(selectedCategory !== 'all' && { category: selectedCategory }),
+        ...(selectedCategory !== "all" && { category: selectedCategory }),
       };
-
       const data = await getProducts(filters);
       setProducts(data.products);
       setTotalPages(data.totalPages);
       setTotalProducts(data.total);
-    } catch (error: any) {
-      console.error('Erreur de chargement des produits:', error);
-      toast.error('Erreur lors du chargement des produits');
+    } catch {
+      toast.error("Erreur lors du chargement des produits");
     } finally {
       setLoading(false);
     }
   };
 
-  // Filtres locaux pour l'affichage immédiat
-  const filteredProducts = products;
-
-  // Ouvrir le dialog d'ajout/édition
   const handleOpenDialog = (product?: Product) => {
     if (product) {
       setEditingProduct(product);
-      
-      // Récupérer le slug de la catégorie
-      const categorySlug = product.category;
-      
       setFormData({
         name: product.name,
         description: product.description,
         price: product.price.toString(),
-        originalPrice: product.originalPrice?.toString() || '',
-        category: categorySlug,
-        images: product.images.join(', '),
+        originalPrice: product.originalPrice?.toString() || "",
+        category: product.category,
+        images: product.images.join(", "),
         stockQuantity: product.stockQuantity.toString(),
-        brand: product.brand || '',
+        brand: product.brand || "",
         specifications: JSON.stringify(product.specifications, null, 2),
       });
     } else {
       setEditingProduct(null);
       setFormData({
-        name: '',
-        description: '',
-        price: '',
-        originalPrice: '',
-        category: '',
-        images: '',
-        stockQuantity: '',
-        brand: '',
-        specifications: '{}',
+        name: "",
+        description: "",
+        price: "",
+        originalPrice: "",
+        category: "",
+        images: "",
+        stockQuantity: "",
+        brand: "",
+        specifications: "{}",
       });
     }
     setIsDialogOpen(true);
   };
 
-  // Soumettre le formulaire
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Validation
-    if (!formData.name || !formData.description || !formData.price || !formData.category || !formData.stockQuantity) {
-      toast.error('Veuillez remplir tous les champs obligatoires');
+    if (!formData.name || !formData.price || !formData.category) {
+      toast.error("Veuillez remplir tous les champs obligatoires");
       return;
     }
 
     try {
       setSubmitting(true);
-      
-      // Parser les spécifications JSON
-      let specifications = {};
-      try {
-        specifications = JSON.parse(formData.specifications);
-      } catch (e) {
-        toast.error('Format JSON invalide pour les spécifications');
-        return;
-      }
-
-      // Préparer les données pour l'API
       const productData = {
         name: formData.name.trim(),
         description: formData.description.trim(),
         price: parseFloat(formData.price),
-        originalPrice: formData.originalPrice ? parseFloat(formData.originalPrice) : undefined,
+        originalPrice: formData.originalPrice
+          ? parseFloat(formData.originalPrice)
+          : undefined,
         category: formData.category,
-        images: formData.images.split(',').map(img => img.trim()).filter(img => img),
-        image: formData.images.split(',')[0]?.trim() || '',
+        images: formData.images
+          .split(",")
+          .map((img) => img.trim())
+          .filter((img) => img),
+        image: formData.images.split(",")[0]?.trim() || "",
         stock: parseInt(formData.stockQuantity),
         brand: formData.brand.trim() || undefined,
-        specifications,
-        isFeatured: editingProduct?.featured || false,
+        specifications: JSON.parse(formData.specifications),
       };
 
       if (editingProduct) {
-        // Mise à jour
         await updateProduct(editingProduct.id, productData);
-        toast.success('Produit modifié avec succès ! ✅');
+        toast.success("Produit modifié avec succès ! ✅");
       } else {
-        // Création
         await createProduct(productData);
-        toast.success('Produit ajouté avec succès ! 🎉');
+        toast.success("Produit ajouté avec succès ! 🎉");
       }
-
       setIsDialogOpen(false);
-      loadProducts(); // Recharger la liste
+      loadProducts();
     } catch (error: any) {
-      console.error('Erreur:', error);
-      const errorMessage = error.response?.data?.error || 'Erreur lors de la sauvegarde du produit';
-      toast.error(errorMessage);
+      toast.error(error.response?.data?.error || "Erreur de sauvegarde");
     } finally {
       setSubmitting(false);
     }
   };
 
-  // Ouvrir le dialog de confirmation de suppression
   const handleOpenDeleteDialog = (product: Product) => {
     setDeletingProduct(product);
     setIsDeleteDialogOpen(true);
   };
 
-  // Supprimer le produit
   const handleDelete = async () => {
     if (!deletingProduct) return;
-
     try {
       setSubmitting(true);
       await deleteProduct(deletingProduct.id);
-      toast.success('Produit supprimé avec succès ! 🗑️');
+      toast.success("Produit supprimé avec succès 🗑️");
       setIsDeleteDialogOpen(false);
       setDeletingProduct(null);
-      loadProducts(); // Recharger la liste
-    } catch (error: any) {
-      console.error('Erreur:', error);
-      const errorMessage = error.response?.data?.error || 'Erreur lors de la suppression';
-      toast.error(errorMessage);
+      loadProducts();
+    } catch {
+      toast.error("Erreur lors de la suppression");
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Gestion des Produits</CardTitle>
-          <CardDescription>
-            Gérez tous vos produits - {totalProducts} produit(s) au total
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Actions et filtres */}
-          <div className="flex flex-col sm:flex-row gap-4">
-            <Button 
-              onClick={() => handleOpenDialog()} 
-              className="w-full sm:w-auto"
-              disabled={loading}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Ajouter un produit
+    <div className="space-y-6 px-2 sm:px-4 md:px-6">
+      <Card className="shadow-sm border-border/60">
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <CardTitle className="text-lg md:text-xl font-bold flex items-center gap-2">
+              <Package className="h-5 w-5 text-primary" />
+              Gestion des Produits
+            </CardTitle>
+            <CardDescription className="text-sm text-muted-foreground">
+              {totalProducts} produit(s) enregistré(s)
+            </CardDescription>
+          </div>
+          <div className="flex gap-2 flex-wrap justify-end">
+            <Button onClick={() => handleOpenDialog()} size="sm">
+              <Plus className="mr-2 h-4 w-4" /> Ajouter
             </Button>
-
             <Button
               variant="outline"
+              size="sm"
               onClick={loadProducts}
               disabled={loading}
-              className="w-full sm:w-auto"
             >
-              <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              <RefreshCw
+                className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`}
+              />
               Actualiser
             </Button>
+          </div>
+        </CardHeader>
 
-            <div className="flex-1 relative">
+        <CardContent className="space-y-4">
+          {/* Barre de recherche + filtre */}
+          <div className="flex flex-col md:flex-row gap-3">
+            <div className="relative flex-1">
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Rechercher un produit..."
+                className="pl-10"
                 value={searchTerm}
                 onChange={(e) => {
                   setSearchTerm(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="pl-10"
-                disabled={loading}
               />
             </div>
-
             <Select
               value={selectedCategory}
-              onValueChange={(value) => {
-                setSelectedCategory(value);
+              onValueChange={(v) => {
+                setSelectedCategory(v);
                 setCurrentPage(1);
               }}
-              disabled={loading}
             >
-              <SelectTrigger className="w-full sm:w-[200px]">
+              <SelectTrigger className="md:w-[220px]">
                 <SelectValue placeholder="Catégorie" />
               </SelectTrigger>
               <SelectContent>
@@ -318,117 +295,175 @@ const ProductsManagement = () => {
             </Select>
           </div>
 
-          {/* Table des produits */}
-          <div className="rounded-md border">
+          {/* Table ou liste responsive */}
+          <div className="rounded-md border overflow-hidden">
             {loading ? (
               <div className="flex items-center justify-center p-8">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </div>
-            ) : filteredProducts.length === 0 ? (
-              <div className="text-center p-8 text-muted-foreground">
+            ) : products.length === 0 ? (
+              <div className="p-8 text-center text-muted-foreground">
                 Aucun produit trouvé
               </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Produit</TableHead>
-                    <TableHead>Catégorie</TableHead>
-                    <TableHead>Prix</TableHead>
-                    <TableHead>Stock</TableHead>
-                    <TableHead>Statut</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredProducts.map((product) => {
-                    const category = categories.find(c => c.slug === product.category);
-                    
-                    return (
-                      <TableRow key={product.id}>
-                        <TableCell>
-                          <div className="flex items-center gap-3">
-                            {product.images[0] && (
-                              <img
-                                src={product.images[0]}
-                                alt={product.name}
-                                className="h-10 w-10 rounded object-cover"
-                              />
-                            )}
-                            <div>
-                              <p className="font-medium">{product.name}</p>
-                              <p className="text-sm text-muted-foreground">
-                                {product.brand}
-                              </p>
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>{category?.name || product.category}</TableCell>
-                        <TableCell>
-                          <div>
-                            <p className="font-medium">{product.price.toFixed(2)} DH</p>
-                            {product.originalPrice && (
-                              <p className="text-sm text-muted-foreground line-through">
-                                {product.originalPrice.toFixed(2)} DH
-                              </p>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>{product.stockQuantity}</TableCell>
-                        <TableCell>
-                          <Badge variant={product.inStock ? 'default' : 'destructive'}>
-                            {product.inStock ? 'En stock' : 'Rupture'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleOpenDialog(product)}
-                              disabled={submitting}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleOpenDeleteDialog(product)}
-                              className="text-destructive hover:text-destructive"
-                              disabled={submitting}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
+              <>
+                {/* Desktop table */}
+                <div className="hidden md:block">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Produit</TableHead>
+                        <TableHead>Catégorie</TableHead>
+                        <TableHead>Prix</TableHead>
+                        <TableHead>Stock</TableHead>
+                        <TableHead>Statut</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {products.map((product) => (
+                        <TableRow
+                          key={product.id}
+                          className="hover:bg-muted/40 transition-colors"
+                        >
+                          <TableCell>
+                            <div className="flex items-center gap-3">
+                              {product.images[0] && (
+                                <img
+                                  src={product.images[0]}
+                                  alt={product.name}
+                                  className="h-10 w-10 rounded object-cover border"
+                                />
+                              )}
+                              <div>
+                                <p className="font-semibold">{product.name}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {product.brand}
+                                </p>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>{product.category}</TableCell>
+                          <TableCell>
+                            <span className="font-medium">
+                              {product.price.toLocaleString()} FCFA
+                            </span>
+                          </TableCell>
+                          <TableCell>{product.stockQuantity}</TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={
+                                product.stockQuantity > 0
+                                  ? "default"
+                                  : "destructive"
+                              }
+                            >
+                              {product.stockQuantity > 0
+                                ? "En stock"
+                                : "Rupture"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => handleOpenDialog(product)}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() =>
+                                  handleOpenDeleteDialog(product)
+                                }
+                                className="text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                {/* Mobile / tablette : cartes */}
+                <div className="md:hidden grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {products.map((p) => (
+                    <motion.div
+                      key={p.id}
+                      className="border rounded-lg p-3 flex flex-col gap-2 shadow-sm hover:shadow-md transition-all"
+                    >
+                      <img
+                        src={p.images[0]}
+                        alt={p.name}
+                        className="h-36 w-full object-cover rounded"
+                      />
+                      <div className="flex justify-between items-center">
+                        <span className="font-semibold text-sm">{p.name}</span>
+                        <Badge
+                          variant={
+                            p.stockQuantity > 0 ? "default" : "destructive"
+                          }
+                        >
+                          {p.stockQuantity > 0 ? "En stock" : "Rupture"}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {p.brand}
+                      </p>
+                      <p className="font-bold text-primary text-sm">
+                        {p.price.toLocaleString()} FCFA
+                      </p>
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => handleOpenDialog(p)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => handleOpenDeleteDialog(p)}
+                          className="text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </>
             )}
           </div>
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">
+            <div className="flex flex-col sm:flex-row items-center justify-between pt-4 gap-2 text-sm">
+              <p className="text-muted-foreground">
                 Page {currentPage} sur {totalPages}
               </p>
               <div className="flex gap-2">
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                  disabled={currentPage === 1 || loading}
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
                 >
                   Précédent
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages || loading}
+                  onClick={() =>
+                    setCurrentPage((p) => Math.min(totalPages, p + 1))
+                  }
+                  disabled={currentPage === totalPages}
                 >
                   Suivant
                 </Button>
@@ -437,6 +472,8 @@ const ProductsManagement = () => {
           )}
         </CardContent>
       </Card>
+
+          
 
       {/* Dialog d'ajout/édition */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -515,7 +552,7 @@ const ProductsManagement = () => {
 
               {/* Prix */}
               <div className="space-y-2">
-                <Label htmlFor="price">Prix (DH) *</Label>
+                <Label htmlFor="price">Prix Promo (Fcfa) *</Label>
                 <Input
                   id="price"
                   type="number"
@@ -530,7 +567,7 @@ const ProductsManagement = () => {
 
               {/* Prix original */}
               <div className="space-y-2">
-                <Label htmlFor="originalPrice">Prix original (DH)</Label>
+                <Label htmlFor="originalPrice">Prix original (Fcfa)</Label>
                 <Input
                   id="originalPrice"
                   type="number"
