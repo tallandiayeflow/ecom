@@ -5,13 +5,12 @@ on:
     branches:
       - main
     paths:
-      - 'backend/**'  # Déclenche uniquement si le backend change de truc
-  workflow_dispatch:  # Permet de déclencher manuellement
+      - 'backend/**'
+  workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
@@ -29,6 +28,15 @@ jobs:
             cd /home/phone/app/backend
             git pull origin main
             npm install --production
-            pm2 restart mon-backend
+            pm2 restart backend
 
-        
+      - name: 🔍 Check Node and pm2 versions
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          script: |
+            node -v
+            pm2 -v
