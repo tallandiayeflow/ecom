@@ -34,7 +34,7 @@ app.register_blueprint(stock.stock_bp, url_prefix='/api/stock')
 def health_check():
     return jsonify({'status': 'ok', 'message': 'Phone Shop API is running'})
 
-# Error handlers
+# Error handlers test
 @app.errorhandler(404)
 def not_found(error):
     return jsonify({'error': 'Not found'}), 404

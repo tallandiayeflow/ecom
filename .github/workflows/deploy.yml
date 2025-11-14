@@ -27,8 +27,8 @@ jobs:
           script: |
             cd /home/phone/app/backend
             git pull origin main
-            pip install -r requirements.txt
-            pm2 restart app   
+            pip install -r requirements.txt --quiet
+            sudo supervisorctl restart phone
 
       - name: 🔍 Check Node and pm2 versions
         uses: appleboy/ssh-action@master

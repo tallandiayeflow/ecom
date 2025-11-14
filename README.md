@@ -19,7 +19,7 @@ Ce guide vous permettra de déployer automatiquement votre backend Flask sur vot
 ### A. Installer les dépendances sur le VPS
 
 ```bash
-ssh seneauto@77.237.233.252
+ssh phone@77.237.233.252
 
 # Installer Git, Python, et autres dépendances
 sudo apt update
@@ -73,7 +73,7 @@ ssh-keygen -t ed25519 -C "email@example.com"
 cat ~/.ssh/id_ed25519.pub
 
 
-git clone git@github.com:talla-ndiaye/SeneAuto.git . ou git@github.com:talla-ndiaye/azure-phone-shop.git .
+git clone git@github.com:talla-ndiaye/phone.git . ou git@github.com:talla-ndiaye/azure-phone-shop.git .
 cd backend
 ```
 
@@ -102,7 +102,7 @@ DB_HOST=localhost
 DB_PORT=3306
 DB_USER=root
 DB_PASSWORD=votre_mot_de_passe_mysql
-DB_NAME=seneauto
+DB_NAME=phone
 
 FLASK_ENV=production
 SECRET_KEY=votre_secret_key_super_secrete
@@ -140,8 +140,8 @@ workers = 4
 worker_class = "sync"
 timeout = 30
 keepalive = 2
-errorlog = "/home/seneauto/app/SeneAuto/backend/logs/gunicorn-error.log"
-accesslog = "/home/seneauto/app/SeneAuto/backend/logs/gunicorn-access.log"
+errorlog = "/home/phone/app/phone/backend/logs/gunicorn-error.log"
+accesslog = "/home/phone/app/phone/backend/logs/gunicorn-access.log"
 loglevel = "info"
 ```
 
@@ -150,23 +150,23 @@ loglevel = "info"
 ### H. Configurer Supervisor
 
 ```bash
-sudo nano /etc/supervisor/conf.d/seneauto.conf
+sudo nano /etc/supervisor/conf.d/phone.conf
 ```
 
 Contenu :
 
 ```ini
-[program:seneauto]
-directory=/home/seneauto/app/SeneAuto/backend
-command=/home/seneauto/app/SeneAuto/backend/venv/bin/gunicorn -c gunicorn_config.py app:app
-user=seneauto
+[program:phone]
+directory=/home/phone/app/backend
+command=/home/phone/app/backend/venv/bin/gunicorn -c gunicorn_config.py app:app
+user=phone
 autostart=true
 autorestart=true
 stopasgroup=true
 killasgroup=true
-stderr_logfile=/home/seneauto/app/SeneAuto/backend/logs/supervisor-error.log
-stdout_logfile=/home/seneauto/app/SeneAuto/backend/logs/supervisor-access.log
-environment=PATH="/home/seneauto/app/SeneAuto/backend/venv/bin"
+stderr_logfile=/home/phone/app/backend/logs/supervisor-error.log
+stdout_logfile=/home/phone/app/backend/logs/supervisor-access.log
+environment=PATH="/home/phone/app/backend/venv/bin"
 ```
 
 Rechargez Supervisor :
@@ -174,8 +174,8 @@ Rechargez Supervisor :
 ```bash
 sudo supervisorctl reread
 sudo supervisorctl update
-sudo supervisorctl start seneauto
-sudo supervisorctl status seneauto
+sudo supervisorctl start phone
+sudo supervisorctl status phone
 ```
 
 ***
@@ -189,7 +189,7 @@ sudo visudo
 Ajoutez à la fin :
 
 ```
-seneauto ALL=(ALL) NOPASSWD: /usr/bin/supervisorctl
+phone ALL=(ALL) NOPASSWD: /usr/bin/supervisorctl
 ```
 
 Sauvegardez : `Ctrl+X`, `Y`, `Entrée`.
@@ -223,7 +223,7 @@ Ajoutez ces 3 secrets :
 | Nom | Valeur |
 |-----|--------|
 | `VPS_HOST` | `77.237.233.252` |
-| `VPS_USER` | `seneauto` |
+| `VPS_USER` | `phone` |
 | `VPS_SSH_KEY` | La clé privée complète de `~/.ssh/github_actions` |
 
 ***
@@ -275,7 +275,7 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
-            cd /home/seneauto/app/SeneAuto/backend
+            cd /home/phone/app/phone/backend
             
             # Sauvegarder .env
             if [ -f .env ]; then
@@ -295,11 +295,11 @@ jobs:
             pip install -r requirements.txt --quiet
             
             # Redémarrer le service
-            sudo supervisorctl restart seneauto
+            sudo supervisorctl restart phone
             
             # Afficher le statut
             echo "✅ Déploiement terminé"
-            sudo supervisorctl status seneauto
+            sudo supervisorctl status phone
 ```
 
 ***
@@ -341,9 +341,9 @@ Allez sur **GitHub → Actions** et voyez le workflow en cours d'exécution.
 ### D. Vérifier sur le VPS
 
 ```bash
-ssh seneauto@77.237.233.252
-cd /home/seneauto/app/SeneAuto/backend
-sudo supervisorctl status seneauto
+ssh phone@77.237.233.252
+cd /home/phone/app/phone/backend
+sudo supervisorctl status phone
 ```
 
 ***
@@ -368,19 +368,19 @@ Maintenant, à chaque fois que vous modifiez le backend :
 
 ```bash
 # Voir les logs du déploiement
-ssh seneauto@77.237.233.252
-tail -f /home/seneauto/app/SeneAuto/backend/logs/supervisor-error.log
+ssh phone@77.237.233.252
+tail -f /home/phone/app/phone/backend/logs/supervisor-error.log
 
 # Redémarrer manuellement
-sudo supervisorctl restart seneauto
+sudo supervisorctl restart phone
 
 # Voir le statut
-sudo supervisorctl status seneauto
+sudo supervisorctl status phone
 
 # Pull manuel (si besoin)
-cd /home/seneauto/app/SeneAuto/backend
+cd /home/phone/app/phone/backend
 git pull origin main
-sudo supervisorctl restart seneauto
+sudo supervisorctl restart phone
 ```
 
 ***
