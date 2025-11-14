@@ -13,7 +13,7 @@ bind = f"0.0.0.0:{os.getenv('PORT', '5000')}"
 # Classe de workers
 worker_class = "sync"
 
-# Max requests pour éviter les fuites mémoire  test  
+# Max requests pour éviter les fuites mémoire  test  4
 max_requests = 1000
 max_requests_jitter = 50
 
