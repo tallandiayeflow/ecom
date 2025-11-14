@@ -304,7 +304,7 @@ export const getOrder = async (orderId: string): Promise<Order> => {
 };
 
 export const getOrderPubic = async (orderId: string): Promise<Order> => {
-  const response = await api.get(`/orders/public/${orderId}`);
+  const response = await api.get(`/orders/public/order/${orderId}`);
   return response.data;
 };
 

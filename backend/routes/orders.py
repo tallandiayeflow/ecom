@@ -206,3 +206,45 @@ def get_all_orders(current_user):
             'createdAt': order['created_at'].isoformat() if order.get('created_at') else None
         })
     return jsonify(formatted_orders), 200
+
+
+@bp.route('/public/order/<order_id>', methods=['GET'])
+def get_order_public(order_id):
+    try:
+        order = execute_query(
+            """
+            SELECT o.*, u.name as user_name, u.email as user_email
+            FROM orders o
+            JOIN users u ON o.user_id = u.id
+            WHERE o.id = %s
+            """,
+            (order_id,),
+            fetch_one=True
+        )
+        if not order:
+            return jsonify({"error": "Commande non trouvée"}), 404
+
+        items = execute_query("SELECT * FROM order_items WHERE order_id = %s", (order_id,), fetch_all=True)
+        return jsonify({
+            'id': order['id'],
+            'userName': order['user_name'],
+            'userEmail': order['user_email'],
+            'status': order['status'],
+            'total': float(order['total']),
+            'discount': float(order.get('discount', 0)),
+            'finalTotal': float(order.get('final_total', order['total'])),
+            'shippingAddress': json.loads(order['shipping_address']),
+            'voucherCode': order.get('voucher_code'),
+            'loyaltyPointsEarned': order.get('loyalty_points_earned', 0),
+            'items': [{
+                'id': item['id'],
+                'productId': item['product_id'],
+                'productName': item['product_name'],
+                'productImage': item['product_image'],
+                'price': float(item['price']),
+                'quantity': item['quantity']
+            } for item in items],
+            'createdAt': order['created_at'].isoformat() if order['created_at'] else None
+        })
+    except Exception as e:
+        return jsonify({"error": "Erreur lors de la récupération de la commande"}), 500

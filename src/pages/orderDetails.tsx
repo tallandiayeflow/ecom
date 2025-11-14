@@ -1,143 +1,176 @@
-"use client";
+// Improved OrderDetails component with modern UI, dark mode, responsive layout
+// Full rewrite applied
 
-import { getOrderPubic } from "@/lib/api";
-import { Order } from "@/types";
-import { Loader2 } from "lucide-react";
-import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+import { getOrderPubic } from '@/lib/api';
+import { ArrowLeft, Loader2, Package, Tag } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { toast } from 'sonner';
 
-const OrderDetailsPage = () => {
-  const { id } = useParams<{ id: string }>();
-  const [order, setOrder] = useState<Order | null>(null);
+const statusStyles: any = {
+  pending: 'secondary',
+  processing: 'warning',
+  shipped: 'info',
+  delivered: 'success',
+  cancelled: 'destructive',
+};
+
+export default function OrderDetails() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!id) return;
-    const fetchOrder = async () => {
-      try {
-        const data = await getOrderPubic(id);
-        setOrder(data);
-      } catch (error) {
-        console.error("Erreur chargement commande :", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchOrder();
+    if (id) loadOrderDetails();
   }, [id]);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
+  const loadOrderDetails = async () => {
+    try {
+      setLoading(true);
+      const data = await getOrderPubic(id!);
+      setOrder(data);
+    } catch {
+      toast.error('Erreur lors du chargement des détails de la commande');
+      navigate('/admin/orders');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  if (!order) {
+  if (loading)
     return (
-      <div className="flex items-center justify-center h-screen text-red-600 font-semibold">
-        Commande introuvable
+      <div className="flex justify-center items-center h-screen">
+        <Loader2 className="w-10 h-10 animate-spin" />
       </div>
     );
-  }
+
+  if (!order) return <div className="text-center p-8">Commande non trouvée</div>;
 
   return (
-    <div className="max-w-4xl mx-auto p-4 sm:p-6 md:p-8">
-      {/* En-tête */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">
-          Détails de la commande
-        </h1>
-        <span
-          className={`mt-2 sm:mt-0 px-3 py-1 rounded-full text-sm font-medium ${
-            order.status === "pending"
-              ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-100"
-              : order.status === "delivered"
-              ? "bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100"
-              : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
-          }`}
-        >
-          {order.status.toUpperCase()}
-        </span>
-      </div>
+    <div className="max-w-5xl mx-auto p-4 space-y-6">
+      {/* Back button */}
+      <Button
+        variant="outline"
+        onClick={() => navigate('/admin/orders')}
+        className="flex items-center gap-2 w-fit"
+      >
+        <ArrowLeft className="w-4 h-4" /> Retour
+      </Button>
 
-      {/* Informations client et adresse */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-        <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg shadow-sm">
-          <h2 className="font-semibold mb-2 text-gray-800 dark:text-gray-200">
-            Informations du client
-          </h2>
-          <p>
-            <span className="font-medium">Nom :</span> {order.shippingAddress.name}
+      {/* Main card */}
+      <Card className="shadow-xl border dark:border-gray-700 rounded-2xl">
+        <CardHeader>
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <CardTitle className="text-2xl font-bold">
+              Commande #{order.id.substring(0, 8)}
+            </CardTitle>
+            <Badge variant={statusStyles[order.status] || 'default'} className="px-3 py-1 text-sm">
+              {order.status}
+            </Badge>
+          </div>
+        </CardHeader>
+
+        <CardContent className="space-y-8">
+          {/* FLUID GRID: CLIENT + SHIPPING */}
+          <div className="grid md:grid-cols-2 gap-6 bg-gray-50 dark:bg-gray-900 p-4 rounded-xl shadow-inner">
+            {/* Client info */}
+            <div>
+              <h3 className="font-semibold text-lg mb-2">Informations client</h3>
+              <div className="space-y-1 text-sm">
+                <p><span className="font-semibold">Nom: </span>{order.userName || 'N/A'}</p>
+                <p><span className="font-semibold">Email: </span>{order.userEmail || 'N/A'}</p>
+              </div>
+            </div>
+
+            {/* Address */}
+            <div>
+              <h3 className="font-semibold text-lg mb-2">Adresse de livraison</h3>
+              <div className="space-y-1 text-sm">
+                <p>{order.shippingAddress.name}</p>
+                <p>{order.shippingAddress.phone}</p>
+                <p>{order.shippingAddress.address}</p>
+                <p>{order.shippingAddress.city}</p>
+              </div>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* ITEMS */}
+          <div>
+            <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
+              <Package className="w-5 h-5" /> Articles commandés
+            </h3>
+
+            <div className="space-y-4">
+              {order.items.map((item: any) => (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-gray-900 shadow-sm"
+                >
+                  <div className="flex items-center gap-4">
+                    {item.productImage && (
+                      <img
+                        src={item.productImage}
+                        className="w-16 h-16 object-cover rounded-xl border dark:border-gray-700"
+                      />
+                    )}
+                    <div>
+                      <p className="font-medium">{item.productName}</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">{item.quantity} × {item.price} FCFA</p>
+                    </div>
+                  </div>
+
+                  <p className="font-semibold text-right">{(item.quantity * item.price).toFixed(2)} FCFA</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* PRICES SECTION */}
+          <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-xl space-y-3 text-right shadow-inner">
+            <div className="text-sm">
+              <span className="font-semibold">Sous-total: </span>
+              {order.total.toFixed(2)} FCFA
+            </div>
+
+            {order.discount > 0 && (
+              <div className="text-green-600 dark:text-green-400 flex justify-end gap-2 items-center text-sm">
+                <Tag className="w-4 h-4" />
+                <span className="font-semibold">Réduction ({order.voucherCode}): </span>
+                -{order.discount.toFixed(2)} FCFA
+              </div>
+            )}
+
+            <div className="text-xl font-bold border-t pt-3">
+              Total final: <span className="text-green-600 dark:text-green-400">{order.finalTotal.toFixed(2)} FCFA</span>
+            </div>
+
+            {order.loyaltyPointsEarned > 0 && (
+              <p className="text-blue-600 dark:text-blue-400 text-sm">+
+                {order.loyaltyPointsEarned} points fidélité
+              </p>
+            )}
+          </div>
+
+          <Separator />
+
+          {/* DATE */}
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            <span className="font-semibold">Date de commande: </span>
+            {new Date(order.createdAt).toLocaleDateString('fr-FR')} —
+            {" "}
+            {new Date(order.createdAt).toLocaleTimeString('fr-FR')}
           </p>
-          <p>
-            <span className="font-medium">Téléphone :</span> {order.shippingAddress.phone}
-          </p>
-          
-        </div>
-
-        <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg shadow-sm">
-          <h2 className="font-semibold mb-2 text-gray-800 dark:text-gray-200">
-            Adresse de livraison
-          </h2>
-          <p>{order.shippingAddress.address}</p>
-          <p>{order.shippingAddress.city}</p>
-        </div>
-      </div>
-
-      {/* Liste des articles */}
-      <div className="overflow-x-auto">
-        <table className="min-w-full border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-          <thead className="bg-gray-100 dark:bg-gray-700">
-            <tr>
-              <th className="p-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-200">
-                Produit
-              </th>
-              <th className="p-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-200">
-                Quantité
-              </th>
-              <th className="p-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-200">
-                Prix
-              </th>
-              <th className="p-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-200">
-                Total
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-            {order.items.map((item) => (
-              <tr key={item.id} className="bg-white dark:bg-gray-900">
-                <td className="p-3 flex items-center gap-2">
-                  <img
-                    src={item.productImage}
-                    alt={item.productName}
-                    className="h-12 w-12 object-cover rounded"
-                  />
-                  <span className="text-gray-800 dark:text-gray-100">{item.productName}</span>
-                </td>
-                <td className="p-3 text-gray-800 dark:text-gray-100">{item.quantity}</td>
-                <td className="p-3 text-gray-800 dark:text-gray-100">{item.price.toFixed(2)} Fcfa</td>
-                <td className="p-3 text-gray-800 dark:text-gray-100">
-                  {(item.price * item.quantity).toFixed(2)} Fcfa
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Total et points de fidélité */}
-      <div className="mt-6 flex flex-col sm:flex-row justify-between items-center bg-gray-50 dark:bg-gray-800 p-4 rounded-lg shadow-sm">
-        <span className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-          Total : {order.finalTotal.toFixed(2)} Fcfa
-        </span>
-        <span className="text-gray-700 dark:text-gray-200">
-          Points de fidélité gagnés : {order.loyaltyPointsEarned}
-        </span>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
-};
-
-export default OrderDetailsPage;
+}
