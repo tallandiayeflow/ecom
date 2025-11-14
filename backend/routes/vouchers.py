@@ -144,8 +144,6 @@ def delete_voucher(current_user, voucher_id):
 
 # ==================== CLIENT ROUTE ====================
 
-bp = Blueprint('vouchers', __name__)
-
 @bp.route('/validate', methods=['POST'])
 @token_required
 def validate_voucher(current_user):
