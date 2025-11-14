@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -25,11 +26,8 @@ import {
 } from "@/components/ui/table";
 import { createInvoice, deleteInvoice, getInvoices } from "@/lib/api";
 
-// Génération numéro facture
 const generateInvoiceNumber = (): string =>
-  `INV-${Math.floor(Math.random() * 100000000)
-    .toString()
-    .padStart(8, "0")}`;
+  `INV-${Math.floor(Math.random() * 100000000).toString().padStart(8, "0")}`;
 
 const getStatusLabel = (status: string) => {
   switch (status) {
@@ -39,6 +37,7 @@ const getStatusLabel = (status: string) => {
     default: return status;
   }
 };
+
 const getStatusClass = (status: string) => {
   switch (status) {
     case "paid": return "bg-green-500 text-white";
@@ -52,6 +51,8 @@ const InvoicesManagement = () => {
   const [invoices, setInvoices] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [invoiceToDelete, setInvoiceToDelete] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [filterDate, setFilterDate] = useState("");
   const [newInvoice, setNewInvoice] = useState<any>({
@@ -64,7 +65,6 @@ const InvoicesManagement = () => {
     items: [],
     status: "pending",
     payment_method: "cash_on_delivery",
-    notes: "",
     amount: "",
     total: "",
   });
@@ -104,7 +104,7 @@ const InvoicesManagement = () => {
     const item = {
       id: crypto.randomUUID(),
       product_name: currentItem.product_name,
-      unit_price: currentItem.unit_price,
+      unit_price: Number(currentItem.unit_price).toFixed(2),
       quantity: currentItem.quantity,
       total: (Number(currentItem.unit_price) * currentItem.quantity).toFixed(2),
     };
@@ -145,31 +145,40 @@ const InvoicesManagement = () => {
         items: [],
         status: "pending",
         payment_method: "cash_on_delivery",
-        notes: "",
         amount: "",
         total: "",
       });
+      setCurrentItem({ product_name: "", unit_price: "", quantity: 1 });
       toast.success("Facture créée.");
     } catch {
       toast.error("Erreur création facture.");
     }
   };
 
-  const deleteExistingInvoice = async (id: string) => {
-    if (!confirm("Confirmer la suppression ?")) return;
+  const confirmDeleteInvoice = (id: string) => {
+    setInvoiceToDelete(id);
+    setDeleteDialogOpen(true);
+  };
+
+  const deleteExistingInvoice = async () => {
+    if (!invoiceToDelete) return;
     try {
-      await deleteInvoice(id);
-      setInvoices((prev) => prev.filter((i) => i.id !== id));
+      await deleteInvoice(invoiceToDelete);
+      setInvoices((prev) => prev.filter((i) => i.id !== invoiceToDelete));
       toast.success("Facture supprimée.");
     } catch {
       toast.error("Erreur suppression facture.");
+    } finally {
+      setInvoiceToDelete(null);
+      setDeleteDialogOpen(false);
     }
   };
 
   return (
     <div className="p-6 bg-background text-foreground min-h-screen">
+      {/* Header & recherche */}
       <div className="flex flex-col md:flex-row items-center justify-between mb-6 gap-4">
-        <h1 className="text-2xl md:text-3xl font-bold text-foreground">Gestion des Factures</h1>
+        <h1 className="text-2xl md:text-3xl font-bold">Gestion des Factures</h1>
         <div className="flex flex-col md:flex-row gap-2">
           <Input
             placeholder="Recherche par nom, email ou téléphone"
@@ -183,6 +192,7 @@ const InvoicesManagement = () => {
             onChange={(e) => setFilterDate(e.target.value)}
             className="w-full md:w-48"
           />
+          {/* Création facture */}
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" className="flex items-center gap-2">
@@ -247,6 +257,8 @@ const InvoicesManagement = () => {
                     </div>
                   ))}
                 </div>
+
+                {/* Inputs article + bouton ajouter */}
                 <div className="flex flex-col sm:flex-row gap-2 items-end mt-2">
                   <Input
                     placeholder="Nom article"
@@ -266,8 +278,10 @@ const InvoicesManagement = () => {
                     value={currentItem.quantity}
                     onChange={(e) => setCurrentItem({ ...currentItem, quantity: Number(e.target.value) || 1 })}
                   />
-                  <Button onClick={addItemToInvoice} type="button" className="flex items-center"><Plus /></Button>
                 </div>
+                <Button onClick={addItemToInvoice} className="mt-2 flex items-center gap-2">
+                  <Plus /> Ajouter article
+                </Button>
 
                 {/* Statut et méthode paiement */}
                 <div className="grid grid-cols-2 gap-4 mt-2">
@@ -298,14 +312,6 @@ const InvoicesManagement = () => {
                   </div>
                 </div>
 
-                <div>
-                  <Label>Notes</Label>
-                  <Input
-                    value={newInvoice.notes || ""}
-                    onChange={(e) => setNewInvoice({ ...newInvoice, notes: e.target.value })}
-                  />
-                </div>
-
                 <div className="flex justify-end gap-2 mt-2">
                   <Button onClick={saveInvoice}>Enregistrer</Button>
                   <Button variant="ghost" onClick={() => setIsDialogOpen(false)}>Annuler</Button>
@@ -316,7 +322,7 @@ const InvoicesManagement = () => {
         </div>
       </div>
 
-      {/* Table responsive */}
+      {/* Table */}
       <div className="overflow-x-auto mt-4">
         <Table className="min-w-full border border-border bg-background text-foreground">
           <TableHeader>
@@ -347,13 +353,27 @@ const InvoicesManagement = () => {
                 </TableCell>
                 <TableCell className="text-center flex justify-center gap-2">
                   <Button variant="ghost" onClick={() => navigate(`/invoices/${inv.id}`)} title="Voir le reçu"><FileText /></Button>
-                  <Button variant="ghost" onClick={() => deleteExistingInvoice(inv.id)} title="Supprimer"><Trash2 /></Button>
+                  <Button variant="ghost" onClick={() => confirmDeleteInvoice(inv.id)} title="Supprimer"><Trash2 /></Button>
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </div>
+
+      {/* Dialog confirmation suppression */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent className="max-w-sm bg-background text-foreground border border-border rounded-xl shadow-lg">
+          <DialogHeader>
+            <DialogTitle>Confirmer la suppression</DialogTitle>
+          </DialogHeader>
+          <p className="px-4 text-center py-2">Voulez-vous vraiment supprimer cette facture ?</p>
+          <DialogFooter className="flex justify-end gap-2 px-4 pb-4">
+            <Button variant="ghost" onClick={() => setDeleteDialogOpen(false)}>Annuler</Button>
+            <Button variant="destructive" onClick={deleteExistingInvoice}>Supprimer</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
