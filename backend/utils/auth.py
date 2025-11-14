@@ -37,6 +37,9 @@ def token_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         token = None
+
+        if request.method == "OPTIONS":
+            return "", 200  # Autoriser le préflight
         
         # Get token from header
         if 'Authorization' in request.headers:
@@ -64,6 +67,9 @@ def admin_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         token = None
+
+        if request.method == "OPTIONS":
+            return "", 200  # Autoriser le préflight
         
         if 'Authorization' in request.headers:
             auth_header = request.headers['Authorization']
