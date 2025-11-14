@@ -1,73 +1,399 @@
-# Welcome to your Lovable project
+# 🚀 Guide Complet : Déploiement Automatique Backend Flask avec GitHub Actions
 
-## Project info
+Ce guide vous permettra de déployer automatiquement votre backend Flask sur votre VPS Contabo à chaque commit sur la branche `main`.
 
-**URL**: https://lovable.dev/projects/d97a2473-12d0-4486-a87a-4925fb03e206
+***
 
-## How can I edit this code?
+## 📋 Prérequis
 
-There are several ways of editing your application.
+- VPS Contabo avec Ubuntu
+- Compte GitHub
+- Backend Flask fonctionnel
+- MySQL installé sur le VPS
+- Supervisor configuré
 
-**Use Lovable**
+***
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/d97a2473-12d0-4486-a87a-4925fb03e206) and start prompting.
+## 1️⃣ Configuration du VPS
 
-Changes made via Lovable will be committed automatically to this repo.
+### A. Installer les dépendances sur le VPS
 
-**Use your preferred IDE**
+```bash
+ssh seneauto@77.237.233.252
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+# Installer Git, Python, et autres dépendances
+sudo apt update
+sudo apt install -y git python3 python3-venv python3-pip mysql-server supervisor nginx
 ```
 
-**Edit a file directly in GitHub**
+***
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### B. Créer une clé SSH pour GitHub puis l'enregistre dans les cles public autorises (si pas déjà fait)
 
-**Use GitHub Codespaces**
+```bash
+ssh-keygen -t ed25519 -C "github-actions" -f ~/.ssh/github_actions
+cat ~/.ssh/github_actions.pub >> ~/.ssh/authorized_keys
+chmod 600 ~/.ssh/authorized_keys
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+**afficher et Copiez la clé publique et ajoutez-la sur le depot GitHub** :
 
-## What technologies are used for this project?
+```
+cat ~/.ssh/github_actions
 
-This project is built with:
+Copiez tout le contenu (de -----BEGIN OPENSSH PRIVATE KEY----- à -----END OPENSSH PRIVATE KEY-----)
+```
+- Allez sur **repot GitHub.com → Settings → secrtes et variables → actions → new repositry secret S**
+- creer trois variable : `VPS Contabo`
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+```
+cat ~/.ssh/github_actions
+SERVER_IP
+SERVER_USERNAME
+SERVER_IP
+SSH_PRIVATE_KEY
+```
+puis configure le fichier deploy.yml :
 
-## How can I deploy this project?
+### C. Installer gir pui Cloner le repository sur le VPS
 
-Simply open [Lovable](https://lovable.dev/projects/d97a2473-12d0-4486-a87a-4925fb03e206) and click on Share -> Publish.
+```bash
+sudo apt update
+sudo apt install git -y
+# Pour Node.js (exemple, adaptez selon votre backend)
+curl -sL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+sudo apt install -y nodejs
+sudo npm install -g pm2
 
-## Can I connect a custom domain to my Lovable project?
+cd /home/phone/app
+#ajouter la cle ssh de hithub 
+ssh-keyscan github.com >> ~/.ssh/known_hosts
+#creer et afficher un cle public puis ajouter cette cles dans github sur paratres ssh keys
+ssh-keygen -t ed25519 -C "email@example.com"
+cat ~/.ssh/id_ed25519.pub
 
-Yes, you can!
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+git clone git@github.com:talla-ndiaye/SeneAuto.git . ou git@github.com:talla-ndiaye/azure-phone-shop.git .
+cd backend
+```
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+***
+
+### D. Créer l'environnement virtuel
+
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+***
+
+### E. Créer le fichier `.env`
+
+```bash
+nano .env
+```
+
+Contenu :
+
+```env
+DB_HOST=localhost
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=votre_mot_de_passe_mysql
+DB_NAME=seneauto
+
+FLASK_ENV=production
+SECRET_KEY=votre_secret_key_super_secrete
+
+MAIL_SERVER=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USERNAME=votre_email@gmail.com
+MAIL_PASSWORD=votre_mot_de_passe_app
+MAIL_USE_TLS=True
+```
+
+Sauvegardez : `Ctrl+X`, `Y`, `Entrée`.
+
+***
+
+### F. Créer les dossiers nécessaires
+
+```bash
+mkdir -p logs uploads
+```
+
+***
+
+### G. Créer le fichier `gunicorn_config.py`
+
+```bash
+nano gunicorn_config.py
+```
+
+Contenu :
+
+```python
+bind = "127.0.0.1:5000"
+workers = 4
+worker_class = "sync"
+timeout = 30
+keepalive = 2
+errorlog = "/home/seneauto/app/SeneAuto/backend/logs/gunicorn-error.log"
+accesslog = "/home/seneauto/app/SeneAuto/backend/logs/gunicorn-access.log"
+loglevel = "info"
+```
+
+***
+
+### H. Configurer Supervisor
+
+```bash
+sudo nano /etc/supervisor/conf.d/seneauto.conf
+```
+
+Contenu :
+
+```ini
+[program:seneauto]
+directory=/home/seneauto/app/SeneAuto/backend
+command=/home/seneauto/app/SeneAuto/backend/venv/bin/gunicorn -c gunicorn_config.py app:app
+user=seneauto
+autostart=true
+autorestart=true
+stopasgroup=true
+killasgroup=true
+stderr_logfile=/home/seneauto/app/SeneAuto/backend/logs/supervisor-error.log
+stdout_logfile=/home/seneauto/app/SeneAuto/backend/logs/supervisor-access.log
+environment=PATH="/home/seneauto/app/SeneAuto/backend/venv/bin"
+```
+
+Rechargez Supervisor :
+
+```bash
+sudo supervisorctl reread
+sudo supervisorctl update
+sudo supervisorctl start seneauto
+sudo supervisorctl status seneauto
+```
+
+***
+
+### I. Configurer sudo sans mot de passe pour Supervisor
+
+```bash
+sudo visudo
+```
+
+Ajoutez à la fin :
+
+```
+seneauto ALL=(ALL) NOPASSWD: /usr/bin/supervisorctl
+```
+
+Sauvegardez : `Ctrl+X`, `Y`, `Entrée`.
+
+***
+
+## 2️⃣ Configuration GitHub Actions
+
+### A. Créer une clé SSH dédiée pour GitHub Actions
+
+Sur le VPS :
+
+```bash
+ssh-keygen -t ed25519 -C "github-actions" -f ~/.ssh/github_actions
+cat ~/.ssh/github_actions.pub >> ~/.ssh/authorized_keys
+cat ~/.ssh/github_actions
+```
+
+**Copiez la clé privée complète** (de `-----BEGIN` à `-----END`).
+
+***
+
+### B. Ajouter les secrets sur GitHub
+
+Sur GitHub, allez dans votre repository :
+
+**Settings → Secrets and variables → Actions → New repository secret**
+
+Ajoutez ces 3 secrets :
+
+| Nom | Valeur |
+|-----|--------|
+| `VPS_HOST` | `77.237.233.252` |
+| `VPS_USER` | `seneauto` |
+| `VPS_SSH_KEY` | La clé privée complète de `~/.ssh/github_actions` |
+
+***
+
+### C. Créer le fichier `.gitignore`
+
+Sur votre machine Windows, dans le dossier `backend/`, créez `.gitignore` :
+
+```
+.env
+.env.*
+__pycache__/
+*.pyc
+venv/
+logs/
+uploads/
+*.log
+.DS_Store
+```
+
+***
+
+### D. Créer le workflow GitHub Actions
+
+Sur votre machine Windows, créez le fichier `.github/workflows/deploy-backend.yml` :
+
+```yaml
+name: Deploy Backend to VPS
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v3
+
+      - name: 🚀 Deploy Backend to VPS
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            cd /home/seneauto/app/SeneAuto/backend
+            
+            # Sauvegarder .env
+            if [ -f .env ]; then
+              cp .env .env.backup
+            fi
+            
+            # Pull les changements
+            git pull origin main
+            
+            # Restaurer .env
+            if [ -f .env.backup ]; then
+              mv .env.backup .env
+            fi
+            
+            # Activer venv et installer dépendances
+            source venv/bin/activate
+            pip install -r requirements.txt --quiet
+            
+            # Redémarrer le service
+            sudo supervisorctl restart seneauto
+            
+            # Afficher le statut
+            echo "✅ Déploiement terminé"
+            sudo supervisorctl status seneauto
+```
+
+***
+
+### E. Committer et pousser
+
+```bash
+git add .
+git commit -m "Setup GitHub Actions CI/CD"
+git push origin main
+```
+
+***
+
+## 3️⃣ Test du déploiement automatique
+
+### A. Modifier un fichier backend
+
+Sur votre machine Windows, modifiez un fichier (par exemple `app.py`).
+
+***
+
+### B. Committer et pousser
+
+```bash
+git add .
+git commit -m "Test automatic deployment"
+git push origin main
+```
+
+***
+
+### C. Vérifier sur GitHub
+
+Allez sur **GitHub → Actions** et voyez le workflow en cours d'exécution.
+
+---
+
+### D. Vérifier sur le VPS
+
+```bash
+ssh seneauto@77.237.233.252
+cd /home/seneauto/app/SeneAuto/backend
+sudo supervisorctl status seneauto
+```
+
+***
+
+## 4️⃣ Workflow quotidien
+
+Maintenant, à chaque fois que vous modifiez le backend :
+
+1. **Sur Windows** : Modifiez le code
+2. **Commit et push** :
+   ```bash
+   git add .
+   git commit -m "Description des changements"
+   git push origin main
+   ```
+3. **GitHub Actions** déploie automatiquement sur le VPS
+4. **Vérifiez** que tout fonctionne
+
+***
+
+## 5️⃣ Commandes utiles
+
+```bash
+# Voir les logs du déploiement
+ssh seneauto@77.237.233.252
+tail -f /home/seneauto/app/SeneAuto/backend/logs/supervisor-error.log
+
+# Redémarrer manuellement
+sudo supervisorctl restart seneauto
+
+# Voir le statut
+sudo supervisorctl status seneauto
+
+# Pull manuel (si besoin)
+cd /home/seneauto/app/SeneAuto/backend
+git pull origin main
+sudo supervisorctl restart seneauto
+```
+
+***
+
+## ✅ Récapitulatif
+
+Avec cette configuration :
+
+- ✅ Chaque `git push` sur `main` déclenche un déploiement automatique
+- ✅ Le backend se met à jour sans intervention manuelle
+- ✅ Supervisor redémarre automatiquement l'application
+- ✅ Les logs sont disponibles pour le debugging
+
+***
+
+Votre pipeline CI/CD est maintenant opérationnel ! 🚀
