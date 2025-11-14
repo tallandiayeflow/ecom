@@ -1,7 +1,7 @@
 import axios, { AxiosInstance } from 'axios';
 
 // Configuration de base
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://phone-backend.duckdns.org/api';
 
 // Instance Axios configurée
 const api: AxiosInstance = axios.create({
@@ -9,7 +9,7 @@ const api: AxiosInstance = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 10000,
+  timeout: 20000,
 });
 
 // ==================== INTERCEPTORS ====================
