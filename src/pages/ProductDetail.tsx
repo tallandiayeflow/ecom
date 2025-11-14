@@ -67,19 +67,72 @@ const ProductDetail = () => {
     }
   };
 
-  // Loading state
-  if (loading) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="text-center space-y-4">
-            <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
-            <p className="text-muted-foreground">Chargement du produit...</p>
+  // Loading state — Solution 2 (fade + pulse + structure identique)
+if (loading) {
+  return (
+    <div className="container mx-auto px-4 py-8 max-w-7xl opacity-40 animate-pulse pointer-events-none select-none">
+      {/* Bouton retour */}
+      <div className="w-24 h-8 bg-gray-200 rounded mb-6" />
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        
+        {/* Skeleton images */}
+        <div className="space-y-3">
+          <div className="h-[400px] bg-gray-200 rounded-lg" />
+          <div className="flex gap-2">
+            {[1, 2, 3, 4].map((n) => (
+              <div key={n} className="w-16 h-16 bg-gray-200 rounded-md" />
+            ))}
           </div>
         </div>
+
+        {/* Skeleton infos */}
+        <div className="space-y-4">
+          <div className="space-y-3">
+            <div className="w-40 h-5 bg-gray-200 rounded" />
+            <div className="w-64 h-6 bg-gray-300 rounded" />
+            <div className="w-full h-4 bg-gray-200 rounded" />
+          </div>
+
+          <div className="w-full h-[1px] bg-gray-200" />
+
+          <div className="space-y-2">
+            <div className="w-32 h-8 bg-gray-300 rounded" />
+            <div className="w-24 h-4 bg-gray-200 rounded" />
+          </div>
+
+          <div className="w-full h-[1px] bg-gray-200" />
+
+          <div className="space-y-2">
+            <div className="w-48 h-5 bg-gray-200 rounded" />
+            <div className="w-28 h-4 bg-gray-200 rounded" />
+          </div>
+
+          <div className="w-full h-[1px] bg-gray-200" />
+
+          {/* Quantité */}
+          <div className="space-y-2">
+            <div className="w-32 h-5 bg-gray-200 rounded" />
+            <div className="w-40 h-10 bg-gray-300 rounded-lg" />
+          </div>
+
+          {/* Button */}
+          <div className="w-full h-12 bg-gray-300 rounded-lg" />
+
+          {/* Livraison */}
+          <div className="w-full h-16 bg-gray-200 rounded-lg" />
+        </div>
       </div>
-    );
-  }
+
+      {/* Description skeleton */}
+      <div className="mt-8 space-y-3">
+        <div className="w-40 h-6 bg-gray-300 rounded" />
+        <div className="w-full h-24 bg-gray-200 rounded-lg" />
+      </div>
+    </div>
+  );
+}
+
 
   if (!product) {
     return null;

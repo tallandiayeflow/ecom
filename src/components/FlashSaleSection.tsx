@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { getFlashSales } from '@/lib/api';
 import { FlashSale } from '@/types';
-import { ChevronLeft, ChevronRight, Clock, Loader2, Zap } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, Zap } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -64,12 +64,32 @@ export const FlashSaleSection = () => {
 
   // Afficher un loader pendant le chargement
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+  return (
+    <section className="py-8 opacity-40 animate-pulse pointer-events-none select-none">
+      <div className="flex items-center justify-between mb-6">
+        {/* En-tête skeleton */}
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-gray-300 rounded-lg" />
+          <div className="space-y-2">
+            <div className="w-32 h-6 bg-gray-300 rounded" />
+            <div className="w-48 h-4 bg-gray-200 rounded" />
+          </div>
+        </div>
+
+        {/* Timer Skeleton */}
+        <div className="w-28 h-10 bg-gray-200 rounded-lg" />
       </div>
-    );
-  }
+
+      {/* Slider skeleton */}
+      <div className="flex gap-4 overflow-hidden py-2">
+        {[1, 2, 3, 4].map((i) => (
+          <Card key={i} className="w-[280px] h-80 bg-gray-200 rounded-lg" />
+        ))}
+      </div>
+    </section>
+  );
+}
+
 
   // Ne rien afficher si aucune vente flash
   if (flashSales.length === 0) {

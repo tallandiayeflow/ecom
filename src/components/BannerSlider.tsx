@@ -104,7 +104,7 @@ export const BannerSlider = () => {
                   {banner.product?.price && (
                     <div className="text-white">
                       <span className="text-2xl font-bold">
-                        {banner.product.price.toFixed(2)} DH
+                        {banner.product.price.toFixed(2)} Fcfa
                       </span>
                     </div>
                   )}
