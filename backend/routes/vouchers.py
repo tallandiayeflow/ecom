@@ -144,60 +144,50 @@ def delete_voucher(current_user, voucher_id):
 
 # ==================== CLIENT ROUTE ====================
 
+bp = Blueprint('vouchers', __name__)
+
 @bp.route('/validate', methods=['POST'])
 @token_required
 def validate_voucher(current_user):
-    """Validate a voucher code for a customer"""
     data = request.get_json()
-    
-    # Vérifier que le code et le total sont fournis
+
+    # Vérifier présence des champs
     if not data.get('code') or not data.get('orderTotal'):
         return jsonify({'error': 'Code et montant de commande requis'}), 400
-    
+
     code = data['code'].strip().upper()
     order_total = float(data['orderTotal'])
-    
-    # Récupérer le voucher
+
     voucher = execute_query(
-        """SELECT * FROM vouchers 
-           WHERE code = %s AND is_active = 1""",
+        "SELECT * FROM vouchers WHERE code = %s AND is_active = 1",
         (code,),
         fetch_one=True
     )
-    
     if not voucher:
         return jsonify({'error': 'Code promo invalide ou inactif'}), 404
-    
-    # Vérifier la date de validité
+
     now = datetime.now()
-    
     if voucher['valid_from'] and voucher['valid_from'] > now:
-        return jsonify({'error': 'Ce code promo n\'est pas encore actif'}), 400
-    
+        return jsonify({'error': 'Ce code promo n’est pas encore actif'}), 400
+
     if voucher['valid_until'] and voucher['valid_until'] < now:
         return jsonify({'error': 'Ce code promo a expiré'}), 400
-    
-    # Vérifier le montant minimum
+
     if voucher['min_order_amount'] and order_total < float(voucher['min_order_amount']):
-        return jsonify({
-            'error': f'Montant minimum de {float(voucher["min_order_amount"]):.2f} requis'
-        }), 400
-    
-    # Vérifier le nombre d'utilisations
+        return jsonify({'error': f'Montant minimum de {voucher["min_order_amount"]} requis'}), 400
+
     if voucher['max_uses'] and voucher['used_count'] >= voucher['max_uses']:
-        return jsonify({'error': 'Ce code promo a atteint sa limite d\'utilisation'}), 400
-    
-    # Calculer la réduction
+        return jsonify({'error': 'Ce code promo a atteint sa limite d’utilisation'}), 400
+
     discount = 0
     if voucher['type'] == 'percentage':
         discount = order_total * (float(voucher['value']) / 100)
     elif voucher['type'] == 'fixed':
         discount = float(voucher['value'])
-    
-    # S'assurer que la réduction ne dépasse pas le total
+
     discount = min(discount, order_total)
     final_total = order_total - discount
-    
+
     return jsonify({
         'valid': True,
         'voucher': {

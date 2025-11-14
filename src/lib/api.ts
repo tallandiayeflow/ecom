@@ -84,6 +84,9 @@ export interface CreateOrderData {
   };
   voucherCode?: string;
   discount?: number;
+  total?:number,
+  finalTotal?:number,
+
 }
 
 export interface VoucherValidationResult {
@@ -335,6 +338,7 @@ export const deleteFlashSale = async (
 };
 
 // ==================== VOUCHERS ====================
+
 
 // Récupérer la liste de tous les vouchers (admin)
 export const getVouchers = async (): Promise<VoucherData[]> => {
