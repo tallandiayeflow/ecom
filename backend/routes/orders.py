@@ -154,11 +154,10 @@ def create_order(current_user):
 
     return jsonify({'id': order_id, 'status': 'pending'}), 201
 
-@bp.route('/status', methods=['PUT'])
+@bp.route('/status/<order_id>', methods=['PUT'])
 @admin_required
-def update_order_status(current_user):
+def update_order_status(current_user,order_id):
     data = request.get_json()
-    order_id = data.get('orderId')
     status = data.get('status')
 
     if status not in ['pending', 'processing', 'shipped', 'delivered', 'cancelled']:

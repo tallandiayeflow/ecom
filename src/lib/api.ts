@@ -303,6 +303,11 @@ export const getOrder = async (orderId: string): Promise<Order> => {
   return response.data;
 };
 
+export const deleteOrder = async (orderId: string): Promise<Order> => {
+  const response = await api.delete(`/admin/orders/${orderId}`);
+  return response.data;
+};
+
 export const getOrderPubic = async (orderId: string): Promise<Order> => {
   const response = await api.get(`/orders/public/order/${orderId}`);
   return response.data;
@@ -313,7 +318,7 @@ export const updateOrderStatus = async (
   id: string,
   status: Order['status']
 ): Promise<{ message: string }> => {
-  const response = await api.put(`/orders/${id}/status`, { status });
+  const response = await api.put(`/orders/status/${id}`, { status });
   return response.data;
 };
 
