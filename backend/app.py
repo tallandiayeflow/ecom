@@ -6,7 +6,7 @@ from routes import auth, products, categories, cart, orders, flash_sales, banner
 app = Flask(__name__)
 app.config.from_object(Config)
 
-# CORS
+# CORSssss
 CORS(app, resources={
     r"/api/*": {
         "origins": Config.CORS_ORIGINS,
@@ -15,7 +15,7 @@ CORS(app, resources={
     }
 })
 
-# Blueprints
+# Blueprints tests
 app.register_blueprint(auth.bp, url_prefix='/api/auth')
 app.register_blueprint(products.bp, url_prefix='/api/products')
 app.register_blueprint(categories.bp, url_prefix='/api/categories')
