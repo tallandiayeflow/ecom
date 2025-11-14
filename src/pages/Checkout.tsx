@@ -264,7 +264,7 @@ const Checkout = () => {
                 {voucherApplied && (
                   <div className="mt-3 flex items-center gap-2 text-sm text-green-600">
                     <CheckCircle className="h-4 w-4" />
-                    <span>Code appliqué : -{discount.toFixed(2)} DH</span>
+                    <span>Code appliqué : -{discount.toFixed(2)} Fcfa</span>
                   </div>
                 )}
               </CardContent>
@@ -291,9 +291,9 @@ const Checkout = () => {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-medium line-clamp-2">{item.product.name}</p>
-                        <p className="text-muted-foreground">{item.quantity} × {item.product.price.toFixed(2)} DH</p>
+                        <p className="text-muted-foreground">{item.quantity} × {item.product.price.toFixed(2)} Fcfa</p>
                       </div>
-                      <div className="font-semibold">{(item.product.price * item.quantity).toFixed(2)} DH</div>
+                      <div className="font-semibold">{(item.product.price * item.quantity).toFixed(2)} Fcfa</div>
                     </div>
                   ))}
                 </div>
@@ -301,25 +301,25 @@ const Checkout = () => {
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Sous-total ({cartCount} articles)</span>
-                    <span className="font-medium">{cartTotal.toFixed(2)} DH</span>
+                    <span className="font-medium">{cartTotal.toFixed(2)} Fcfa</span>
                   </div>
                   {discount > 0 && (
                     <div className="flex justify-between text-green-600">
                       <span>Réduction</span>
-                      <span className="font-medium">-{discount.toFixed(2)} DH</span>
+                      <span className="font-medium">-{discount.toFixed(2)} Fcfa</span>
                     </div>
                   )}
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Livraison</span>
                     <span className={`font-medium ${shippingCost === 0 ? 'text-green-600' : ''}`}>
-                      {shippingCost === 0 ? 'Gratuite' : `${shippingCost.toFixed(2)} DH`}
+                      {shippingCost === 0 ? 'Gratuite' : `${shippingCost.toFixed(2)} Fcfa`}
                     </span>
                   </div>
                 </div>
                 <Separator />
                 <div className="flex justify-between items-center pt-2">
                   <span className="text-lg font-semibold">Total</span>
-                  <span className="text-2xl font-bold text-primary">{finalTotal.toFixed(2)} DH</span>
+                  <span className="text-2xl font-bold text-primary">{finalTotal.toFixed(2)} Fcfa</span>
                 </div>
                 <Button type="submit" size="lg" className="w-full" disabled={loading || cart.length === 0}>
                   {loading ? (

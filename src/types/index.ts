@@ -116,11 +116,12 @@ export interface VoucherData {
   discountType: 'percentage' | 'fixed';
   discountValue: number;
   minPurchase: number;
-  maxUses: number;
-  usedCount?: number; // readonly
-  expiryDate: string; // ISO format
+  maxUses: number | null;
+  usedCount?: number;
+  validFrom: string;      // ✅ AJOUT
+  validUntil: string;     // ✅ RENOMMAGE depuis expiryDate
   isActive: boolean;
-  discount: number; // champ supplémentaire
+  createdAt?: string;     // ✅ AJOUT
 }
 
 

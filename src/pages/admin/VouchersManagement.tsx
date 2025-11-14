@@ -1,4 +1,5 @@
 "use client";
+
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -21,7 +22,8 @@ const VouchersManagement = () => {
     discountValue: 0,
     minPurchase: 0,
     maxUses: 0,
-    expiryDate: "",
+    validFrom: "",
+    validUntil: "",
     isActive: true,
   });
   const [search, setSearch] = useState("");
@@ -51,8 +53,9 @@ const VouchersManagement = () => {
         discountType: voucher.discountType,
         discountValue: voucher.discountValue,
         minPurchase: voucher.minPurchase,
-        maxUses: voucher.maxUses,
-        expiryDate: voucher.expiryDate.slice(0, 10),
+        maxUses: voucher.maxUses ?? 0,
+        validFrom: voucher.validFrom?.slice(0, 16) ?? "",
+        validUntil: voucher.validUntil?.slice(0, 16) ?? "",
         isActive: voucher.isActive,
       });
     } else {
@@ -64,7 +67,8 @@ const VouchersManagement = () => {
         discountValue: 0,
         minPurchase: 0,
         maxUses: 0,
-        expiryDate: "",
+        validFrom: "",
+        validUntil: "",
         isActive: true,
       });
     }
@@ -166,6 +170,7 @@ const VouchersManagement = () => {
                   <th>Min Achat</th>
                   <th>Max Utilisations</th>
                   <th>Utilisées</th>
+                  <th>Début</th>
                   <th>Expiration</th>
                   <th>Actif</th>
                   <th className="text-right">Actions</th>
@@ -180,7 +185,8 @@ const VouchersManagement = () => {
                     <td>{voucher.minPurchase}</td>
                     <td>{voucher.maxUses}</td>
                     <td>{voucher.usedCount || 0}</td>
-                    <td>{voucher.expiryDate?.slice(0, 10)}</td>
+                    <td>{voucher.validFrom?.slice(0, 10)}</td>
+                    <td>{voucher.validUntil?.slice(0, 10)}</td>
                     <td>
                       <span
                         className={`px-2 py-1 rounded-full text-xs font-semibold ${
@@ -196,7 +202,11 @@ const VouchersManagement = () => {
                       <Button variant="outline" size="sm" onClick={() => openDialog(voucher)}>
                         Modifier
                       </Button>
-                      <Button variant="destructive" size="sm" onClick={() => handleDelete(voucher.id!)}>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleDelete(voucher.id!)}
+                      >
                         <Trash className="w-4 h-4" />
                       </Button>
                     </td>
@@ -227,17 +237,23 @@ const VouchersManagement = () => {
                 </span>
               </div>
               <p className="text-sm">
-                {voucher.discountType === "percentage" ? "Pourcentage" : "Fixe"} : {voucher.discountValue}
+                {voucher.discountType === "percentage" ? "Pourcentage" : "Fixe"} :{" "}
+                {voucher.discountValue}
               </p>
               <p className="text-sm">Min Achat: {voucher.minPurchase}</p>
               <p className="text-sm">Max Utilisations: {voucher.maxUses}</p>
               <p className="text-sm">Utilisées: {voucher.usedCount || 0}</p>
-              <p className="text-sm">Expiration: {voucher.expiryDate?.slice(0, 10)}</p>
+              <p className="text-sm">Début: {voucher.validFrom?.slice(0, 10)}</p>
+              <p className="text-sm">Expiration: {voucher.validUntil?.slice(0, 10)}</p>
               <div className="flex gap-2 justify-end mt-2">
                 <Button variant="outline" size="sm" onClick={() => openDialog(voucher)}>
                   Modifier
                 </Button>
-                <Button variant="destructive" size="sm" onClick={() => handleDelete(voucher.id!)}>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => handleDelete(voucher.id!)}
+                >
                   <Trash className="w-4 h-4" />
                 </Button>
               </div>
@@ -313,24 +329,35 @@ const VouchersManagement = () => {
                 />
               </div>
               <div>
-                <Label htmlFor="expiryDate">Expiration</Label>
+                <Label htmlFor="validFrom">Début</Label>
                 <Input
-                  id="expiryDate"
-                  type="date"
-                  value={form.expiryDate}
-                  onChange={(e) => handleChange("expiryDate", e.target.value)}
+                  id="validFrom"
+                  type="datetime-local"
+                  value={form.validFrom}
+                  onChange={(e) => handleChange("validFrom", e.target.value)}
                 />
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <input
-                id="isActive"
-                type="checkbox"
-                checked={form.isActive}
-                onChange={(e) => handleChange("isActive", e.target.checked)}
-                className="accent-blue-500"
-              />
-              <Label htmlFor="isActive">Actif</Label>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="validUntil">Expiration</Label>
+                <Input
+                  id="validUntil"
+                  type="datetime-local"
+                  value={form.validUntil}
+                  onChange={(e) => handleChange("validUntil", e.target.value)}
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  id="isActive"
+                  type="checkbox"
+                  checked={form.isActive}
+                  onChange={(e) => handleChange("isActive", e.target.checked)}
+                  className="accent-blue-500"
+                />
+                <Label htmlFor="isActive">Actif</Label>
+              </div>
             </div>
             <div className="flex justify-end gap-2 pt-4">
               <Button variant="outline" onClick={() => setDialogOpen(false)}>

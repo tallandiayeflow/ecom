@@ -335,11 +335,20 @@ export const deleteFlashSale = async (
 };
 
 // ==================== VOUCHERS ====================
+
+// Récupérer la liste de tous les vouchers (admin)
 export const getVouchers = async (): Promise<VoucherData[]> => {
   const response = await api.get('/vouchers');
   return response.data;
 };
 
+// Créer un voucher (admin)
+export const createVoucher = async (voucherData: Partial<VoucherData>): Promise<{ message: string }> => {
+  const response = await api.post('/vouchers', voucherData);
+  return response.data;
+};
+
+// Mettre à jour un voucher par ID (admin)
 export const updateVoucher = async (
   id: string,
   voucherData: Partial<VoucherData>
@@ -348,30 +357,21 @@ export const updateVoucher = async (
   return response.data;
 };
 
-export const deleteVoucher = async (
-  id: string
-): Promise<{ message: string }> => {
+// Supprimer un voucher par ID (admin)
+export const deleteVoucher = async (id: string): Promise<{ message: string }> => {
   const response = await api.delete(`/vouchers/${id}`);
   return response.data;
 };
 
-export const createVoucher = async (
-  voucherData: Partial<VoucherData>
-): Promise<{ message: string }> => {
-  const response = await api.post('/vouchers', voucherData);
-  return response.data;
-};
-
+// Valider un code voucher pour une commande client
 export const validateVoucher = async (
   code: string,
   orderTotal: number
 ): Promise<VoucherValidationResult> => {
-  const response = await api.post('/vouchers/validate', {
-    code,
-    orderTotal,
-  });
+  const response = await api.post('/vouchers/validate', { code, orderTotal });
   return response.data;
 };
+
 
 // ==================== BANNERS ====================
 export const getBanners = async (): Promise<BannerSlide[]> => {

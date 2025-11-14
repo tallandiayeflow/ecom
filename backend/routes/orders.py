@@ -287,24 +287,26 @@ def get_all_orders(current_user):
         
         formatted_orders.append({
             'id': order['id'],
-            'userId': order['user_id'],
+            'user': {
+                'id': order['user_id'],
+                'email': order['email'],
+                'name': order['user_name']
+            },
             'status': order['status'],
             'total': float(order['total']),
-            'discount': float(order.get('discount', 0)),
-            'finalTotal': float(order.get('final_total', order['total'])),
+            'discount': float(order.get('discount', 0)),  # ✅ AJOUT
+            'finalTotal': float(order.get('final_total', order['total'])),  # ✅ AJOUT
+            'voucherCode': order.get('voucher_code'),  # ✅ AJOUT
             'shippingAddress': json.loads(order['shipping_address']),
-            'voucherCode': order.get('voucher_code'),
-            'loyaltyPointsEarned': order.get('loyalty_points_earned', 0),
             'items': [{
                 'id': item['id'],
-                'productId': item.get('product_id'),
-                'productName': item['product_name'],  # ✅ NOM DU PRODUIT
-                'productImage': item.get('product_image', ''),
+                'name': item['product_name'],
                 'price': float(item['price']),
                 'quantity': item['quantity']
             } for item in items],
-            'createdAt': order['created_at'].isoformat() if order.get('created_at') else None
+            'createdAt': order['created_at'].isoformat() if order['created_at'] else None
         })
+
     
     return jsonify(formatted_orders), 200
 

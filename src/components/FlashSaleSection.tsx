@@ -12,6 +12,7 @@ export const FlashSaleSection = () => {
   const [loading, setLoading] = useState(true);
   const [timeLeft, setTimeLeft] = useState({ hours: 0, minutes: 0, seconds: 0 });
   const navigate = useNavigate();
+  const logo ="/logo.png"
 
   useEffect(() => {
     loadFlashSales();
@@ -157,7 +158,7 @@ export const FlashSaleSection = () => {
                 {sale.product?.images?.[0] && (
                   <img
                     src={sale.product.images[0]}
-                    alt={sale.product.name}
+                    alt={logo}
                     className="w-full h-48 object-cover rounded-t-lg"
                   />
                 )}
