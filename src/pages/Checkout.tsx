@@ -1,5 +1,4 @@
-// Improved Checkout component with dark mode and responsive design
-
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,9 +7,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
 import type { CreateOrderData } from '@/lib/api';
 import { createOrder, validateVoucher } from '@/lib/api';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft, Gift, Info, Loader2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
 const Checkout = () => {
@@ -32,7 +31,7 @@ const Checkout = () => {
 
   const shippingCost = cartTotal >= 500 ? 0 : 50;
   const finalTotal = cartTotal - discount + shippingCost;
-  const loyaltyPointsToEarn = Math.floor(finalTotal / 100);
+  const loyaltyPointsToEarn = user ? Math.floor(finalTotal / 100) : 0;
 
   useEffect(() => {
     if (cart.length === 0) {
@@ -41,14 +40,27 @@ const Checkout = () => {
     }
   }, [cart, navigate]);
 
-  useEffect(() => {
-    if (!user) {
-      toast.error('Veuillez vous connecter pour passer commande');
-      navigate('/auth?redirect=/checkout');
-    }
-  }, [user, navigate]);
+  // Retirer le useEffect qui force la connexion
+  // useEffect(() => {
+  //   if (!user) {
+  //     toast.error('Veuillez vous connecter pour passer commande');
+  //     navigate('/auth?redirect=/checkout');
+  //   }
+  // }, [user, navigate]);
 
-  if (cart.length === 0 || !user) return null;
+  useEffect(() => {
+    // Auto-remplissage si utilisateur connecté
+    if (user) {
+      setFormData({
+        name: user.name || '',
+        phone: user.phone || '',
+        address: user.address || '',
+        city: user.city || '',
+      });
+    }
+  }, [user]);
+
+  if (cart.length === 0) return null;
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -62,14 +74,13 @@ const Checkout = () => {
       if (result.valid) {
         setDiscount(result.discount);
         setVoucherApplied(true);
-        toast.success(result.message || 'Code promo appliqué !');
+        toast.success('Code promo appliqué !');
       } else {
         toast.error(result.message || 'Code promo invalide');
         setDiscount(0);
         setVoucherApplied(false);
       }
     } catch (error: any) {
-      console.error('Error validating voucher:', error);
       toast.error('Erreur lors de la validation du code');
       setDiscount(0);
       setVoucherApplied(false);
@@ -87,13 +98,19 @@ const Checkout = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name || !formData.phone || !formData.address || !formData.city) return toast.error('Veuillez remplir tous les champs');
+    if (!formData.name || !formData.phone || !formData.address || !formData.city) 
+      return toast.error('Veuillez remplir tous les champs');
     if (formData.phone.length < 10) return toast.error('Numéro invalide');
 
     setLoading(true);
     try {
       const orderData: CreateOrderData = {
-        items: cart.map(item => ({ productId: item.productId, quantity: item.quantity, price: item.product.price, name: item.product.name })),
+        items: cart.map(item => ({ 
+          productId: item.productId, 
+          quantity: item.quantity, 
+          price: item.product.price, 
+          name: item.product.name 
+        })),
         shippingAddress: { ...formData },
         voucherCode: voucherApplied ? voucherCode.toUpperCase() : undefined,
         discount,
@@ -104,7 +121,14 @@ const Checkout = () => {
       const order = await createOrder(orderData);
       await clearCart();
       toast.success('Commande créée avec succès ! 🎉');
-      navigate('/order-success', { state: { orderId: order.id, total: finalTotal, loyaltyPoints: loyaltyPointsToEarn, order } });
+      navigate('/order-success', { 
+        state: { 
+          orderId: order.id, 
+          total: finalTotal, 
+          loyaltyPoints: order.loyaltyPointsEarned || 0,
+          order 
+        } 
+      });
     } catch {
       toast.error('Erreur lors de la création de la commande');
     } finally {
@@ -113,75 +137,106 @@ const Checkout = () => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="max-w-4xl mx-auto p-6 space-y-8 bg-white dark:bg-gray-900 rounded-lg shadow-md">
-      <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100 text-center">Finaliser la commande</h2>
+    <form onSubmit={handleSubmit} className="max-w-4xl mx-auto p-4 space-y-6">
+      <h2 className="text-2xl font-bold mb-4">Finaliser la commande</h2>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {['name','phone','address','city'].map((field) => (
-          <div key={field} className="flex flex-col">
-            <Label htmlFor={field} className="mb-1 text-gray-700 dark:text-gray-300">{field === 'name' ? 'Nom complet *' : field === 'phone' ? 'Téléphone *' : field === 'address' ? 'Adresse complète *' : 'Ville *'}</Label>
-            <Input id={field} name={field} value={formData[field]} onChange={handleInputChange} className="dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100" required />
+      {/* Carte d'information pour inviter à s'inscrire */}
+      {!user && (
+        <Alert className="bg-blue-50 border-blue-200 dark:bg-blue-950/30 dark:border-blue-800">
+          <Info className="h-4 w-4 text-blue-600" />
+          <AlertDescription className="text-blue-800 dark:text-blue-200">
+            <strong>Conseil :</strong> <Link to="/auth" className="underline font-semibold">Inscrivez-vous</Link> pour bénéficier de{' '}
+            <Gift className="inline w-4 h-4" /> <strong>points de fidélité</strong> et suivre vos commandes !
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {['name', 'phone', 'address', 'city'].map((field) => (
+          <div key={field}>
+            <Label htmlFor={field}>
+              {field === 'name' ? 'Nom complet *' : 
+               field === 'phone' ? 'Téléphone *' : 
+               field === 'address' ? 'Adresse complète *' : 'Ville *'}
+            </Label>
+            <Input 
+              id={field} 
+              name={field} 
+              value={formData[field as keyof typeof formData]} 
+              onChange={handleInputChange} 
+              required 
+            />
           </div>
         ))}
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-3">
+      <div className="flex items-center gap-2">
         <Input
           placeholder="Entrez votre code promo"
           value={voucherCode}
           onChange={e => setVoucherCode(e.target.value.toUpperCase())}
           disabled={voucherApplied || validatingVoucher}
-          className="flex-1 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100"
+          className="flex-1"
         />
         {!voucherApplied ? (
-          <Button onClick={handleApplyVoucher} disabled={validatingVoucher} className="flex-shrink-0">
+          <Button type="button" onClick={handleApplyVoucher} disabled={validatingVoucher}>
             {validatingVoucher ? <Loader2 className="animate-spin mr-2" /> : 'Appliquer'}
           </Button>
         ) : (
-          <Button variant="destructive" onClick={handleRemoveVoucher} className="flex-shrink-0">Retirer</Button>
+          <Button type="button" variant="destructive" onClick={handleRemoveVoucher}>
+            Retirer
+          </Button>
         )}
       </div>
 
-      {voucherApplied && <p className="text-green-600 font-semibold">Code appliqué : -{discount.toFixed(2)} Fcfa</p>}
+      {voucherApplied && (
+        <p className="text-green-600 font-semibold">Code appliqué : -{discount.toFixed(2)} Fcfa</p>
+      )}
 
-      <Separator className="dark:bg-gray-700" />
+      <Separator />
 
-      <div className="space-y-2">
+      <div>
         {cart.map(item => (
-          <div key={item.productId} className="flex justify-between p-2 rounded-md bg-gray-50 dark:bg-gray-800">
-            <span className="font-medium">{item.product.name} ({item.quantity}×{item.product.price.toFixed(2)})</span>
-            <span className="font-semibold">{(item.product.price * item.quantity).toFixed(2)} Fcfa</span>
+          <div key={item.productId} className="flex justify-between mb-2">
+            <div>{item.product.name}</div>
+            <div>
+              {item.quantity} × {item.product.price.toFixed(2)} Fcfa ={' '}
+              {(item.product.price * item.quantity).toFixed(2)} Fcfa
+            </div>
           </div>
         ))}
-        <div className="flex justify-between font-semibold pt-2">
-          <span>Sous-total ({cartCount} articles)</span>
-          <span>{cartTotal.toFixed(2)} Fcfa</span>
+        <div className="flex justify-between font-semibold mt-4">
+          <div>Sous-total ({cartCount} articles)</div>
+          <div>{cartTotal.toFixed(2)} Fcfa</div>
         </div>
         {discount > 0 && (
           <div className="flex justify-between font-semibold text-green-600">
-            <span>Réduction</span>
-            <span>-{discount.toFixed(2)} Fcfa</span>
+            <div>Réduction</div>
+            <div>-{discount.toFixed(2)} Fcfa</div>
           </div>
         )}
-        <div className="flex justify-between font-semibold">
-          <span>Livraison</span>
-          <span>{shippingCost === 0 ? 'Gratuite' : `${shippingCost.toFixed(2)} Fcfa`}</span>
+        <div className="flex justify-between font-semibold mt-2">
+          <div>Livraison</div>
+          <div>{shippingCost === 0 ? 'Gratuite' : `${shippingCost.toFixed(2)} Fcfa`}</div>
         </div>
-        <div className="flex justify-between font-bold text-xl pt-2 border-t border-gray-300 dark:border-gray-700">
-          <span>Total</span>
-          <span>{finalTotal.toFixed(2)} Fcfa</span>
+        <div className="flex justify-between font-bold text-lg mt-4">
+          <div>Total</div>
+          <div>{finalTotal.toFixed(2)} Fcfa</div>
         </div>
       </div>
 
-      {loyaltyPointsToEarn > 0 && (
-        <p className="text-sm text-blue-700 dark:text-blue-300">Programme Fidélité : Vous gagnerez {loyaltyPointsToEarn} points</p>
+      {user && loyaltyPointsToEarn > 0 && (
+        <p className="text-sm text-muted-foreground">
+          Programme Fidélité : Vous gagnerez {loyaltyPointsToEarn} points
+        </p>
       )}
 
-      <Separator className="dark:bg-gray-700" />
+      <Separator />
 
-      <div className="flex flex-col sm:flex-row justify-between gap-4">
-        <Button variant="outline" onClick={() => navigate('/cart')} className="flex-1">
-          <ArrowLeft className="mr-2" /> Retour au panier
+      <div className="flex justify-between">
+        <Button type="button" variant="outline" onClick={() => navigate('/cart')} className="flex-1 mr-2">
+          <ArrowLeft className="mr-2" />
+          Retour au panier
         </Button>
         <Button type="submit" disabled={loading} className="flex-1">
           {loading ? <><Loader2 className="animate-spin mr-2" /> Traitement...</> : 'Valider la commande'}

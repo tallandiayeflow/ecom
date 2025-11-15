@@ -145,8 +145,8 @@ def delete_voucher(current_user, voucher_id):
 # ==================== CLIENT ROUTE ====================
 
 @bp.route('/validate', methods=['POST'])
-@token_required
-def validate_voucher(current_user):
+
+def validate_voucher():
     data = request.get_json()
 
     # Vérifier présence des champs

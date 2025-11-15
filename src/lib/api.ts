@@ -24,19 +24,26 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+const publicPaths = ['/public/order', '/vouchers/validate', '/products'];
+
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      if (window.location.pathname !== '/auth') {
-        window.location.href = '/auth';
+      const requestUrl = error.config?.url || '';
+      const isPublic = publicPaths.some(path => requestUrl.includes(path));
+      if (!isPublic) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        if (window.location.pathname !== '/auth') {
+          window.location.href = '/auth';
+        }
       }
     }
     return Promise.reject(error);
   }
 );
+
 
 // ==================== TYPES ====================
 import type {
