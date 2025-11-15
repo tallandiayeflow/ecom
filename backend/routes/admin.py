@@ -2,6 +2,8 @@ from flask import Blueprint, request, jsonify
 from utils.database import execute_query
 from utils.auth import admin_required
 import json
+import uuid
+from werkzeug.security import generate_password_hash
 
 bp = Blueprint('admin', __name__)
 
@@ -11,19 +13,47 @@ bp = Blueprint('admin', __name__)
 @admin_required
 def admin_list_users(current_user):
     users = execute_query(
-        "SELECT id, name, email, phone, address FROM users ORDER BY name ASC",
+        "SELECT id, name, email, phone, address, role FROM users ORDER BY name ASC",
         fetch_all=True
     )
     return jsonify(users), 200
+
+@bp.route('/users', methods=['POST'])
+@admin_required
+def admin_create_user(current_user):
+    data = request.get_json()
+    name = data.get('name')
+    email = data.get('email')
+    phone = data.get('phone', '')
+    address = data.get('address', '')
+    password = data.get('password')
+    role = data.get('role', 'user')
+    # Forcing role admin for users created by admin as per request
+    if role != 'admin':
+        role = 'admin'
+
+    if not name or not email or not password:
+        return jsonify({'error': 'Nom, email, et mot de passe sont requis'}), 400
+
+    hashed_password = generate_password_hash(password)
+
+    try:
+        execute_query(
+            "INSERT INTO users (id, name, email, phone, address, password, role) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+            (str(uuid.uuid4()), name, email, phone, address, hashed_password, role),
+            commit=True
+        )
+    except Exception as e:
+        return jsonify({'error': 'Erreur création utilisateur'}), 500
+
+    return jsonify({'message': 'Utilisateur admin créé avec succès'}), 201
 
 @bp.route('/users/<user_id>', methods=['PUT'])
 @admin_required
 def admin_update_user(current_user, user_id):
     data = request.get_json()
-    # validation minimale
     if not data.get('name') or not data.get('email'):
         return jsonify({'error': 'Nom et email requis'}), 400
-    # update champs utilisateurs
     execute_query(
         "UPDATE users SET name=%s, email=%s, phone=%s, address=%s WHERE id=%s",
         (data['name'], data['email'], data.get('phone'), data.get('address'), user_id),
@@ -50,7 +80,7 @@ def admin_get_orders(current_user):
         """
         SELECT o.*, u.name AS user_name, u.email AS user_email
         FROM orders o
-        JOIN users u ON o.user_id = u.id
+        LEFT JOIN users u ON o.user_id = u.id
         ORDER BY o.created_at DESC
         """,
         fetch_all=True
@@ -61,8 +91,8 @@ def admin_get_orders(current_user):
         response.append({
             'id': order['id'],
             'userId': order['user_id'],
-            'userName': order['user_name'],
-            'userEmail': order['user_email'],
+            'userName': order.get('user_name'),
+            'userEmail': order.get('user_email'),
             'status': order['status'],
             'total': float(order['total']),
             'discount': float(order.get('discount', 0)),
@@ -89,7 +119,7 @@ def admin_get_order_detail(current_user, order_id):
         """
         SELECT o.*, u.name AS user_name, u.email AS user_email
         FROM orders o
-        JOIN users u ON o.user_id = u.id
+        LEFT JOIN users u ON o.user_id = u.id
         WHERE o.id = %s
         """,
         (order_id,),
@@ -101,8 +131,8 @@ def admin_get_order_detail(current_user, order_id):
     return jsonify({
         'id': order['id'],
         'userId': order['user_id'],
-        'userName': order['user_name'],
-        'userEmail': order['user_email'],
+        'userName': order.get('user_name'),
+        'userEmail': order.get('user_email'),
         'status': order['status'],
         'total': float(order['total']),
         'discount': float(order.get('discount', 0)),
@@ -118,7 +148,7 @@ def admin_get_order_detail(current_user, order_id):
             'price': float(item['price']),
             'quantity': item['quantity']
         } for item in items],
-        'createdAt': order['created_at'].isoformat() if order.get('created_at') else None
+        'createdAt': order.get('created_at').isoformat() if order.get('created_at') else None
     }), 200
 
 @bp.route('/orders/<order_id>/status', methods=['PUT'])
