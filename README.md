@@ -369,7 +369,7 @@ Maintenant, à chaque fois que vous modifiez le backend :
 ```bash
 # Voir les logs du déploiement
 ssh phone@77.237.233.252
-tail -f /home/phone/app/phone/backend/logs/supervisor-error.log
+tail -f /home/phone/app/backend/logs/supervisor-error.log
 
 # Redémarrer manuellement
 sudo supervisorctl restart phone
