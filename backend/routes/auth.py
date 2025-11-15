@@ -9,7 +9,7 @@ from twilio.rest import Client
 
 bp = Blueprint('auth', __name__)
 
-# Twilio configuration (à personnaliser avec vos identifiants)
+# Twilio configuration (à personnaliser avec vos identifiants) test
 TWILIO_ACCOUNT_SID = "YOUR_TWILIO_SID"
 TWILIO_AUTH_TOKEN = "YOUR_TWILIO_AUTH_TOKEN"
 TWILIO_WHATSAPP_NUMBER = 'whatsapp:+14155238886'  # Twilio Sandbox WhatsApp Number
