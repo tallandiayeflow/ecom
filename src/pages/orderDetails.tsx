@@ -1,5 +1,4 @@
-// Improved OrderDetails component with modern UI, dark mode, responsive layout
-// Full rewrite applied
+"use client";
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -53,7 +52,6 @@ export default function OrderDetails() {
 
   return (
     <div className="max-w-5xl mx-auto p-4 space-y-6">
-      {/* Back button */}
       <Button
         variant="outline"
         onClick={() => navigate('/admin/orders')}
@@ -62,7 +60,6 @@ export default function OrderDetails() {
         <ArrowLeft className="w-4 h-4" /> Retour
       </Button>
 
-      {/* Main card */}
       <Card className="shadow-xl border dark:border-gray-700 rounded-2xl">
         <CardHeader>
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -76,18 +73,17 @@ export default function OrderDetails() {
         </CardHeader>
 
         <CardContent className="space-y-8">
-          {/* FLUID GRID: CLIENT + SHIPPING */}
+          {/* Client info */}
           <div className="grid md:grid-cols-2 gap-6 bg-gray-50 dark:bg-gray-900 p-4 rounded-xl shadow-inner">
-            {/* Client info */}
             <div>
               <h3 className="font-semibold text-lg mb-2">Informations client</h3>
               <div className="space-y-1 text-sm">
-                <p><span className="font-semibold">Nom: </span>{order.userName || 'N/A'}</p>
-                <p><span className="font-semibold">Email: </span>{order.userEmail || 'N/A'}</p>
+                <p><span className="font-semibold">Nom: </span>{order.userName || order.shippingAddress.name}</p>
+                <p><span className="font-semibold">Telephone: </span>{order.phone || order.shippingAddress.phone}</p>
               </div>
             </div>
 
-            {/* Address */}
+            {/* Shipping address */}
             <div>
               <h3 className="font-semibold text-lg mb-2">Adresse de livraison</h3>
               <div className="space-y-1 text-sm">
@@ -101,7 +97,7 @@ export default function OrderDetails() {
 
           <Separator />
 
-          {/* ITEMS */}
+          {/* Items */}
           <div>
             <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
               <Package className="w-5 h-5" /> Articles commandés
@@ -122,7 +118,7 @@ export default function OrderDetails() {
                     )}
                     <div>
                       <p className="font-medium">{item.productName}</p>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">{item.quantity} × {item.price} FCFA</p>
+                      <p className="text-sm text-muted-foreground">{item.quantity} × {item.price} FCFA</p>
                     </div>
                   </div>
 
@@ -134,7 +130,7 @@ export default function OrderDetails() {
 
           <Separator />
 
-          {/* PRICES SECTION */}
+          {/* Prices and totals */}
           <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-xl space-y-3 text-right shadow-inner">
             <div className="text-sm">
               <span className="font-semibold">Sous-total: </span>
@@ -162,7 +158,7 @@ export default function OrderDetails() {
 
           <Separator />
 
-          {/* DATE */}
+          {/* Date */}
           <p className="text-sm text-gray-600 dark:text-gray-400">
             <span className="font-semibold">Date de commande: </span>
             {new Date(order.createdAt).toLocaleDateString('fr-FR')} —

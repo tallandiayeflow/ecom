@@ -12,10 +12,10 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name: string) => Promise<void>;
+  login: (identifier: string, password: string) => Promise<void>;
+  register: (email: string, phone: string, password: string, name: string) => Promise<void>;
   logout: () => void;
-  resetPassword: (email: string) => Promise<void>;
+  resetPassword: (phone: string) => Promise<void>;
   refreshUser: () => Promise<void>;
 }
 
@@ -26,49 +26,42 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Vérifier la session existante au chargement
+    async function checkExistingSession() {
+      try {
+        const storedUser = localStorage.getItem('user');
+        const token = localStorage.getItem('token');
+
+        if (storedUser && token) {
+          setUser(JSON.parse(storedUser));
+          try {
+            const currentUser = await getCurrentUser();
+            setUser(currentUser);
+            localStorage.setItem('user', JSON.stringify(currentUser));
+          } catch {
+            localStorage.removeItem('user');
+            localStorage.removeItem('token');
+            setUser(null);
+          }
+        }
+      } catch (error) {
+        console.error('Error checking session:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
     checkExistingSession();
   }, []);
 
-  const checkExistingSession = async () => {
-    try {
-      const storedUser = localStorage.getItem('user');
-      const token = localStorage.getItem('token');
-
-      if (storedUser && token) {
-        setUser(JSON.parse(storedUser));
-        
-        // Vérifier si le token est toujours valide
-        try {
-          const currentUser = await getCurrentUser();
-          setUser(currentUser);
-          localStorage.setItem('user', JSON.stringify(currentUser));
-        } catch (error) {
-          // Token invalide, nettoyer le storage
-          localStorage.removeItem('user');
-          localStorage.removeItem('token');
-          setUser(null);
-        }
-      }
-    } catch (error) {
-      console.error('Error checking session:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const login = async (email: string, password: string) => {
+  const login = async (identifier: string, password: string) => {
     try {
       setIsLoading(true);
-      const { user, token } = await apiLogin(email, password);
-      
+      const { user, token } = await apiLogin(identifier, password);
       setUser(user);
       localStorage.setItem('user', JSON.stringify(user));
       localStorage.setItem('token', token);
-      
       toast.success(`Bienvenue ${user.name} ! 🎉`);
     } catch (error: any) {
-      const errorMessage = error.response?.data?.error || 'Email ou mot de passe incorrect';
+      const errorMessage = error.response?.data?.error || 'Identifiant ou mot de passe incorrect';
       toast.error(errorMessage);
       throw error;
     } finally {
@@ -76,31 +69,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const register = async (email: string, password: string, name: string) => {
+  const register = async (email: string, phone: string, password: string, name: string) => {
     try {
       setIsLoading(true);
-      
-      // Appeler l'API d'inscription
-      const { user, token } = await apiRegister(email, password, name);
-      
-      // Sauvegarder l'utilisateur et le token
+      const { user, token } = await apiRegister(email, phone, password, name);
       setUser(user);
       localStorage.setItem('user', JSON.stringify(user));
       localStorage.setItem('token', token);
-      
       toast.success(`Compte créé avec succès ! Bienvenue ${name} 🎉`);
     } catch (error: any) {
       let errorMessage = 'Erreur lors de l\'inscription';
-      
       if (error.response?.data?.error) {
         errorMessage = error.response.data.error;
-        
-        // Messages personnalisés selon l'erreur
-        if (errorMessage.includes('already registered')) {
-          errorMessage = 'Cet email est déjà utilisé';
+        if (errorMessage.includes('already used')) {
+          errorMessage = 'Email ou téléphone déjà utilisé';
         }
       }
-      
       toast.error(errorMessage);
       throw error;
     } finally {
@@ -115,13 +99,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     toast.success('Déconnexion réussie ! À bientôt 👋');
   };
 
-  const resetPassword = async (email: string) => {
+  const resetPassword = async (phone: string) => {
     try {
       setIsLoading(true);
-      const response = await apiResetPassword(email);
-      toast.success(response.message || 'Email de réinitialisation envoyé ! 📧');
+      const response = await apiResetPassword(phone);
+      toast.success(response.message || 'OTP envoyé via WhatsApp ! 📱');
     } catch (error: any) {
-      const errorMessage = error.response?.data?.error || 'Erreur lors de l\'envoi de l\'email';
+      const errorMessage = error.response?.data?.error || 'Erreur lors de l\'envoi du code';
       toast.error(errorMessage);
       throw error;
     } finally {
@@ -143,14 +127,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const isAuthenticated = !!user;
 
   return (
-    <AuthContext.Provider 
-      value={{ 
-        user, 
-        isLoading, 
-        isAuthenticated, 
-        login, 
-        register, 
-        logout, 
+    <AuthContext.Provider
+      value={{
+        user,
+        isLoading,
+        isAuthenticated,
+        login,
+        register,
+        logout,
         resetPassword,
         refreshUser
       }}
@@ -162,8 +146,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within AuthProvider');
-  }
+  if (!context) throw new Error('useAuth must be used within AuthProvider');
   return context;
 };

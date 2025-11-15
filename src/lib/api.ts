@@ -135,22 +135,24 @@ export interface InvoicePayload {
 export const register = async (
   email: string,
   password: string,
-  name: string
+  name: string,
+  phone:string
 ): Promise<LoginResponse> => {
   const response = await api.post('/auth/register', {
     email,
     password,
     name,
+    phone
   });
   return response.data;
 };
 
 export const login = async (
-  email: string,
+  identifier: string,
   password: string
 ): Promise<LoginResponse> => {
   const response = await api.post('/auth/login', {
-    email,
+    identifier,
     password,
   });
   return response.data;
