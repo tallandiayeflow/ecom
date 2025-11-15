@@ -22,7 +22,6 @@ const OrdersManagement = () => {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
 
-  // Delete dialog state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState(null);
 
@@ -125,110 +124,172 @@ const OrdersManagement = () => {
       ) : filteredOrders.length === 0 ? (
         <p className="text-gray-700 dark:text-gray-300">Aucune commande trouvée.</p>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-gray-300 dark:border-gray-700">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
-            <thead className="bg-gray-100 dark:bg-gray-800">
-              <tr>
-                <th className="p-3 text-left">ID</th>
-                <th>Client</th>
-                <th>Statut</th>
-                <th>Total</th>
-                <th>Réduction</th>
-                <th>Total Final</th>
-                <th>Code Promo</th>
-                <th>Articles</th>
-                <th className="text-center w-40">Actions</th>
-              </tr>
-            </thead>
-
-            <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-              {filteredOrders.map((order) => (
-                <tr
-                  key={order.id}
-                  className="hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors"
-                >
-                  <td className="p-3 font-mono">{order.id.slice(0, 8)}</td>
-                  <td>{order.shippingAddress?.name || "Inconnu"}</td>
-
-                  {/* STATUT BADGE */}
-                  <td>
-                    <Badge
-                      variant=
-                        {order.status === "pending"
-                          ? "secondary"
-                          : order.status === "processing"
-                          ? "warning"
-                          : order.status === "shipped"
-                          ? "info"
-                          : order.status === "delivered"
-                          ? "success"
-                          : "destructive"}
-                    >
-                      {order.status === "pending"
-                        ? "En attente"
-                        : order.status === "processing"
-                        ? "En cours"
-                        : order.status === "shipped"
-                        ? "Expédiée"
-                        : order.status === "delivered"
-                        ? "Livrée"
-                        : "Annulée"}
-                    </Badge>
-                  </td>
-
-                  <td className="text-right">{order.total} FCFA</td>
-                  <td className="text-right text-green-600">
-                    {order.discount > 0 ? `-${order.discount}` : "-"}
-                  </td>
-                  <td className="text-right font-bold">{order.finalTotal} FCFA</td>
-                  <td className="text-center text-purple-600">
-                    {order.voucherCode || "—"}
-                  </td>
-
-                  <td>
-                    {order.items.length} <Package className="inline w-4 h-4 ml-1" />
-                  </td>
-
-                  {/* ACTIONS */}
-                  <td className="flex items-center gap-2 justify-center">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => navigate(`/orders/${order.id}`)}
-                      title="Voir les détails"
-                    >
-                      <Eye className="w-4 h-4" />
-                    </Button>
-
-                    {/* Change status */}
-                    <select
-                      value={order.status}
-                      onChange={(e) => handleStatusChange(order.id, e.target.value)}
-                      disabled={statusUpdating}
-                      className="border rounded px-2 py-1 text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100"
-                    >
-                      <option value="pending">En attente</option>
-                      <option value="processing">En cours</option>
-                      <option value="shipped">Expédiée</option>
-                      <option value="delivered">Livrée</option>
-                      <option value="cancelled">Annulée</option>
-                    </select>
-
-                    {/* Delete */}
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => confirmDelete(order)}
-                      title="Supprimer"
-                    >
-                      <Trash className="w-4 h-4" />
-                    </Button>
-                  </td>
+        <>
+          {/* TABLEAU pour medium et plus */}
+          <div className="hidden md:block overflow-x-auto rounded-lg border border-gray-300 dark:border-gray-700">
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
+              <thead className="bg-gray-100 dark:bg-gray-800">
+                <tr>
+                  <th className="p-3 text-left">ID</th>
+                  <th>Client</th>
+                  <th>Statut</th>
+                  <th>Total</th>
+                  <th>Réduction</th>
+                  <th>Total Final</th>
+                  <th>Code Promo</th>
+                  <th>Articles</th>
+                  <th className="text-center w-40">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                {filteredOrders.map((order) => (
+                  <tr
+                    key={order.id}
+                    className="hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors"
+                  >
+                    <td className="p-3 font-mono">{order.id.slice(0, 8)}</td>
+                    <td>{order.shippingAddress?.name || "Inconnu"}</td>
+                    <td>
+                      <Badge
+                        variant={
+                          order.status === "pending"
+                            ? "secondary"
+                            : order.status === "processing"
+                            ? "warning"
+                            : order.status === "shipped"
+                            ? "info"
+                            : order.status === "delivered"
+                            ? "success"
+                            : "destructive"
+                        }
+                      >
+                        {order.status === "pending"
+                          ? "En attente"
+                          : order.status === "processing"
+                          ? "En cours"
+                          : order.status === "shipped"
+                          ? "Expédiée"
+                          : order.status === "delivered"
+                          ? "Livrée"
+                          : "Annulée"}
+                      </Badge>
+                    </td>
+                    <td className="text-right">{order.total} FCFA</td>
+                    <td className="text-right text-green-600">
+                      {order.discount > 0 ? `-${order.discount}` : "-"}
+                    </td>
+                    <td className="text-right font-bold">{order.finalTotal} FCFA</td>
+                    <td className="text-center text-purple-600">
+                      {order.voucherCode || "—"}
+                    </td>
+                    <td>
+                      {order.items.length} <Package className="inline w-4 h-4 ml-1" />
+                    </td>
+                    <td className="flex items-center gap-2 justify-center">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => navigate(`/orders/${order.id}`)}
+                        title="Voir les détails"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </Button>
+                      <select
+                        value={order.status}
+                        onChange={(e) => handleStatusChange(order.id, e.target.value)}
+                        disabled={statusUpdating}
+                        className="border rounded px-2 py-1 text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100"
+                      >
+                        <option value="pending">En attente</option>
+                        <option value="processing">En cours</option>
+                        <option value="shipped">Expédiée</option>
+                        <option value="delivered">Livrée</option>
+                        <option value="cancelled">Annulée</option>
+                      </select>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => confirmDelete(order)}
+                        title="Supprimer"
+                      >
+                        <Trash className="w-4 h-4" />
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* CARTES pour mobile */}
+          <div className="md:hidden space-y-4">
+            {filteredOrders.map((order) => (
+              <div
+                key={order.id}
+                className="border rounded-xl p-4 shadow-sm dark:bg-muted/10 dark:border-gray-700"
+              >
+                <div className="flex justify-between items-center mb-2">
+                  <p className="font-semibold text-base">{order.shippingAddress?.name || "Inconnu"}</p>
+                  <Badge
+                    variant={
+                      order.status === "pending"
+                        ? "secondary"
+                        : order.status === "processing"
+                        ? "warning"
+                        : order.status === "shipped"
+                        ? "info"
+                        : order.status === "delivered"
+                        ? "success"
+                        : "destructive"
+                    }
+                  >
+                    {order.status === "pending"
+                      ? "En attente"
+                      : order.status === "processing"
+                      ? "En cours"
+                      : order.status === "shipped"
+                      ? "Expédiée"
+                      : order.status === "delivered"
+                      ? "Livrée"
+                      : "Annulée"}
+                  </Badge>
+                </div>
+                <p className="text-sm text-muted-foreground mb-1">ID: {order.id.slice(0, 8)}</p>
+                <p className="text-sm text-muted-foreground mb-1">Total: {order.finalTotal} FCFA</p>
+                <p className="text-sm text-muted-foreground mb-1">Articles: {order.items.length}</p>
+
+                <div className="flex flex-wrap gap-2 mt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigate(`/orders/${order.id}`)}
+                  >
+                    <Eye className="w-4 h-4" /> Détails
+                  </Button>
+                  <select
+                    value={order.status}
+                    onChange={(e) => handleStatusChange(order.id, e.target.value)}
+                    disabled={statusUpdating}
+                    className="border rounded px-2 py-1 text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100"
+                  >
+                    <option value="pending">En attente</option>
+                    <option value="processing">En cours</option>
+                    <option value="shipped">Expédiée</option>
+                    <option value="delivered">Livrée</option>
+                    <option value="cancelled">Annulée</option>
+                  </select>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => confirmDelete(order)}
+                  >
+                    <Trash className="w-4 h-4" /> Supprimer
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
       )}
 
       {/* DELETE CONFIRMATION DIALOG */}
