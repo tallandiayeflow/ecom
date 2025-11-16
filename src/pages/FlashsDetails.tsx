@@ -56,7 +56,7 @@ const FlashsDetails = () => {
     } catch (error) {
       console.error('Error loading flash sale:', error);
       toast.error('Vente flash introuvable');
-      navigate('/flash-sales');
+      navigate('/flash');
     } finally {
       setLoading(false);
     }

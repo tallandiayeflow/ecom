@@ -135,7 +135,7 @@ export const FlashSaleSection = () => {
             <Card
               key={sale.id}
               className="flex-shrink-0 w-[280px] cursor-pointer hover:shadow-lg transition-shadow"
-              onClick={() => navigate(`/flash/${sale.productId}`)}
+              onClick={() => navigate(`/flash/${sale.id}`)}
             >
               <div className="relative">
                 <Badge className="absolute top-2 left-2 z-10 bg-red-600 hover:bg-red-700">
