@@ -16,6 +16,7 @@ app.config.from_object(Config)
     }
 })
 """
+CORS(app)
 # Blueprints tests
 app.register_blueprint(auth.bp, url_prefix='/api/auth')
 app.register_blueprint(products.bp, url_prefix='/api/products')

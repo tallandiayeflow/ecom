@@ -206,7 +206,7 @@ export const FlashSaleSection = () => {
                     className="w-full mt-2 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
                     onClick={(e) => {
                       e.stopPropagation();
-                      navigate(`/product/${sale.productId}`);
+                      navigate(`/flash/${sale.id}`);
                     }}
                   >
                     Acheter maintenant

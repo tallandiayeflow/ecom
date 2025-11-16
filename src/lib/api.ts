@@ -337,11 +337,12 @@ export const getFlashSales = async (): Promise<FlashSale[]> => {
   return response.data;
 };
 
-export const getFlashSaleId = async ( id: string,): Promise<FlashSale[]> => {
-  
-  const response = await api.get(`/flash-sale${id}`);
-  return response.data;
+export const getFlashSaleId = async (productId: string): Promise<FlashSale> => {
+  const response = await api.get(`/flash-sales/${productId}`);
+  const data = response.data;
+  return Array.isArray(data) ? data[0] : data;
 };
+
 
 export const getFlashSalesAdmin = async (): Promise<FlashSale[]> => {
   const response = await api.get('/flash-sales/admin');

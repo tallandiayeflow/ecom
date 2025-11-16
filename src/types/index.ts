@@ -130,7 +130,7 @@ export interface VoucherData {
 export interface FlashSale {
   id: string;
   productId: string;
-  product?: Product;  // ✅ Optionnel car pas toujours retourné
+  product?: Product; // Optionnel, peut contenir la donnée produit complète
   discountPrice: number;
   discountPercentage: number;
   startDate: string;
@@ -139,6 +139,7 @@ export interface FlashSale {
   soldCount?: number;
   isActive: boolean;
 }
+
 
 // ==================== BANNERS ====================
 export interface BannerSlide {
