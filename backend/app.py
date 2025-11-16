@@ -7,7 +7,7 @@ app = Flask(__name__)
 app.config.from_object(Config)
 
 # CORSssss
-CORS(app, resources={
+"""CORS(app, resources={
     r"/api/*": {
         "origins": Config.CORS_ORIGINS,
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
@@ -15,7 +15,7 @@ CORS(app, resources={
         "supports_credentials": True
     }
 })
-
+"""
 # Blueprints tests
 app.register_blueprint(auth.bp, url_prefix='/api/auth')
 app.register_blueprint(products.bp, url_prefix='/api/products')
