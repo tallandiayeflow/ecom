@@ -19,7 +19,7 @@ class Config:
     JWT_ACCESS_TOKEN_EXPIRES = int(os.getenv('JWT_ACCESS_TOKEN_EXPIRES', 86400))
     
     # CORS
-    CORS_ORIGINS = os.getenv('CORS_ORIGINS', 'https://azure-phone-shop.vercel.app').split(',')
+    CORS_ORIGINS = os.getenv('CORS_ORIGINS', 'https://talla-phone.vercel.app').split(',')
     
     # Serveur
     HOST = os.getenv('HOST', '0.0.0.0')
