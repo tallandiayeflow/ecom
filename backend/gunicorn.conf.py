@@ -8,7 +8,7 @@ timeout = 300
 workers = multiprocessing.cpu_count() * 2 + 1
 
 # Bind sur le port Render ddd
-bind = f"0.0.0.0:{os.getenv('PORT', '5000')}"
+bind = f"0.0.0.0:{os.getenv('PORT', '8000')}"
 
 # Classe de workers
 worker_class = "sync"
