@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class Config:
-    # Base de données Mysql
+    # Base de données
     DATABASE_HOST = os.getenv('DATABASE_HOST', 'localhost')
     DATABASE_USER = os.getenv('DATABASE_USER', 'phone_shop_user')
     DATABASE_PASSWORD = os.getenv('DATABASE_PASSWORD', '')
