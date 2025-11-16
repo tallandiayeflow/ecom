@@ -65,6 +65,8 @@ def get_flash_sales():
     return jsonify(formatted_sales), 200
 
 
+from datetime import datetime
+
 @bp.route('', methods=['POST'])
 @admin_required
 def create_flash_sale(current_user):
@@ -87,6 +89,14 @@ def create_flash_sale(current_user):
     if not product:
         return jsonify({'error': 'Product not found'}), 404
     
+    # Convertir les dates ISO en format MySQL DATETIME
+    def parse_iso_datetime(iso_str):
+        # Enlève le 'Z' et transforme T en espace
+        return datetime.fromisoformat(iso_str.replace('Z', '+00:00')).strftime('%Y-%m-%d %H:%M:%S')
+    
+    start_time = parse_iso_datetime(data['startDate'])
+    end_time = parse_iso_datetime(data['endDate'])
+    
     flash_sale_id = str(uuid.uuid4())
     
     execute_query(
@@ -99,8 +109,8 @@ def create_flash_sale(current_user):
             data['productId'], 
             product['price'],  # Prix original du produit
             data['discountPrice'], 
-            data['startDate'], 
-            data['endDate'], 
+            start_time, 
+            end_time, 
             data.get('stock', 100)
         ),
         commit=True
