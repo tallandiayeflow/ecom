@@ -31,7 +31,7 @@ import {
 import {
   createFlashSale,
   deleteFlashSale,
-  getFlashSales,
+  getFlashSalesAdmin,
   getProducts
 } from '@/lib/api';
 import type { FlashSale, Product } from '@/types';
@@ -66,7 +66,7 @@ const FlashSalesManagement = () => {
     try {
       setLoading(true);
       const [salesData, productsData] = await Promise.all([
-        getFlashSales(),
+        getFlashSalesAdmin(),
         getProducts({ limit: 100 })
       ]);
       setFlashSales(salesData);

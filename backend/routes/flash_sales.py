@@ -148,3 +148,59 @@ def delete_flash_sale(current_user, flash_sale_id):
     )
 
     return jsonify({'message': 'Flash sale deleted successfully'}), 200
+
+
+@bp.route('/admin', methods=['GET'])
+@admin_required
+def get_all_flash_sales(current_user):
+    """
+    Retourne toutes les ventes flash, passées, en cours ou futures.
+    Admin seulement.
+    """
+    flash_sales = execute_query(
+        """
+        SELECT fs.*, p.name, p.description, p.price, p.image_url, p.images,
+               p.stock, p.brand, p.specifications,
+               c.name as category_name, c.slug as category_slug
+        FROM flash_sales fs
+        JOIN products p ON fs.product_id = p.id
+        LEFT JOIN categories c ON p.category_id = c.id
+        ORDER BY fs.start_time DESC
+        """,
+        fetch_all=True
+    )
+
+    formatted_sales = []
+    for fs in flash_sales:
+        images_list = json.loads(fs['images']) if fs.get('images') else []
+        specs = json.loads(fs['specifications']) if fs.get('specifications') else {}
+
+        original_price = float(fs['original_price'])
+        sale_price = float(fs['sale_price'])
+        discount_percentage = round(((original_price - sale_price) / original_price) * 100)
+
+        formatted_sales.append({
+            'id': fs['id'],
+            'productId': fs['product_id'],
+            'product': {
+                'id': fs['product_id'],
+                'name': fs['name'],
+                'description': fs.get('description', ''),
+                'price': original_price,
+                'images': images_list,
+                'category': fs['category_slug'],
+                'inStock': fs['stock'] > 0,
+                'stockQuantity': fs['stock'],
+                'specifications': specs,
+                'brand': fs.get('brand')
+            },
+            'discountPrice': sale_price,
+            'discountPercentage': discount_percentage,
+            'startDate': fs['start_time'].isoformat() if fs['start_time'] else None,
+            'endDate': fs['end_time'].isoformat() if fs['end_time'] else None,
+            'stock': fs.get('stock_limit', fs['stock']),
+            'soldCount': fs.get('sold_count', 0),
+            'isActive': fs['is_active']
+        })
+
+    return jsonify(formatted_sales), 200

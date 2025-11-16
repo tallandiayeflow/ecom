@@ -337,6 +337,11 @@ export const getFlashSales = async (): Promise<FlashSale[]> => {
   return response.data;
 };
 
+export const getFlashSalesAdmin = async (): Promise<FlashSale[]> => {
+  const response = await api.get('/flash-sales/admin');
+  return response.data;
+};
+
 export const createFlashSale = async (
   flashSaleData: Partial<FlashSale>
 ): Promise<FlashSale> => {
