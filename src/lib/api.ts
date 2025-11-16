@@ -71,6 +71,12 @@ export interface ProductsResponse {
   page: number;
   totalPages: number;
 }
+export interface FlashSaleResponse {
+  products: Product[];
+  total: number;
+  page: number;
+  totalPages: number;
+}
 export interface ApiError {
   error: string;
   message?: string;
@@ -200,6 +206,8 @@ export const getProducts = async (
   const response = await api.get(`/products?${params.toString()}`);
   return response.data;
 };
+
+
 
 export const getProduct = async (id: string): Promise<Product> => {
   const response = await api.get(`/products/${id}`);
@@ -332,10 +340,42 @@ export const updateOrderStatus = async (
 };
 
 // ==================== FLASH SALES ====================
-export const getFlashSales = async (): Promise<FlashSale[]> => {
-  const response = await api.get('/flash-sales');
-  return response.data;
+export interface FlashSaleFilters {
+  category?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  search?: string;
+  inStock?: boolean;
+  page?: number;
+  limit?: number;
+}
+export interface FlashSalesResponse {
+  flashSales: FlashSale[];
+  total: number;
+  totalPages: number;
+  currentPage: number;
+}
+
+export const getFlashSales = async (
+  filters?: FlashSaleFilters
+): Promise<FlashSalesResponse> => {
+  const params = new URLSearchParams();
+  if (filters?.category) params.append('category', filters.category);
+  if (filters?.minPrice !== undefined)
+    params.append('minPrice', filters.minPrice.toString());
+  if (filters?.maxPrice !== undefined)
+    params.append('maxPrice', filters.maxPrice.toString());
+  if (filters?.search) params.append('search', filters.search);
+  if (filters?.inStock) params.append('inStock', 'true');
+  if (filters?.page) params.append('page', filters.page.toString());
+  if (filters?.limit) params.append('limit', filters.limit.toString());
+
+  const response = await api.get(`/flash-sales?${params.toString()}`);
+  return response.data as FlashSalesResponse;
 };
+
+
+
 
 export const getFlashSaleId = async (productId: string): Promise<FlashSale> => {
   const response = await api.get(`/flash-sales/${productId}`);

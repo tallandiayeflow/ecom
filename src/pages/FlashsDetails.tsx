@@ -7,17 +7,17 @@ import { useCart } from '@/contexts/CartContext';
 import { getFlashSaleId } from '@/lib/api';
 import { FlashSale, Product } from '@/types';
 import {
-    ArrowLeft,
-    Check,
-    Clock,
-    Loader2,
-    Minus,
-    Package,
-    Plus,
-    ShoppingCart,
-    Star,
-    Truck,
-    Zap
+  ArrowLeft,
+  Check,
+  Clock,
+  Loader2,
+  Minus,
+  Package,
+  Plus,
+  ShoppingCart,
+  Star,
+  Truck,
+  Zap
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -165,7 +165,7 @@ const FlashsDetails = () => {
       {/* Bouton retour */}
       <Button
         variant="ghost"
-        onClick={() => navigate('/flash-sales')}
+        onClick={() => navigate(-1)}
         className="mb-4"
         size="sm"
       >

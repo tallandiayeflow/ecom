@@ -14,6 +14,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import Auth from "./pages/Auth";
 import Cart from "./pages/Cart";
 import Checkout from "./pages/Checkout";
+import FlashSales from "./pages/FlashSales";
 import FlashsDetails from "./pages/FlashsDetails";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
@@ -57,6 +58,7 @@ const App = () => (
                         <Routes>
                           <Route path="/" element={<Index />} />
                           <Route path="/products" element={<Products />} />
+                          <Route path="/flash" element={<FlashSales />} />
                           <Route path="/product/:id" element={<ProductDetail />} />
                           <Route path="/flash/:id" element={<FlashsDetails />} />
                           <Route path="/search" element={<Search />} />

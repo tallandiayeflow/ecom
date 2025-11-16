@@ -12,13 +12,12 @@ export const FlashSaleSection = () => {
   const [loading, setLoading] = useState(true);
   const [timeLeft, setTimeLeft] = useState({ hours: 0, minutes: 0, seconds: 0 });
   const navigate = useNavigate();
-  const logo ="/logo.png"
+  const logo = "/logo.png";
 
   useEffect(() => {
     loadFlashSales();
   }, []);
 
-  // Compte à rebours pour la prochaine fin de vente flash
   useEffect(() => {
     if (flashSales.length === 0) return;
 
@@ -29,7 +28,7 @@ export const FlashSaleSection = () => {
 
       if (distance < 0) {
         clearInterval(interval);
-        loadFlashSales(); // Recharger si la vente est terminée
+        loadFlashSales(); // Reload when flash sale ends
         return;
       }
 
@@ -47,7 +46,8 @@ export const FlashSaleSection = () => {
     try {
       setLoading(true);
       const data = await getFlashSales();
-      setFlashSales(data);
+      console.log('flashSales API response:', data);
+      setFlashSales(data.flashSales);
     } catch (error) {
       console.error('Error loading flash sales:', error);
     } finally {
@@ -63,36 +63,28 @@ export const FlashSaleSection = () => {
     }
   };
 
-  // Afficher un loader pendant le chargement
   if (loading) {
-  return (
-    <section className="py-8 opacity-40 animate-pulse pointer-events-none select-none">
-      <div className="flex items-center justify-between mb-6">
-        {/* En-tête skeleton */}
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gray-300 rounded-lg" />
-          <div className="space-y-2">
-            <div className="w-32 h-6 bg-gray-300 rounded" />
-            <div className="w-48 h-4 bg-gray-200 rounded" />
+    return (
+      <section className="py-8 opacity-40 animate-pulse pointer-events-none select-none">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-gray-300 rounded-lg" />
+            <div className="space-y-2">
+              <div className="w-32 h-6 bg-gray-300 rounded" />
+              <div className="w-48 h-4 bg-gray-200 rounded" />
+            </div>
           </div>
+          <div className="w-28 h-10 bg-gray-200 rounded-lg" />
         </div>
+        <div className="flex gap-4 overflow-hidden py-2">
+          {[1, 2, 3, 4].map(i => (
+            <Card key={i} className="w-[280px] h-80 bg-gray-200 rounded-lg" />
+          ))}
+        </div>
+      </section>
+    );
+  }
 
-        {/* Timer Skeleton */}
-        <div className="w-28 h-10 bg-gray-200 rounded-lg" />
-      </div>
-
-      {/* Slider skeleton */}
-      <div className="flex gap-4 overflow-hidden py-2">
-        {[1, 2, 3, 4].map((i) => (
-          <Card key={i} className="w-[280px] h-80 bg-gray-200 rounded-lg" />
-        ))}
-      </div>
-    </section>
-  );
-}
-
-
-  // Ne rien afficher si aucune vente flash
   if (flashSales.length === 0) {
     return null;
   }
@@ -100,7 +92,6 @@ export const FlashSaleSection = () => {
   return (
     <section className="py-8">
       <div className="flex items-center justify-between mb-6">
-        {/* En-tête */}
         <div className="flex items-center gap-3">
           <div className="bg-gradient-to-r from-orange-500 to-red-500 p-2 rounded-lg">
             <Zap className="h-6 w-6 text-white" />
@@ -111,7 +102,6 @@ export const FlashSaleSection = () => {
           </div>
         </div>
 
-        {/* Compte à rebours */}
         {flashSales.length > 0 && (
           <div className="flex items-center gap-2 bg-gradient-to-r from-orange-50 to-red-50 px-4 py-2 rounded-lg">
             <Clock className="h-5 w-5 text-orange-600" />
@@ -126,7 +116,6 @@ export const FlashSaleSection = () => {
         )}
       </div>
 
-      {/* Slider de produits en vente flash */}
       <div className="relative group">
         <Button
           variant="outline"
@@ -146,15 +135,13 @@ export const FlashSaleSection = () => {
             <Card
               key={sale.id}
               className="flex-shrink-0 w-[280px] cursor-pointer hover:shadow-lg transition-shadow"
-              onClick={() => navigate(`/product/${sale.productId}`)}
+              onClick={() => navigate(`/flash/${sale.productId}`)}
             >
               <div className="relative">
-                {/* Badge de réduction */}
                 <Badge className="absolute top-2 left-2 z-10 bg-red-600 hover:bg-red-700">
                   -{sale.discountPercentage}%
                 </Badge>
 
-                {/* Image du produit */}
                 {sale.product?.images?.[0] && (
                   <img
                     src={sale.product.images[0]}
@@ -163,13 +150,9 @@ export const FlashSaleSection = () => {
                   />
                 )}
 
-                {/* Informations du produit */}
                 <div className="p-4 space-y-2">
-                  <h3 className="font-semibold line-clamp-2 h-12">
-                    {sale.product.name}
-                  </h3>
+                  <h3 className="font-semibold line-clamp-2 h-12">{sale.product.name}</h3>
 
-                  {/* Prix */}
                   <div className="space-y-1">
                     <div className="flex items-baseline gap-2">
                       <span className="text-2xl font-bold text-red-600">
@@ -184,7 +167,6 @@ export const FlashSaleSection = () => {
                     </p>
                   </div>
 
-                  {/* Barre de progression du stock */}
                   {sale.soldCount !== undefined && (
                     <div className="space-y-1">
                       <div className="w-full bg-gray-200 rounded-full h-2">
@@ -201,7 +183,6 @@ export const FlashSaleSection = () => {
                     </div>
                   )}
 
-                  {/* Bouton d'action */}
                   <Button
                     className="w-full mt-2 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
                     onClick={(e) => {
