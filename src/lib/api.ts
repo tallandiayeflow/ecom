@@ -169,7 +169,7 @@ export const getCurrentUser = async (): Promise<User> => {
   return response.data;
 };
 
-export const resetPassword = async (
+/*export const forgotPassword = async (
   email: string
 ): Promise<{ message: string }> => {
   const response = await api.post<{ message: string }>('/auth/reset-password', {
@@ -177,6 +177,54 @@ export const resetPassword = async (
   });
   return response.data;
 };
+
+export const changePassword = async (
+  token: string,
+  newPassword: string
+): Promise<{ message: string }> => {
+  const response = await api.post<{ message: string }>('/auth/change-password', {
+    token,
+    newPassword,
+  });
+  return response.data;
+};*/
+
+/**
+ * Demande de réinitialisation de mot de passe
+ * Envoie un email avec un lien de réinitialisation
+ */
+export const requestPasswordReset = async (
+  email: string
+): Promise<{ message: string }> => {
+  const response = await api.post('/auth/forgot-password', { email });
+  return response.data;
+};
+
+/**
+ * Vérifie la validité d'un token de réinitialisation
+ */
+export const verifyResetToken = async (
+  token: string
+): Promise<{ valid: boolean }> => {
+  const response = await api.post('/auth/verify-reset-token', { token });
+  return response.data;
+};
+
+/**
+ * Réinitialise le mot de passe avec un token
+ */
+export const resetPassword = async (
+  token: string,
+  newPassword: string
+): Promise<{ message: string; email?: string }> => {
+  const response = await api.post('/auth/reset-password', {
+    token,
+    newPassword,
+  });
+  return response.data;
+};
+
+
 
 // ==================== PRODUCTS ====================
 export interface ProductFilters {

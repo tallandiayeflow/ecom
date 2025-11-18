@@ -16,6 +16,7 @@ import Cart from "./pages/Cart";
 import Checkout from "./pages/Checkout";
 import FlashSales from "./pages/FlashSales";
 import FlashsDetails from "./pages/FlashsDetails";
+import ForgotPassword from "./pages/ForgotPassword";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import OrderSuccess from "./pages/OrderSuccess";
@@ -23,6 +24,7 @@ import Orders from "./pages/Orders";
 import ProductDetail from "./pages/ProductDetail";
 import Products from "./pages/Products";
 import Profile from "./pages/Profile";
+import ResetPassword from "./pages/ResetPassword";
 import LoyaltyRewards from "./pages/Rewards";
 import Search from "./pages/Search";
 import BannersManagement from "./pages/admin/BannersManagement";
@@ -71,6 +73,8 @@ const App = () => (
                           <Route path="/invoices/:id" element={<InvoicePDF />} />
                           <Route path="/orders/:id" element={<OrderDetails />} />
                           <Route path="/rewards" element={<LoyaltyRewards />} />
+                          <Route path="/reset-password" element={<ResetPassword />} />
+                          <Route path="/forgot-password" element={<ForgotPassword />} />
                         </Routes>
                       </main>
                       <Footer />

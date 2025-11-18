@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { Eye, EyeOff, Loader2, Lock, Mail, Phone, Smartphone, User } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
 interface LoginData {
@@ -31,9 +31,6 @@ interface RegisterData {
 
 const countries = [
   { code: '+221', name: 'Sénégal', flag: '🇸🇳' },
-  { code: '+33', name: 'France', flag: '🇫🇷' },
-  { code: '+1', name: 'USA', flag: '🇺🇸' },
-  // ajoutez d'autres pays si nécessaire
 ];
 
 const Auth = () => {
@@ -260,6 +257,9 @@ const Auth = () => {
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
+                  <Link to="/forgot-password" className="text-sm text-blue-600 hover:underline">
+                    Mot de passe oublié ?
+                  </Link>
                 </div>
 
                 <Button
