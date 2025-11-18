@@ -442,6 +442,21 @@ export const validateVoucher = async (
   return response.data;
 };
 
+// Echanger ses points de fidélité contre un code voucher pour une commande client
+
+export const redeemLoyaltyPoints = async (pointsCost: number, voucherValue: number) => {
+  const response = await api.post('/loyalty/redeem', {
+    pointsCost,
+    voucherValue
+  });
+  return response.data;
+};
+
+export const getUserVouchers = async () => {
+  const response = await api.get('/loyalty/vouchers');
+  return response.data;
+};
+
 
 // ==================== BANNERS ====================
 export const getBanners = async (): Promise<BannerSlide[]> => {

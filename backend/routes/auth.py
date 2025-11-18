@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from utils.database import execute_query
-from utils.auth import hash_password, verify_password, generate_token
+from utils.auth import hash_password, verify_password, generate_token,token_required
 import uuid
 import random
 import time
@@ -154,3 +154,26 @@ def verify_otp_reset_password():
     del otp_store[phone]  # Supprimer OTP utilisé
 
     return jsonify({'message': 'Mot de passe réinitialisé avec succès'}), 200
+
+
+@bp.route('/me', methods=['GET'])
+@token_required
+def get_current_user(current_user):
+    """Get current user profile"""
+    user = execute_query(
+        "SELECT id, email, name, role, loyalty_points, created_at FROM users WHERE id = %s",
+        (current_user['user_id'],),
+        fetch_one=True
+    )
+    
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+    
+    return jsonify({
+        'id': user['id'],
+        'email': user['email'],
+        'name': user['name'],
+        'role': user['role'],
+        'loyaltyPoints': user['loyalty_points'],
+        'createdAt': user['created_at'].isoformat() if user['created_at'] else None
+    }), 200

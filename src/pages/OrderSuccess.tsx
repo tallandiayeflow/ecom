@@ -19,6 +19,7 @@ const OrderSuccess = () => {
   const { user } = useAuth();
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const { orderId, total, loyaltyPoints } = location.state || {};
 
   useEffect(() => {
@@ -32,8 +33,20 @@ const OrderSuccess = () => {
       setLoading(true);
       const data = await getOrderPubic(orderId);
       setOrder(data);
+      try {
+        const qr = await QRCode.toDataURL(`${window.location.origin}/orders/${orderId}`);
+        setQrDataUrl(qr);
+      } catch (e) {
+        setQrDataUrl(null);
+      }
     } catch {
       setOrder({ id: orderId, total, finalTotal: total, loyaltyPointsEarned: loyaltyPoints || 0, status: "pending" });
+      try {
+        const qr = await QRCode.toDataURL(`${window.location.origin}/orders/${orderId}`);
+        setQrDataUrl(qr);
+      } catch (e) {
+        setQrDataUrl(null);
+      }
     } finally {
       setLoading(false);
     }
@@ -123,6 +136,86 @@ const OrderSuccess = () => {
     doc.save(`commande-${order.id}.pdf`);
   };
 
+  const downloadMiniReceipt = async () => {
+    if (!order) return;
+    // Thermal/mini receipt ~80mm width (~227pt). Height is flexible based on items.
+    const widthPt = 227;
+    const heightPt = Math.max(400, 200 + (order.items?.length || 0) * 28);
+    const doc = new jsPDF({ unit: "pt", format: [widthPt, heightPt] });
+
+    const margin = 8;
+    let y = margin;
+
+    doc.setFontSize(12);
+    doc.setTextColor(0);
+    doc.text("BOUTIQUE APPLE PHONE", widthPt / 2, y + 12, { align: "center" });
+    y += 20;
+    doc.setFontSize(9);
+    doc.text("Guédiawaye - Tel: 33 123 45 66", widthPt / 2, y + 10, { align: "center" });
+    y += 18;
+
+    doc.setLineWidth(0.5);
+    doc.line(margin, y, widthPt - margin, y);
+    y += 10;
+
+    doc.setFontSize(9);
+    doc.text(`Commande: ${order.id}`, margin, y);
+    y += 12;
+    doc.text(`Date: ${new Date().toLocaleDateString("fr-FR")}`, margin, y);
+    y += 14;
+
+    if (order.shippingAddress) {
+      doc.setFontSize(8);
+      doc.text(`Client: ${order.shippingAddress.name}`, margin, y);
+      y += 12;
+      doc.text(`${order.shippingAddress.address || ""} ${order.shippingAddress.city || ""}`, margin, y);
+      y += 14;
+    }
+
+    doc.setFontSize(9);
+    doc.text("--- Articles ---", margin, y);
+    y += 12;
+
+    (order.items || []).forEach((item: any) => {
+      const left = `${item.productName} x${item.quantity}`;
+      doc.text(left, margin, y);
+      doc.text(`${(item.price * item.quantity).toFixed(2)} FCFA`, widthPt - margin, y, { align: "right" });
+      y += 12;
+    });
+
+    y += 6;
+    doc.line(margin, y, widthPt - margin, y);
+    y += 10;
+
+    doc.text(`Sous-total: ${order.total?.toFixed(2)} FCFA`, margin, y);
+    y += 12;
+    if (order.discount > 0) {
+      doc.text(`Réduction: -${order.discount.toFixed(2)} FCFA`, margin, y);
+      y += 12;
+    }
+
+    doc.setFontSize(11);
+    doc.text(`TOTAL: ${order.finalTotal?.toFixed(2)} FCFA`, margin, y);
+    y += 18;
+
+    try {
+      const qr = qrDataUrl || (await QRCode.toDataURL(`${window.location.origin}/orders/${order.id}`));
+      if (qr) {
+        const size = 120;
+        const x = (widthPt - size) / 2;
+        doc.addImage(qr, "PNG", x, y, size, size);
+        y += size + 8;
+      }
+    } catch (e) {
+      // ignore QR failure
+    }
+
+    doc.setFontSize(8);
+    doc.text("Merci pour votre achat !", widthPt / 2, y + 6, { align: "center" });
+
+    doc.save(`mini-commande-${order.id}.pdf`);
+  };
+
   if (loading) return <div className="text-center p-8">Chargement...</div>;
   if (!order) return null;
 
@@ -138,6 +231,13 @@ const OrderSuccess = () => {
           </Badge>
         </CardContent>
       </Card>
+
+      {qrDataUrl && (
+        <div className="text-center">
+          <img src={qrDataUrl} alt="QR Code commande" className="w-36 h-36 mx-auto rounded-md bg-white p-2" />
+          <p className="text-sm text-gray-600 mt-2">Scannez pour voir votre commande</p>
+        </div>
+      )}
 
       {!user && (
         <Alert className="bg-blue-50 border-blue-300 shadow-sm">
@@ -191,6 +291,9 @@ const OrderSuccess = () => {
       <div className="flex flex-col sm:flex-row gap-3">
         <Button onClick={downloadReceipt} variant="outline" className="flex-1 text-lg py-6 rounded-xl">
           <Download className="w-5 h-5 mr-2" /> Télécharger le reçu
+        </Button>
+        <Button onClick={downloadMiniReceipt} variant="ghost" className="flex-1 text-lg py-6 rounded-xl">
+          <Download className="w-5 h-5 mr-2" /> Télécharger reçu compact
         </Button>
         {user && (
           <Button onClick={() => navigate("/orders")} className="flex-1 text-lg py-6 rounded-xl">

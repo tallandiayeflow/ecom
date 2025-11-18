@@ -23,6 +23,7 @@ import Orders from "./pages/Orders";
 import ProductDetail from "./pages/ProductDetail";
 import Products from "./pages/Products";
 import Profile from "./pages/Profile";
+import LoyaltyRewards from "./pages/Rewards";
 import Search from "./pages/Search";
 import BannersManagement from "./pages/admin/BannersManagement";
 import CategoriesManagement from "./pages/admin/CategoriesManagement";
@@ -69,6 +70,7 @@ const App = () => (
                           <Route path="/profile" element={<Profile />} />
                           <Route path="/invoices/:id" element={<InvoicePDF />} />
                           <Route path="/orders/:id" element={<OrderDetails />} />
+                          <Route path="/rewards" element={<LoyaltyRewards />} />
                         </Routes>
                       </main>
                       <Footer />
