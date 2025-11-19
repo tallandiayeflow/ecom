@@ -1,7 +1,7 @@
 from flask import Flask, jsonify
 from flask_cors import CORS
 from config import Config
-from routes import auth, products, categories, cart, orders, flash_sales, banners, vouchers, admin, user, factures, stock
+from routes import auth, products, categories, cart, orders, flash_sales, banners, vouchers, admin, user, factures, stock,loyalty
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -16,6 +16,7 @@ app.config.from_object(Config)
     }
 })
 """
+#CORS(app)
 # Blueprints tests
 app.register_blueprint(auth.bp, url_prefix='/api/auth')
 app.register_blueprint(products.bp, url_prefix='/api/products')
@@ -29,6 +30,7 @@ app.register_blueprint(admin.bp, url_prefix='/api/admin')
 app.register_blueprint(user.bp, url_prefix='/api/user')
 app.register_blueprint(factures.factures_bp, url_prefix='/api/factures')
 app.register_blueprint(stock.stock_bp, url_prefix='/api/stock')
+app.register_blueprint(loyalty.bp, url_prefix='/api/loyalty')
 
 # Health check
 @app.route('/api/health')
