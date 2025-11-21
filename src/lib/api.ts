@@ -82,6 +82,7 @@ export interface ApiError {
   message?: string;
 }
 
+
 export interface CreateOrderData {
   items: {
     productId: string;
@@ -678,6 +679,187 @@ export const createUser = async (
   const response = await api.post<{ message: string }>(`/admin/users`, userData);
   return response.data;
 };
+//===================== Gestion des stock =====================
+// ==================== TYPES POUR STOCK ====================
+export interface StockStats {
+  totalProducts: number;
+  totalStock: number;
+  lowStockCount: number;
+  outOfStockCount: number;
+  totalStockValue: number;
+}
+
+export interface StockAlert {
+  id: string;
+  name: string;
+  stock: number;
+  imageUrl: string;
+  price: number;
+  status: 'low' | 'out';
+}
+
+export interface StockAlerts {
+  lowStockCount: number;
+  outOfStockCount: number;
+  alerts: StockAlert[];
+}
+
+export interface InventoryItem {
+  id: string;
+  name: string;
+  category: string;
+  stock: number;
+  price: number;
+  stockValue: number;
+  imageUrl: string;
+  stockStatus: 'out_of_stock' | 'low_stock' | 'medium_stock' | 'good_stock';
+}
+
+export interface InventoryResponse {
+  inventory: InventoryItem[];
+  total: number;
+  page: number;
+  totalPages: number;
+}
+
+export interface StockMovement {
+  id: string;
+  productId: string;
+  productName: string;
+  productImage: string;
+  type: 'in' | 'out' | 'return' | 'adjustment';
+  quantity: number;
+  previousStock: number;
+  newStock: number;
+  reason: string;
+  user: string;
+  date: string;
+}
+
+export interface StockMovementsResponse {
+  movements: StockMovement[];
+  total: number;
+  page: number;
+  totalPages: number;
+}
+
+export interface CreateStockMovementRequest {
+  productId: string;
+  type: 'in' | 'out' | 'return' | 'adjustment';
+  quantity: number;
+  reason?: string;
+}
+
+export interface CreateStockMovementResponse {
+  id: string;
+  message: string;
+  previousStock: number;
+  newStock: number;
+}
+
+export interface UpdateProductStockRequest {
+  stock: number;
+  reason?: string;
+}
+
+export interface UpdateProductStockResponse {
+  message: string;
+  productName: string;
+  previousStock: number;
+  newStock: number;
+}
+
+// ==================== API ENDPOINTS STOCK ====================
+export const stock = {
+  // GET /api/stock/stats - Obtenir les statistiques globales du stock
+  getStats: async (): Promise<StockStats> => {
+    const { data } = await api.get<StockStats>('/stock/stats');
+    return data;
+  },
+
+  // GET /api/stock/alerts - Obtenir les alertes de stock
+  getAlerts: async (): Promise<StockAlerts> => {
+    const { data } = await api.get<StockAlerts>('/stock/alerts');
+    return data;
+  },
+
+  // GET /api/stock/inventory - Obtenir l'inventaire complet
+  getInventory: async (params?: {
+    page?: number;
+    limit?: number;
+  }): Promise<InventoryResponse> => {
+    const { data } = await api.get<InventoryResponse>('/stock/inventory', { params });
+    return data;
+  },
+
+  // GET /api/stock/movements - Obtenir l'historique des mouvements de stock
+  getMovements: async (params?: {
+    page?: number;
+    limit?: number;
+  }): Promise<StockMovementsResponse> => {
+    const { data } = await api.get<StockMovementsResponse>('/stock/movements', { params });
+    return data;
+  },
+
+  // POST /api/stock/movements - Créer un mouvement de stock
+  createMovement: async (
+    movement: CreateStockMovementRequest
+  ): Promise<CreateStockMovementResponse> => {
+    const { data } = await api.post<CreateStockMovementResponse>(
+      '/stock/movements',
+      movement
+    );
+    return data;
+  },
+
+  // PATCH /api/stock/products/:id - Mettre à jour le stock d'un produit
+  updateProductStock: async (
+    productId: string,
+    stockData: UpdateProductStockRequest
+  ): Promise<UpdateProductStockResponse> => {
+    const { data } = await api.patch<UpdateProductStockResponse>(
+      `/stock/products/${productId}`,
+      stockData
+    );
+    return data;
+  },
+
+  // DELETE /api/stock/movements/:id - Supprimer un mouvement de stock
+  deleteMovement: async (movementId: string): Promise<{ message: string }> => {
+    const { data } = await api.delete<{ message: string }>(
+      `/stock/movements/${movementId}`
+    );
+    return data;
+  },
+};
+// Dans votre fichier api.tsx
+
+export interface CreateFactureRequest {
+  customer_name: string;
+  customer_email?: string | null;
+  customer_phone?: string | null;
+  customer_address?: string | null;
+  subtotal: number;
+  discount: number;
+  total: number;
+  notes?: string | null;
+  type: 'sale' | 'purchase';
+  items: {
+    product_id: string;
+    product_name: string;
+    product_image: string;
+    unit_price: number;
+    quantity: number;
+    total: number;
+  }[];
+}
+
+export interface CreateFactureResponse {
+  id: string;
+  invoice_number: string;
+  message: string;
+}
+
 // ==================== UTILITY ====================
 
 export const isAuthenticated = (): boolean => {
@@ -693,4 +875,51 @@ export const logout = (): void => {
   localStorage.removeItem('user');
 };
 
+
+
+// Endpoints factures
+export const factures = {
+  // GET /api/factures - Liste toutes les factures
+  getAllInvoices: async (): Promise<Invoice[]> => {
+    const { data } = await api.get<Invoice[]>('/factures');
+    return data;
+  },
+
+  // GET /api/factures/:id - Détails d'une facture
+  getInvoice: async (invoiceId: string): Promise<Invoice> => {
+    const { data } = await api.get<Invoice>(`/factures/${invoiceId}`);
+    return data;
+  },
+
+  // POST /api/factures - Créer une facture
+  createInvoice: async (invoiceData: CreateInvoiceData): Promise<Invoice> => {
+    const { data } = await api.post<Invoice>('/factures', invoiceData);
+    return data;
+  },
+
+  // PUT /api/factures/:id - Mettre à jour une facture
+  updateInvoice: async (
+    invoiceId: string,
+    updates: {
+      status?: 'paid' | 'pending' | 'cancelled';
+      paymentMethod?: 'cash_on_delivery' | 'card' | 'bank_transfer' | 'other';
+      notes?: string;
+    }
+  ): Promise<Invoice> => {
+    const { data } = await api.put<Invoice>(`/factures/${invoiceId}`, updates);
+    return data;
+  },
+
+  // DELETE /api/factures/:id - Supprimer une facture
+  deleteInvoice: async (invoiceId: string): Promise<{ message: string }> => {
+    const { data } = await api.delete<{ message: string }>(`/factures/${invoiceId}`);
+    return data;
+  },
+};
+
+
 export default api;
+
+
+
+

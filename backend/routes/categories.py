@@ -1,11 +1,16 @@
 from flask import Blueprint, request, jsonify
 from utils.database import execute_query
 from utils.auth import admin_required
+from utils.cache import cache  # AJOUTER cette ligne
 import uuid
+
 
 bp = Blueprint('categories', __name__)
 
+
+# GET - Appliquer le cache (lecture seule)
 @bp.route('', methods=['GET'])
+@cache.cached(timeout=1800)  # Cache 30 minutes (les catégories changent rarement)
 def get_categories():
     """Get all categories"""
     categories = execute_query(
@@ -27,6 +32,8 @@ def get_categories():
     
     return jsonify(formatted_categories), 200
 
+
+# POST - Pas de cache, mais invalider après création
 @bp.route('', methods=['POST'])
 @admin_required
 def create_category(current_user):
@@ -41,8 +48,13 @@ def create_category(current_user):
         commit=True
     )
     
+    # Invalider le cache de la liste des catégories
+    cache.delete_memoized(get_categories)
+    
     return jsonify({'id': category_id, 'message': 'Category created successfully'}), 201
 
+
+# PUT - Pas de cache, mais invalider après modification
 @bp.route('/<category_id>', methods=['PUT'])
 @admin_required
 def update_category(current_user, category_id):
@@ -70,11 +82,20 @@ def update_category(current_user, category_id):
     
     execute_query(query, tuple(params), commit=True)
     
+    # Invalider le cache de la liste des catégories
+    cache.delete_memoized(get_categories)
+    
     return jsonify({'message': 'Category updated successfully'}), 200
 
+
+# DELETE - Pas de cache, mais invalider après suppression
 @bp.route('/<category_id>', methods=['DELETE'])
 @admin_required
 def delete_category(current_user, category_id):
     """Delete a category (admin only)"""
     execute_query("DELETE FROM categories WHERE id = %s", (category_id,), commit=True)
+    
+    # Invalider le cache de la liste des catégories
+    cache.delete_memoized(get_categories)
+    
     return jsonify({'message': 'Category deleted successfully'}), 200

@@ -68,6 +68,8 @@ export interface CreateOrderData {
   discount?: number;
 }
 
+
+
 // Interface pour un item de commande
 export interface OrderItem {
   id: string;

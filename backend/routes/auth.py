@@ -9,6 +9,7 @@ import secrets
 import smtplib
 from email.message import EmailMessage
 from datetime import datetime, timedelta
+from utils.cache import cache  # Importer le cache
 
 
 bp = Blueprint('auth', __name__)
@@ -102,6 +103,16 @@ def login():
 @token_required
 def get_current_user(current_user):
     """Get current user profile"""
+    
+    # Créer une clé de cache unique par utilisateur
+    cache_key = f"user_profile_{current_user['user_id']}"
+    
+    # Vérifier si le profil est en cache
+    cached_data = cache.get(cache_key)
+    if cached_data:
+        return jsonify(cached_data), 200
+    
+    # Si pas en cache, interroger la base de données
     user = execute_query(
         "SELECT id, email, name, role, loyalty_points, created_at FROM users WHERE id = %s",
         (current_user['user_id'],),
@@ -111,14 +122,20 @@ def get_current_user(current_user):
     if not user:
         return jsonify({'error': 'User not found'}), 404
     
-    return jsonify({
+    # Formater la réponse
+    response_data = {
         'id': user['id'],
         'email': user['email'],
         'name': user['name'],
         'role': user['role'],
         'loyaltyPoints': user['loyalty_points'],
         'createdAt': user['created_at'].isoformat() if user['created_at'] else None
-    }), 200
+    }
+    
+    # Stocker en cache pendant 2 minutes
+    cache.set(cache_key, response_data, timeout=120)
+    
+    return jsonify(response_data), 200
 
 
 @bp.route('/profile', methods=['PUT'])
@@ -138,10 +155,14 @@ def update_profile(current_user):
         commit=True
     )
     
+    # AJOUTER : Invalider le cache du profil utilisateur
+    cache_key = f"user_profile_{current_user['user_id']}"
+    cache.delete(cache_key)
+    
     return jsonify({'message': 'Profile updated successfully'}), 200
 
 @bp.route('/change-password', methods=['PUT'])
-@token_required 
+@token_required
 def change_password(current_user):
     """Change current user password"""
     data = request.get_json()
@@ -161,14 +182,18 @@ def change_password(current_user):
         return jsonify({'error': 'Old password is incorrect'}), 401
     
     new_password_hash = hash_password(new_password)
-    
     execute_query(
         "UPDATE users SET password_hash = %s WHERE id = %s",
         (new_password_hash, current_user['user_id']),
         commit=True
     )
     
+    # AJOUTER : Invalider le cache (optionnel ici car le mot de passe n'apparaît pas dans /me)
+    cache_key = f"user_profile_{current_user['user_id']}"
+    cache.delete(cache_key)
+    
     return jsonify({'message': 'Password changed successfully'}), 200
+
 
 @bp.route('/activate-account', methods=['POST'])
 def activate_account():

@@ -1,10 +1,6 @@
 "use client";
 
-import { FileText, Plus, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { toast } from "sonner";
-
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -16,6 +12,14 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -24,7 +28,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { createInvoice, deleteInvoice, getInvoices } from "@/lib/api";
+import type { InventoryItem } from "@/lib/api";
+import { factures, stock } from "@/lib/api";
+import type { Invoice, InvoiceItem } from "@/types/invoices";
+import { Check, FileText, Loader2, Minus, Plus, Trash2, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 const generateInvoiceNumber = (): string =>
   `INV-${Math.floor(Math.random() * 100000000).toString().padStart(8, "0")}`;
@@ -40,148 +50,244 @@ const getStatusLabel = (status: string) => {
 
 const getStatusClass = (status: string) => {
   switch (status) {
-    case "paid": return "bg-green-500 text-white";
-    case "pending": return "bg-yellow-500 text-white";
-    case "cancelled": return "bg-red-500 text-white";
-    default: return "bg-gray-500 text-white";
+    case "paid": return "bg-green-100 text-green-800";
+    case "pending": return "bg-yellow-100 text-yellow-800";
+    case "cancelled": return "bg-red-100 text-red-800";
+    default: return "bg-gray-100 text-gray-800";
   }
 };
 
 const InvoicesManagement = () => {
-  const [invoices, setInvoices] = useState<any[]>([]);
+  // États principaux
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [invoiceToDelete, setInvoiceToDelete] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [filterDate, setFilterDate] = useState("");
-  const [newInvoice, setNewInvoice] = useState<any>({
-    invoice_number: generateInvoiceNumber(),
-    customer_name: "",
-    customer_email: "",
-    customer_phone: "",
-    customer_address: "",
-    customer_city: "",
-    items: [],
-    status: "pending",
-    payment_method: "cash_on_delivery",
-    amount: "",
-    total: "",
-  });
-  const [currentItem, setCurrentItem] = useState({
-    product_name: "",
-    unit_price: "",
-    quantity: 1,
-  });
+
+  // États création facture
+  const [customerName, setCustomerName] = useState("");
+  const [customerEmail, setCustomerEmail] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [customerAddress, setCustomerAddress] = useState("");
+  const [customerCity, setCustomerCity] = useState("");
+  const [invoiceStatus, setInvoiceStatus] = useState<"pending" | "paid" | "cancelled">("pending");
+  const [paymentMethod, setPaymentMethod] = useState<"cash_on_delivery" | "card" | "bank_transfer" | "other">("cash_on_delivery");
+  const [selectedItems, setSelectedItems] = useState<Map<string, InvoiceItem>>(new Map());
+  const [taxRate, setTaxRate] = useState("0");
+  const [discount, setDiscount] = useState("0");
+
+  // États stock
+  const [inventory, setInventory] = useState<InventoryItem[]>([]);
+  const [loadingInventory, setLoadingInventory] = useState(false);
 
   const navigate = useNavigate();
 
+  // Chargement initial
   useEffect(() => {
     loadInvoices();
   }, [search, filterDate]);
 
+  useEffect(() => {
+    if (isDialogOpen) {
+      loadInventory();
+    }
+  }, [isDialogOpen]);
+
+  // Charger les factures
   const loadInvoices = async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams();
-      if (search) params.append("search", search);
-      if (filterDate) params.append("date", filterDate);
-
-      const data = await getInvoices(params.toString());
+      const data = await factures.getAllInvoices();
       setInvoices(data);
-    } catch {
-      toast.error("Erreur chargement factures");
+    } catch (error) {
+      console.error("Erreur chargement factures:", error);
+      toast.error("Erreur lors du chargement des factures");
     } finally {
       setLoading(false);
     }
   };
 
-  const addItemToInvoice = () => {
-    if (!currentItem.product_name || !currentItem.unit_price || currentItem.quantity <= 0) {
-      toast.error("Veuillez remplir tous les champs du produit.");
-      return;
-    }
-    const item = {
-      id: crypto.randomUUID(),
-      product_name: currentItem.product_name,
-      unit_price: Number(currentItem.unit_price).toFixed(2),
-      quantity: currentItem.quantity,
-      total: (Number(currentItem.unit_price) * currentItem.quantity).toFixed(2),
-    };
-    setNewInvoice({ ...newInvoice, items: [...newInvoice.items, item] });
-    setCurrentItem({ product_name: "", unit_price: "", quantity: 1 });
-    toast.success("Article ajouté.");
-  };
-
-  const removeItem = (id: string) => {
-    setNewInvoice({ ...newInvoice, items: newInvoice.items.filter((i: any) => i.id !== id) });
-  };
-
-  const prepareInvoiceDataForBackend = (invoice: any) => {
-    const amount = invoice.items.reduce(
-      (acc: number, item: any) => acc + Number(item.unit_price) * item.quantity,
-      0
-    );
-    return { ...invoice, amount: amount.toFixed(2), total: amount.toFixed(2) };
-  };
-
-  const saveInvoice = async () => {
-    if (!newInvoice.customer_name || !newInvoice.customer_email || newInvoice.items.length === 0) {
-      toast.error("Veuillez remplir tous les champs et ajouter au moins un article");
-      return;
-    }
+  // Charger l'inventaire
+  const loadInventory = async () => {
+    setLoadingInventory(true);
     try {
-      const invoiceToSend = prepareInvoiceDataForBackend(newInvoice);
-      const created = await createInvoice(invoiceToSend);
-      setInvoices([created, ...invoices]);
-      setIsDialogOpen(false);
-      setNewInvoice({
-        invoice_number: generateInvoiceNumber(),
-        customer_name: "",
-        customer_email: "",
-        customer_phone: "",
-        customer_address: "",
-        customer_city: "",
-        items: [],
-        status: "pending",
-        payment_method: "cash_on_delivery",
-        amount: "",
-        total: "",
-      });
-      setCurrentItem({ product_name: "", unit_price: "", quantity: 1 });
-      toast.success("Facture créée.");
-    } catch {
-      toast.error("Erreur création facture.");
+      const data = await stock.getInventory({ page: 1, limit: 100 });
+      setInventory(data.inventory.filter(p => p.stock > 0));
+    } catch (error) {
+      console.error("Erreur chargement inventaire:", error);
+      toast.error("Erreur lors du chargement des produits");
+    } finally {
+      setLoadingInventory(false);
     }
   };
 
+  // Ajouter un produit à la facture
+  const addProductToInvoice = (product: InventoryItem) => {
+    const newMap = new Map(selectedItems);
+    
+    if (newMap.has(product.id)) {
+      const item = newMap.get(product.id)!;
+      if (item.quantity < product.stock) {
+        item.quantity += 1;
+        item.total = item.quantity * item.unitPrice;
+        newMap.set(product.id, item);
+      } else {
+        toast.error("Stock insuffisant");
+        return;
+      }
+    } else {
+      newMap.set(product.id, {
+        id: product.id,
+        name: product.name,
+        unitPrice: product.price,
+        quantity: 1,
+        productId: product.id,
+        productImage: product.imageUrl,
+        total: product.price,
+      });
+    }
+    
+    setSelectedItems(newMap);
+  };
+
+  // Retirer un produit
+  const removeProductFromInvoice = (productId: string) => {
+    const newMap = new Map(selectedItems);
+    newMap.delete(productId);
+    setSelectedItems(newMap);
+  };
+
+  // Mettre à jour la quantité
+  const updateProductQuantity = (productId: string, quantity: number) => {
+    const newMap = new Map(selectedItems);
+    const item = newMap.get(productId);
+    if (!item) return;
+
+    const product = inventory.find(p => p.id === productId);
+    if (!product) return;
+
+    if (quantity <= 0) {
+      newMap.delete(productId);
+    } else if (quantity <= product.stock) {
+      item.quantity = quantity;
+      item.total = item.unitPrice * quantity;
+      newMap.set(productId, item);
+    } else {
+      toast.error(`Stock insuffisant. Disponible: ${product.stock}`);
+      return;
+    }
+    
+    setSelectedItems(newMap);
+  };
+
+  // Calculer les totaux
+  const calculateTotals = () => {
+    let amount = 0;
+    selectedItems.forEach(item => { 
+      amount += Number(item.total || 0);
+    });
+    
+    const discountAmount = parseFloat(discount) || 0;
+    const amountAfterDiscount = Math.max(0, amount - discountAmount);
+    const tax = amountAfterDiscount * ((parseFloat(taxRate) || 0) / 100);
+    const total = amountAfterDiscount + tax;
+    
+    return { amount, discountAmount, tax, total };
+  };
+
+  // Sauvegarder la facture
+  const saveInvoice = async () => {
+    if (!customerName.trim() || !customerEmail.trim()) {
+      toast.error("Le nom et l'email du client sont obligatoires");
+      return;
+    }
+
+    if (selectedItems.size === 0) {
+      toast.error("Veuillez ajouter au moins un produit");
+      return;
+    }
+
+    try {
+      const items: InvoiceItem[] = Array.from(selectedItems.values());
+      const totals = calculateTotals();
+
+      const invoiceData = {
+        invoice_number: generateInvoiceNumber(),
+        customerName: customerName.trim(),
+        customerEmail: customerEmail.trim(),
+        customerPhone: customerPhone.trim() || undefined,
+        customerAddress: customerAddress.trim() || undefined,
+        customerCity: customerCity.trim() || undefined,
+        items,
+        status: invoiceStatus,
+        paymentMethod,
+        taxRate: parseFloat(taxRate) || 0,
+        discount: totals.discountAmount,
+      };
+
+      await factures.createInvoice(invoiceData);
+      toast.success("Facture créée avec succès");
+      
+      setIsDialogOpen(false);
+      resetForm();
+      loadInvoices();
+    } catch (error) {
+      console.error("Erreur création facture:", error);
+      toast.error("Erreur lors de la création de la facture");
+    }
+  };
+
+  // Réinitialiser le formulaire
+  const resetForm = () => {
+    setCustomerName("");
+    setCustomerEmail("");
+    setCustomerPhone("");
+    setCustomerAddress("");
+    setCustomerCity("");
+    setInvoiceStatus("pending");
+    setPaymentMethod("cash_on_delivery");
+    setSelectedItems(new Map());
+    setTaxRate("20");
+    setDiscount("0");
+  };
+
+  // Confirmer suppression
   const confirmDeleteInvoice = (id: string) => {
     setInvoiceToDelete(id);
     setDeleteDialogOpen(true);
   };
 
+  // Supprimer la facture
   const deleteExistingInvoice = async () => {
     if (!invoiceToDelete) return;
+    
     try {
-      await deleteInvoice(invoiceToDelete);
-      setInvoices((prev) => prev.filter((i) => i.id !== invoiceToDelete));
-      toast.success("Facture supprimée.");
-    } catch {
-      toast.error("Erreur suppression facture.");
+      await factures.deleteInvoice(invoiceToDelete);
+      setInvoices(prev => prev.filter(i => i.id !== invoiceToDelete));
+      toast.success("Facture supprimée avec succès");
+    } catch (error) {
+      console.error("Erreur suppression:", error);
+      toast.error("Erreur lors de la suppression");
     } finally {
       setInvoiceToDelete(null);
       setDeleteDialogOpen(false);
     }
   };
 
+  const totals = calculateTotals();
+
   return (
-    <div className="p-6 bg-background text-foreground min-h-screen">
-      {/* Header & recherche */}
-      <div className="flex flex-col md:flex-row items-center justify-between mb-6 gap-4">
-        <h1 className="text-2xl md:text-3xl font-bold">Gestion des Factures</h1>
-        <div className="flex flex-col md:flex-row gap-2">
+    <div className="p-6 space-y-6">
+      {/* En-tête */}
+      <div className="flex justify-between items-center flex-wrap gap-4">
+        <h1 className="text-3xl font-bold">Gestion des Factures</h1>
+        <div className="flex gap-2 flex-wrap">
           <Input
-            placeholder="Recherche par nom, email ou téléphone"
+            type="search"
+            placeholder="Rechercher..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full md:w-64"
@@ -192,185 +298,432 @@ const InvoicesManagement = () => {
             onChange={(e) => setFilterDate(e.target.value)}
             className="w-full md:w-48"
           />
-          {/* Création facture */}
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" className="flex items-center gap-2">
-                <Plus /> Nouvelle Facture
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="w-full max-w-lg bg-background text-foreground border border-border rounded-xl shadow-lg">
-              <DialogHeader>
-                <DialogTitle>Création de facture</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                {/* Form client */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Nom du client</Label>
-                    <Input
-                      value={newInvoice.customer_name}
-                      onChange={(e) => setNewInvoice({ ...newInvoice, customer_name: e.target.value })}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label>Email du client</Label>
-                    <Input
-                      value={newInvoice.customer_email}
-                      onChange={(e) => setNewInvoice({ ...newInvoice, customer_email: e.target.value })}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label>Téléphone</Label>
-                    <Input
-                      value={newInvoice.customer_phone}
-                      onChange={(e) => setNewInvoice({ ...newInvoice, customer_phone: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <Label>Ville</Label>
-                    <Input
-                      value={newInvoice.customer_city}
-                      onChange={(e) => setNewInvoice({ ...newInvoice, customer_city: e.target.value })}
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <Label>Adresse</Label>
-                    <Input
-                      value={newInvoice.customer_address}
-                      onChange={(e) => setNewInvoice({ ...newInvoice, customer_address: e.target.value })}
-                    />
-                  </div>
-                </div>
-
-                {/* Articles */}
-                <h3 className="text-lg font-semibold mt-2">Articles</h3>
-                <div className="space-y-1">
-                  {newInvoice.items.map((item: any) => (
-                    <div key={item.id} className="flex justify-between items-center bg-muted px-2 py-1 rounded">
-                      <span>{item.product_name} ({item.quantity} × {Number(item.unit_price).toFixed(2)} Fcfa)</span>
-                      <Button variant="ghost" size="sm" onClick={() => removeItem(item.id)}>
-                        <Trash2 />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Inputs article + bouton ajouter */}
-                <div className="flex flex-col sm:flex-row gap-2 items-end mt-2">
-                  <Input
-                    placeholder="Nom article"
-                    value={currentItem.product_name}
-                    onChange={(e) => setCurrentItem({ ...currentItem, product_name: e.target.value })}
-                  />
-                  <Input
-                    type="number"
-                    placeholder="Prix unitaire"
-                    value={currentItem.unit_price}
-                    onChange={(e) => setCurrentItem({ ...currentItem, unit_price: e.target.value })}
-                  />
-                  <Input
-                    type="number"
-                    placeholder="Quantité"
-                    min={1}
-                    value={currentItem.quantity}
-                    onChange={(e) => setCurrentItem({ ...currentItem, quantity: Number(e.target.value) || 1 })}
-                  />
-                </div>
-                <Button onClick={addItemToInvoice} className="mt-2 flex items-center gap-2">
-                  <Plus /> Ajouter article
-                </Button>
-
-                {/* Statut et méthode paiement */}
-                <div className="grid grid-cols-2 gap-4 mt-2">
-                  <div>
-                    <Label>Statut</Label>
-                    <select
-                      value={newInvoice.status}
-                      onChange={(e) => setNewInvoice({ ...newInvoice, status: e.target.value })}
-                      className="w-full border rounded px-2 py-1 bg-background text-foreground"
-                    >
-                      <option value="pending">En attente</option>
-                      <option value="paid">Payée</option>
-                      <option value="cancelled">Annulée</option>
-                    </select>
-                  </div>
-                  <div>
-                    <Label>Méthode de paiement</Label>
-                    <select
-                      value={newInvoice.payment_method}
-                      onChange={(e) => setNewInvoice({ ...newInvoice, payment_method: e.target.value })}
-                      className="w-full border rounded px-2 py-1 bg-background text-foreground"
-                    >
-                      <option value="cash_on_delivery">À la livraison</option>
-                      <option value="card">Carte</option>
-                      <option value="bank_transfer">Virement</option>
-                      <option value="other">Autre</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="flex justify-end gap-2 mt-2">
-                  <Button onClick={saveInvoice}>Enregistrer</Button>
-                  <Button variant="ghost" onClick={() => setIsDialogOpen(false)}>Annuler</Button>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
         </div>
       </div>
 
-      {/* Table */}
-      <div className="overflow-x-auto mt-4">
-        <Table className="min-w-full border border-border bg-background text-foreground">
+      {/* Bouton nouvelle facture */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogTrigger asChild>
+          <Button>
+            <Plus className="mr-2 h-4 w-4" />
+            Nouvelle Facture
+          </Button>
+        </DialogTrigger>
+        
+        <DialogContent className="max-w-6xl max-h-[95vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Créer une nouvelle facture</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-6 py-4">
+            {/* Informations client */}
+            <div className="space-y-4">
+              <h3 className="font-semibold text-lg">Informations client</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="customerName">
+                    Nom du client <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="customerName"
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    placeholder="Ex: Mohamed Ali"
+                    required
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="customerEmail">
+                    Email <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="customerEmail"
+                    type="email"
+                    value={customerEmail}
+                    onChange={(e) => setCustomerEmail(e.target.value)}
+                    placeholder="client@example.com"
+                    required
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="customerPhone">Téléphone</Label>
+                  <Input
+                    id="customerPhone"
+                    value={customerPhone}
+                    onChange={(e) => setCustomerPhone(e.target.value)}
+                    placeholder="+212 6XX XXX XXX"
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="customerCity">Ville</Label>
+                  <Input
+                    id="customerCity"
+                    value={customerCity}
+                    onChange={(e) => setCustomerCity(e.target.value)}
+                    placeholder="Casablanca"
+                  />
+                </div>
+                
+                <div className="md:col-span-2">
+                  <Label htmlFor="customerAddress">Adresse complète</Label>
+                  <Input
+                    id="customerAddress"
+                    value={customerAddress}
+                    onChange={(e) => setCustomerAddress(e.target.value)}
+                    placeholder="Adresse complète"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Produits sélectionnés */}
+            <div className="space-y-4">
+              <h3 className="font-semibold text-lg">
+                Produits sélectionnés ({selectedItems.size})
+              </h3>
+              
+              {selectedItems.size === 0 ? (
+                <p className="text-muted-foreground text-center py-4">
+                  Aucun produit sélectionné. Ajoutez des produits ci-dessous.
+                </p>
+              ) : (
+                <div className="border rounded-lg overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Produit</TableHead>
+                        <TableHead>Prix unitaire</TableHead>
+                        <TableHead>Quantité</TableHead>
+                        <TableHead>Total</TableHead>
+                        <TableHead></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {Array.from(selectedItems.values()).map((item) => (
+                        <TableRow key={item.id}>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              {item.productImage && (
+                                <img
+                                  src={item.productImage}
+                                  alt={item.name}
+                                  className="w-10 h-10 rounded object-cover"
+                                />
+                              )}
+                              <span className="font-medium">{item.name}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>{Number(item.unitPrice || 0).toFixed(2)} Fcfa</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => updateProductQuantity(item.id, item.quantity - 1)}
+                              >
+                                <Minus className="h-3 w-3" />
+                              </Button>
+                              <Input
+                                type="number"
+                                min={1}
+                                value={item.quantity}
+                                onChange={(e) =>
+                                  updateProductQuantity(item.id, parseInt(e.target.value) || 1)
+                                }
+                                className="w-16 text-center"
+                              />
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => updateProductQuantity(item.id, item.quantity + 1)}
+                              >
+                                <Plus className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                          <TableCell className="font-semibold">
+                            {Number(item.total || 0).toFixed(2)} Fcfa
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => removeProductFromInvoice(item.id)}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </div>
+
+            {/* Sélection des produits du stock */}
+            <div className="space-y-4">
+              <h3 className="font-semibold text-lg">Ajouter des produits depuis le stock</h3>
+              
+              {loadingInventory ? (
+                <div className="text-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin mx-auto" />
+                  <p className="text-muted-foreground mt-2">Chargement des produits...</p>
+                </div>
+              ) : inventory.length === 0 ? (
+                <p className="text-muted-foreground text-center py-4">
+                  Aucun produit en stock disponible
+                </p>
+              ) : (
+                <ScrollArea className="h-72 border rounded-lg">
+                  <Table>
+                    <TableHeader className="sticky top-0 bg-background">
+                      <TableRow>
+                        <TableHead>Produit</TableHead>
+                        <TableHead>Prix</TableHead>
+                        <TableHead>Stock disponible</TableHead>
+                        <TableHead></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {inventory.map((product) => (
+                        <TableRow key={product.id}>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              {product.imageUrl && (
+                                <img
+                                  src={product.imageUrl}
+                                  alt={product.name}
+                                  className="w-8 h-8 rounded object-cover"
+                                />
+                              )}
+                              <span>{product.name}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>{Number(product.price || 0).toFixed(2)} Fcfa</TableCell>
+                          <TableCell>
+                            <Badge variant={product.stock < 10 ? "destructive" : "secondary"}>
+                              {product.stock}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => addProductToInvoice(product)}
+                              disabled={selectedItems.has(product.id)}
+                            >
+                              {selectedItems.has(product.id) ? (
+                                <>
+                                  <Check className="h-4 w-4 mr-1" />
+                                  Ajouté
+                                </>
+                              ) : (
+                                <>
+                                  <Plus className="h-4 w-4 mr-1" />
+                                  Ajouter
+                                </>
+                              )}
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </ScrollArea>
+              )}
+            </div>
+
+            {/* Paramètres de la facture */}
+            <div className="space-y-4">
+              <h3 className="font-semibold text-lg">Paramètres de facturation</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="invoiceStatus">Statut</Label>
+                  <Select value={invoiceStatus} onValueChange={(v: any) => setInvoiceStatus(v)}>
+                    <SelectTrigger id="invoiceStatus">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pending">En attente</SelectItem>
+                      <SelectItem value="paid">Payée</SelectItem>
+                      <SelectItem value="cancelled">Annulée</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div>
+                  <Label htmlFor="paymentMethod">Méthode de paiement</Label>
+                  <Select value={paymentMethod} onValueChange={(v: any) => setPaymentMethod(v)}>
+                    <SelectTrigger id="paymentMethod">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="cash_on_delivery">Paiement à la livraison</SelectItem>
+                      <SelectItem value="especes">espéces</SelectItem>
+                      <SelectItem value="mobile_money">mobile money</SelectItem>
+                      <SelectItem value="other">Autre</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div>
+                  <Label htmlFor="taxRate">TVA (%)</Label>
+                  <Input
+                    id="taxRate"
+                    type="number"
+                    min={0}
+                    step={0.01}
+                    value={taxRate}
+                    onChange={(e) => setTaxRate(e.target.value)}
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="discount">Remise (DH)</Label>
+                  <Input
+                    id="discount"
+                    type="number"
+                    min={0}
+                    step={0.01}
+                    value={discount}
+                    onChange={(e) => setDiscount(e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Résumé des totaux */}
+            <div className="bg-muted p-6 rounded-lg space-y-3">
+              <h3 className="font-semibold text-lg mb-4">Résumé</h3>
+              <div className="flex justify-between text-sm">
+                <span>Montant HT:</span>
+                <span className="font-semibold">{Number(totals.amount || 0).toFixed(2)} Fcfa</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span>Remise:</span>
+                <span className="font-semibold text-red-600">
+                  -{Number(totals.discountAmount || 0).toFixed(2)} Fcfa
+                </span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span>TVA ({taxRate}%):</span>
+                <span className="font-semibold">{Number(totals.tax || 0).toFixed(2)} Fcfa</span>
+              </div>
+              <div className="border-t pt-3 mt-3">
+                <div className="flex justify-between text-lg font-bold">
+                  <span>Total TTC:</span>
+                  <span className="text-primary">{Number(totals.total || 0).toFixed(2)} Fcfa</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+              Annuler
+            </Button>
+            <Button onClick={saveInvoice}>
+              <Plus className="mr-2 h-4 w-4" />
+              Créer la facture
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Table des factures */}
+      <div className="border rounded-lg">
+        <Table>
           <TableHeader>
-            <TableRow className="bg-muted/50">
-              <TableHead className="text-center">N°</TableHead>
-              <TableHead className="text-center">Client</TableHead>
-              <TableHead className="text-center">Email</TableHead>
-              <TableHead className="text-center">Téléphone</TableHead>
-              <TableHead className="text-center">Date</TableHead>
-              <TableHead className="text-center">Total</TableHead>
-              <TableHead className="text-center">Statut</TableHead>
-              <TableHead className="text-center">Actions</TableHead>
+            <TableRow>
+              <TableHead>N° Facture</TableHead>
+              <TableHead>Client</TableHead>
+              <TableHead>Email</TableHead>
+              <TableHead>Téléphone</TableHead>
+              <TableHead>Date</TableHead>
+              <TableHead>Total</TableHead>
+              <TableHead>Statut</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {invoices.map((inv) => (
-              <TableRow key={inv.id} className="hover:bg-muted/30">
-                <TableCell className="text-center">{inv.invoice_number || "N/A"}</TableCell>
-                <TableCell className="text-center">{inv.customer_name || "N/A"}</TableCell>
-                <TableCell className="text-center">{inv.customer_email || "N/A"}</TableCell>
-                <TableCell className="text-center">{inv.customer_phone || "N/A"}</TableCell>
-                <TableCell className="text-center">{inv.created_at ? new Date(inv.created_at).toLocaleDateString("fr-FR") : "N/A"}</TableCell>
-                <TableCell className="text-center">{Number(inv.total).toFixed(2)} Fcfa</TableCell>
-                <TableCell className="text-center">
-                  <span className={`px-2 py-1 rounded-full text-sm ${getStatusClass(inv.status)}`}>
-                    {getStatusLabel(inv.status)}
-                  </span>
-                </TableCell>
-                <TableCell className="text-center flex justify-center gap-2">
-                  <Button variant="ghost" onClick={() => navigate(`/invoices/${inv.id}`)} title="Voir le reçu"><FileText /></Button>
-                  <Button variant="ghost" onClick={() => confirmDeleteInvoice(inv.id)} title="Supprimer"><Trash2 /></Button>
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={8} className="text-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin mx-auto" />
                 </TableCell>
               </TableRow>
-            ))}
+            ) : invoices.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                  Aucune facture trouvée
+                </TableCell>
+              </TableRow>
+            ) : (
+              invoices.map((inv) => (
+                <TableRow key={inv.id}>
+                  <TableCell className="font-mono font-semibold">
+                    {inv.invoice_number}
+                  </TableCell>
+                  <TableCell>{inv.customer_name}</TableCell>
+                  <TableCell>{inv.customer_email}</TableCell>
+                  <TableCell>{inv.customer_phone || "N/A"}</TableCell>
+                  <TableCell>
+                    {new Date(inv.created_at).toLocaleDateString("fr-FR")}
+                  </TableCell>
+                  <TableCell className="font-semibold">
+                    {Number(inv.total || 0).toFixed(2)} Fcfa
+                  </TableCell>
+                  <TableCell>
+                    <Badge className={getStatusClass(inv.status)}>
+                      {getStatusLabel(inv.status)}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => navigate(`/invoices/${inv.id}`)}
+                        title="Voir les détails"
+                      >
+                        <FileText className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => confirmDeleteInvoice(inv.id)}
+                        title="Supprimer"
+                      >
+                        <Trash2 className="h-4 w-4 text-red-600" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </div>
 
-      {/* Dialog confirmation suppression */}
+      {/* Dialog de confirmation de suppression */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent className="max-w-sm bg-background text-foreground border border-border rounded-xl shadow-lg">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>Confirmer la suppression</DialogTitle>
           </DialogHeader>
-          <p className="px-4 text-center py-2">Voulez-vous vraiment supprimer cette facture ?</p>
-          <DialogFooter className="flex justify-end gap-2 px-4 pb-4">
-            <Button variant="ghost" onClick={() => setDeleteDialogOpen(false)}>Annuler</Button>
-            <Button variant="destructive" onClick={deleteExistingInvoice}>Supprimer</Button>
+          <p>Êtes-vous sûr de vouloir supprimer cette facture ? Cette action est irréversible.</p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+              Annuler
+            </Button>
+            <Button variant="destructive" onClick={deleteExistingInvoice}>
+              <Trash2 className="mr-2 h-4 w-4" />
+              Supprimer
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

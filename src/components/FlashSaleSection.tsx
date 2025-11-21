@@ -190,7 +190,7 @@ export const FlashSaleSection = () => {
                       navigate(`/flash/${sale.id}`);
                     }}
                   >
-                    Acheter maintenant
+                    Details
                   </Button>
                 </div>
               </div>

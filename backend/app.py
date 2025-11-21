@@ -1,3 +1,4 @@
+from utils.cache import cache
 from flask import Flask, jsonify
 from flask_cors import CORS
 from config import Config
@@ -5,6 +6,8 @@ from routes import auth, products, categories, cart, orders, flash_sales, banner
 
 app = Flask(__name__)
 app.config.from_object(Config)
+cache.init_app(app)
+
 
 # CORSssss
 """CORS(app, resources={
@@ -29,7 +32,7 @@ app.register_blueprint(vouchers.bp, url_prefix='/api/vouchers')
 app.register_blueprint(admin.bp, url_prefix='/api/admin')
 app.register_blueprint(user.bp, url_prefix='/api/user')
 app.register_blueprint(factures.factures_bp, url_prefix='/api/factures')
-app.register_blueprint(stock.stock_bp, url_prefix='/api/stock')
+app.register_blueprint(stock.bp, url_prefix='/api/stock')
 app.register_blueprint(loyalty.bp, url_prefix='/api/loyalty')
 
 # Health check

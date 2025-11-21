@@ -1,12 +1,15 @@
 from flask import Blueprint, request, jsonify
 from utils.database import execute_query
 from utils.auth import admin_required
+from utils.cache import cache 
+
 import uuid
 import json
 
 bp = Blueprint('products', __name__)
 
 @bp.route('', methods=['GET'])
+@cache.cached(timeout=300, query_string=True) # Cache les résultats pendant 5 minutes
 def get_products():
     """Get products with filtering and pagination"""
     category = request.args.get('category')
@@ -102,6 +105,7 @@ def get_products():
 
 
 @bp.route('/<product_id>', methods=['GET'])
+@cache.cached(timeout=600)  # Cache 10 minutes
 def get_product(product_id):
     """Get a single product"""
     product = execute_query(
@@ -192,6 +196,9 @@ def create_product(current_user):
         commit=True
     )
 
+    # Invalider le cache de la liste des produits
+    cache.delete_memoized(get_products)
+
     return jsonify({
         'id': product_id, 
         'message': 'Product created successfully'
@@ -262,6 +269,12 @@ def update_product(current_user, product_id):
     
     execute_query(query, tuple(params), commit=True)
 
+    # Invalider le cache spécifique du produit et de la liste
+    cache.delete_memoized(get_product, product_id)
+    cache.delete_memoized(get_products)
+    from routes.banners import get_banners
+    cache.delete_memoized(get_banners)
+
     return jsonify({'message': 'Product updated successfully'}), 200
 
 
@@ -280,5 +293,9 @@ def delete_product(current_user, product_id):
         return jsonify({'error': 'Product not found'}), 404
     
     execute_query("DELETE FROM products WHERE id = %s", (product_id,), commit=True)
+
+    # Invalider les caches
+    cache.delete_memoized(get_product, product_id)
+    cache.delete_memoized(get_products)
     
     return jsonify({'message': 'Product deleted successfully'}), 200
