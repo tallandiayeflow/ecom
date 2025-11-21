@@ -40,4 +40,4 @@ urllib3==2.5.0
 Werkzeug==3.1.3
 yarl==1.22.0
 zipp==3.20.0
-# The following packages are for development and testing purposes
+# The following packages are for development and testing purpose
