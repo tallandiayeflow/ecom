@@ -71,7 +71,7 @@ def login():
         return jsonify({'error': 'Identifiant et mot de passe requis'}), 400
 
     user = execute_query(
-        "SELECT id, email, phone, password_hash, name, role, is_active, loyalty_points FROM users WHERE email = %s OR phone = %s",
+        "SELECT id, email, phone, password_hash, name, role, is_active, loyalty_points ,code FROM users WHERE email = %s OR phone = %s",
         (identifier, identifier),
         fetch_one=True
     )

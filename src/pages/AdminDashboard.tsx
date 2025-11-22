@@ -11,6 +11,7 @@ import {
   Package,
   PackageSearch,
   ShoppingBag,
+  Smartphone,
   Ticket,
   Users,
   X,
@@ -44,6 +45,7 @@ const AdminDashboard = () => {
     { icon: Ticket, label: 'Bons d\'achat', path: '/admin/vouchers' },
     { icon: FileText, label: 'Factures', path: '/admin/invoices' },
     { icon: PackageSearch, label: 'Gestion Stock', path: '/admin/stock' },
+    { icon: Smartphone, label: 'Visites', path: '/admin/visits' },
   ];
 
   const handleLogout = () => {

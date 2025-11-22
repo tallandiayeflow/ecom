@@ -1,28 +1,53 @@
-// Enhanced and responsive Profile Page with improved UI and a button to navigate to /rewards
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useAuth } from '@/contexts/AuthContext';
-import api, { getUserInfo, updateUserProfile } from '@/lib/api';
-import { Award, Eye, EyeOff, Lock, Mail, Phone, User } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import { useAuth } from "@/contexts/AuthContext";
+import api, { getUserInfo, updateUserProfile } from "@/lib/api";
+import {
+  Award,
+  Eye,
+  EyeOff,
+  Lock,
+  Mail,
+  Phone,
+  User,
+} from "lucide-react";
+import { QRCodeCanvas } from "qrcode.react";
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 const Profile = () => {
   const { user, logout, refreshUser } = useAuth();
   const navigate = useNavigate();
   const [loyaltyPoints, setLoyaltyPoints] = useState<number | null>(null);
-  const [formData, setFormData] = useState({ name: '', email: '', phone: '', address: '' });
+  const [userCode, setUserCode] = useState<string>("");
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    address: "",
+  });
   const [updating, setUpdating] = useState(false);
 
   // États pour le changement de mot de passe
   const [passwordData, setPasswordData] = useState({
-    oldPassword: '',
-    newPassword: '',
-    confirmPassword: ''
+    oldPassword: "",
+    newPassword: "",
+    confirmPassword: "",
   });
   const [showOldPassword, setShowOldPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -31,7 +56,7 @@ const Profile = () => {
 
   useEffect(() => {
     if (!user) {
-      navigate('/auth');
+      navigate("/auth");
       return;
     }
     loadUserInfo();
@@ -40,24 +65,28 @@ const Profile = () => {
   const loadUserInfo = async () => {
     try {
       const data = await getUserInfo();
-      setFormData({ 
-        name: data.name || '', 
-        email: data.email || '', 
-        phone: data.phone || '', 
-        address: data.address || '' 
+      setFormData({
+        name: data.name || "",
+        email: data.email || "",
+        phone: data.phone || "",
+        address: data.address || "",
       });
       setLoyaltyPoints(data.loyaltyPoints || 0);
+      setUserCode(data.code || "");
     } catch {
-      toast.error('Erreur lors du chargement du profil');
+      toast.error("Erreur lors du chargement du profil");
     }
   };
 
   const handleInputChange = (field: keyof typeof formData, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handlePasswordChange = (field: keyof typeof passwordData, value: string) => {
-    setPasswordData(prev => ({ ...prev, [field]: value }));
+  const handlePasswordChange = (
+    field: keyof typeof passwordData,
+    value: string
+  ) => {
+    setPasswordData((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -65,10 +94,10 @@ const Profile = () => {
     setUpdating(true);
     try {
       await updateUserProfile(formData);
-      toast.success('Profil mis à jour');
+      toast.success("Profil mis à jour");
       await refreshUser();
     } catch {
-      toast.error('Erreur lors de la mise à jour du profil');
+      toast.error("Erreur lors de la mise à jour du profil");
     } finally {
       setUpdating(false);
     }
@@ -78,38 +107,44 @@ const Profile = () => {
     e.preventDefault();
 
     // Validations
-    if (!passwordData.oldPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
-      toast.error('Veuillez remplir tous les champs');
+    if (
+      !passwordData.oldPassword ||
+      !passwordData.newPassword ||
+      !passwordData.confirmPassword
+    ) {
+      toast.error("Veuillez remplir tous les champs");
       return;
     }
 
     if (passwordData.newPassword.length < 6) {
-      toast.error('Le nouveau mot de passe doit contenir au moins 6 caractères');
+      toast.error("Le nouveau mot de passe doit contenir au moins 6 caractères");
       return;
     }
 
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      toast.error('Les nouveaux mots de passe ne correspondent pas');
+      toast.error("Les nouveaux mots de passe ne correspondent pas");
       return;
     }
 
     setChangingPassword(true);
     try {
-      await api.put('/auth/change-password', {
+      await api.put("/auth/change-password", {
         oldPassword: passwordData.oldPassword,
-        newPassword: passwordData.newPassword
+        newPassword: passwordData.newPassword,
       });
-      
-      toast.success('Mot de passe modifié avec succès');
-      
+
+      toast.success("Mot de passe modifié avec succès");
+
       // Réinitialiser le formulaire
       setPasswordData({
-        oldPassword: '',
-        newPassword: '',
-        confirmPassword: ''
+        oldPassword: "",
+        newPassword: "",
+        confirmPassword: "",
       });
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Erreur lors du changement de mot de passe');
+      toast.error(
+        error.response?.data?.error || "Erreur lors du changement de mot de passe"
+      );
     } finally {
       setChangingPassword(false);
     }
@@ -117,8 +152,8 @@ const Profile = () => {
 
   const handleLogout = () => {
     logout();
-    navigate('/');
-    toast.success('Déconnexion réussie');
+    navigate("/");
+    toast.success("Déconnexion réussie");
   };
 
   return (
@@ -127,14 +162,20 @@ const Profile = () => {
         <h1 className="text-4xl font-bold mb-6 text-center">Mon Profil</h1>
 
         <Tabs defaultValue="info" className="space-y-6 w-full">
-          <TabsList className="grid grid-cols-2 sm:grid-cols-2 gap-4 bg-background p-2 rounded-xl shadow-md">
-            <TabsTrigger value="info" className="rounded-lg">Informations</TabsTrigger>
-            <TabsTrigger value="loyalty" className="rounded-lg">Fidélité</TabsTrigger>
+          <TabsList className="grid grid-cols-3 sm:grid-cols-3 gap-4 bg-background p-2 rounded-xl shadow-md">
+            <TabsTrigger value="info" className="rounded-lg">
+              Informations
+            </TabsTrigger>
+            <TabsTrigger value="loyalty" className="rounded-lg">
+              Fidélité
+            </TabsTrigger>
+            <TabsTrigger value="qr" className="rounded-lg">
+              Mon QR Code
+            </TabsTrigger>
           </TabsList>
 
           {/* INFO SECTION */}
           <TabsContent value="info" className="p-2 sm:p-4 space-y-6">
-            {/* Carte Informations personnelles */}
             <Card className="w-full shadow-lg rounded-2xl">
               <CardHeader>
                 <CardTitle className="text-xl">Informations personnelles</CardTitle>
@@ -145,49 +186,60 @@ const Profile = () => {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="name" className="flex items-center gap-2">
-                        <User className="h-4 w-4" />Nom complet
+                        <User className="h-4 w-4" />
+                        Nom complet
                       </Label>
-                      <Input 
-                        id="name" 
-                        value={formData.name} 
-                        onChange={e => handleInputChange('name', e.target.value)} 
-                        required 
+                      <Input
+                        id="name"
+                        value={formData.name}
+                        onChange={(e) => handleInputChange("name", e.target.value)}
+                        required
                       />
                     </div>
 
                     <div>
                       <Label htmlFor="email" className="flex items-center gap-2">
-                        <Mail className="h-4 w-4" />Email
+                        <Mail className="h-4 w-4" />
+                        Email
                       </Label>
                       <Input id="email" type="email" value={formData.email} disabled />
                     </div>
 
                     <div>
                       <Label htmlFor="phone" className="flex items-center gap-2">
-                        <Phone className="h-4 w-4" />Téléphone
+                        <Phone className="h-4 w-4" />
+                        Téléphone
                       </Label>
-                      <Input 
-                        id="phone" 
-                        value={formData.phone} 
-                        onChange={e => handleInputChange('phone', e.target.value)} 
+                      <Input
+                        id="phone"
+                        value={formData.phone}
+                        onChange={(e) => handleInputChange("phone", e.target.value)}
                       />
                     </div>
 
                     <div>
                       <Label htmlFor="address">Adresse</Label>
-                      <Input 
-                        id="address" 
-                        value={formData.address} 
-                        onChange={e => handleInputChange('address', e.target.value)} 
+                      <Input
+                        id="address"
+                        value={formData.address}
+                        onChange={(e) => handleInputChange("address", e.target.value)}
                       />
                     </div>
                   </div>
 
                   <div className="flex flex-col sm:flex-row justify-between mt-4 gap-3">
-                    <Button type="submit" className="flex-1 py-3 rounded-xl" disabled={updating}>
-                      {updating ? 'Mise à jour...' : 'Enregistrer'}
+                    <Button
+                      type="submit"
+                      className="flex-1 py-3 rounded-xl"
+                      disabled={updating}
+                    >
+                      {updating ? "Mise à jour..." : "Enregistrer"}
                     </Button>
-                    <Button onClick={handleLogout} variant="outline" className="flex-1 py-3 rounded-xl">
+                    <Button
+                      onClick={handleLogout}
+                      variant="outline"
+                      className="flex-1 py-3 rounded-xl"
+                    >
                       Se déconnecter
                     </Button>
                   </div>
@@ -195,7 +247,6 @@ const Profile = () => {
               </CardContent>
             </Card>
 
-            {/* Carte Changement de mot de passe */}
             <Card className="w-full shadow-lg rounded-2xl">
               <CardHeader>
                 <CardTitle className="text-xl flex items-center gap-2">
@@ -211,10 +262,12 @@ const Profile = () => {
                     <div className="relative">
                       <Input
                         id="oldPassword"
-                        type={showOldPassword ? 'text' : 'password'}
+                        type={showOldPassword ? "text" : "password"}
                         placeholder="••••••••"
                         value={passwordData.oldPassword}
-                        onChange={e => handlePasswordChange('oldPassword', e.target.value)}
+                        onChange={(e) =>
+                          handlePasswordChange("oldPassword", e.target.value)
+                        }
                         className="pr-10"
                         disabled={changingPassword}
                       />
@@ -223,7 +276,11 @@ const Profile = () => {
                         onClick={() => setShowOldPassword(!showOldPassword)}
                         className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
                       >
-                        {showOldPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        {showOldPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
                       </button>
                     </div>
                   </div>
@@ -233,10 +290,12 @@ const Profile = () => {
                     <div className="relative">
                       <Input
                         id="newPassword"
-                        type={showNewPassword ? 'text' : 'password'}
+                        type={showNewPassword ? "text" : "password"}
                         placeholder="••••••••"
                         value={passwordData.newPassword}
-                        onChange={e => handlePasswordChange('newPassword', e.target.value)}
+                        onChange={(e) =>
+                          handlePasswordChange("newPassword", e.target.value)
+                        }
                         className="pr-10"
                         disabled={changingPassword}
                         minLength={6}
@@ -246,23 +305,33 @@ const Profile = () => {
                         onClick={() => setShowNewPassword(!showNewPassword)}
                         className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
                       >
-                        {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        {showNewPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
                       </button>
                     </div>
                     {passwordData.newPassword && passwordData.newPassword.length < 6 && (
-                      <p className="text-xs text-red-500 mt-1">Minimum 6 caractères</p>
+                      <p className="text-xs text-red-500 mt-1">
+                        Minimum 6 caractères
+                      </p>
                     )}
                   </div>
 
                   <div>
-                    <Label htmlFor="confirmPassword">Confirmer le nouveau mot de passe</Label>
+                    <Label htmlFor="confirmPassword">
+                      Confirmer le nouveau mot de passe
+                    </Label>
                     <div className="relative">
                       <Input
                         id="confirmPassword"
-                        type={showConfirmPassword ? 'text' : 'password'}
+                        type={showConfirmPassword ? "text" : "password"}
                         placeholder="••••••••"
                         value={passwordData.confirmPassword}
-                        onChange={e => handlePasswordChange('confirmPassword', e.target.value)}
+                        onChange={(e) =>
+                          handlePasswordChange("confirmPassword", e.target.value)
+                        }
                         className="pr-10"
                         disabled={changingPassword}
                         minLength={6}
@@ -272,23 +341,27 @@ const Profile = () => {
                         onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                         className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
                       >
-                        {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        {showConfirmPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
                       </button>
                     </div>
-                    {passwordData.confirmPassword && 
-                     passwordData.newPassword !== passwordData.confirmPassword && (
-                      <p className="text-xs text-red-500 mt-1">
-                        Les mots de passe ne correspondent pas
-                      </p>
-                    )}
+                    {passwordData.confirmPassword &&
+                      passwordData.newPassword !== passwordData.confirmPassword && (
+                        <p className="text-xs text-red-500 mt-1">
+                          Les mots de passe ne correspondent pas
+                        </p>
+                      )}
                   </div>
 
-                  <Button 
-                    type="submit" 
-                    className="w-full py-3 rounded-xl" 
+                  <Button
+                    type="submit"
+                    className="w-full py-3 rounded-xl"
                     disabled={changingPassword}
                   >
-                    {changingPassword ? 'Modification en cours...' : 'Changer le mot de passe'}
+                    {changingPassword ? "Modification en cours..." : "Changer le mot de passe"}
                   </Button>
                 </form>
               </CardContent>
@@ -310,13 +383,25 @@ const Profile = () => {
                   <p className="text-5xl font-bold text-primary">{loyaltyPoints}</p>
                 </div>
 
-                <Button 
-                  onClick={() => navigate('/rewards')} 
+                <Button
+                  onClick={() => navigate("/rewards")}
                   className="w-full py-3 rounded-xl text-lg font-semibold shadow-md"
                 >
                   Échanger mes points
                 </Button>
               </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* QR CODE SECTION */}
+          <TabsContent value="qr" className="p-2 sm:p-4 flex flex-col items-center space-y-6">
+            <Card className="w-full max-w-sm shadow-lg rounded-2xl p-6 flex flex-col items-center">
+              <h2 className="text-lg font-semibold mb-4">Mon QR Code</h2>
+              <QRCodeCanvas value={userCode} size={180} />
+              <p className="mt-4 text-lg font-mono tracking-widest">{userCode}</p>
+              <p className="text-center text-sm text-muted-foreground mt-4">
+                Montrez ce QR code lors de votre visite en boutique.
+              </p>
             </Card>
           </TabsContent>
         </Tabs>

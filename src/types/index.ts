@@ -11,6 +11,7 @@ export interface User {
   loyaltyPoints: number;
   createdAt: string;
   isActive: boolean;
+  code?:string
 }
 
 // ==================== PRODUCT ====================

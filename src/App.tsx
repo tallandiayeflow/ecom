@@ -36,6 +36,7 @@ import Overview from "./pages/admin/Overview";
 import ProductsManagement from "./pages/admin/ProductsManagement";
 import StockManagement from "./pages/admin/StockManagement";
 import UsersManagement from "./pages/admin/UsersManagement";
+import AdminVisits from "./pages/admin/VisitManagements";
 import VouchersManagement from "./pages/admin/VouchersManagement";
 import OrderDetails from "./pages/orderDetails";
 
@@ -97,6 +98,7 @@ const App = () => (
                   <Route path="vouchers" element={<VouchersManagement />} />
                   <Route path="invoices" element={<InvoicesManagement />} />
                   <Route path="stock" element={<StockManagement />} />
+                  <Route path="visits" element={<AdminVisits />} />
                  
 
                 </Route>

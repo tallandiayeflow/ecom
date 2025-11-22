@@ -869,6 +869,70 @@ export interface CreateFactureResponse {
   message: string;
 }
 
+export interface UserVisit {
+  id: string;
+  user_id: string;
+  name: string;
+  phone?: string;
+  visit_date: string;
+}
+
+export interface VisitsFilters {
+  user_id?: string;
+  date_min?: string;
+  date_max?: string;
+}
+
+export interface GenericMessageResponse {
+  message: string;
+}
+
+export interface VisitsStats {
+  total_visits: number;
+  today_visits: number;
+}
+
+// Enregistrer la visite de l’utilisateur connecté
+export const registerVisit = async (): Promise<GenericMessageResponse> => {
+  const response = await api.post('/visits');
+  return response.data;
+};
+
+// Valider manuellement une visite par code utilisateur (admin)
+export const validateVisitByCode = async (data: { user_code: string }): Promise<GenericMessageResponse> => {
+  const response = await api.post('/visits/validate', data);
+  return response.data;
+};
+
+// Récupérer l’historique des visites avec filtres optionnels (admin)
+export const getVisits = async (filters?: VisitsFilters): Promise<UserVisit[]> => {
+  const params = new URLSearchParams();
+  if (filters?.user_id) params.append('user_id', filters.user_id);
+  if (filters?.date_min) params.append('date_min', filters.date_min);
+  if (filters?.date_max) params.append('date_max', filters.date_max);
+
+  const response = await api.get('/visits', { params });
+  return response.data;
+};
+
+// Exporter les visites filtrées au format CSV (admin)
+export const exportVisitsCsv = async (filters?: VisitsFilters): Promise<Blob> => {
+  const params = new URLSearchParams();
+  if (filters?.user_id) params.append('user_id', filters.user_id);
+  if (filters?.date_min) params.append('date_min', filters.date_min);
+  if (filters?.date_max) params.append('date_max', filters.date_max);
+
+  const response = await api.get('/visits/export', { params, responseType: 'blob' });
+  return response.data;
+};
+
+// Obtenir les statistiques globales des visites (admin)
+export const getVisitsStats = async (): Promise<VisitsStats> => {
+  const response = await api.get('/visits/stats');
+  return response.data;
+};
+
+
 // ==================== UTILITY ====================
 
 export const isAuthenticated = (): boolean => {

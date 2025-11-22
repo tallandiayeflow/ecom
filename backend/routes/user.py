@@ -10,7 +10,7 @@ bp = Blueprint('user', __name__)
 def get_user_info(current_user):
     user_id = current_user['user_id']
     user = execute_query(
-        "SELECT id, name, email, phone, address, loyalty_points FROM users WHERE id = %s",
+        "SELECT id, name, email, phone, address, loyalty_points,code FROM users WHERE id = %s",
         (user_id,),
         fetch_one=True
     )
@@ -23,6 +23,7 @@ def get_user_info(current_user):
         'email': user['email'],
         'phone': user.get('phone'),
         'address': user.get('address'),
+        'code': user.get('code'),
         'loyaltyPoints': user.get('loyalty_points', 0)
     })
 
