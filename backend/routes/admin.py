@@ -27,26 +27,28 @@ def admin_create_user(current_user):
     phone = data.get('phone', '')
     address = data.get('address', '')
     password = data.get('password')
-    role = data.get('role', 'user')
-    # Forcing role admin for users created by admin as per request
-    if role != 'admin':
-        role = 'admin'
 
+    # Valider les champs obligatoires
     if not name or not email or not password:
         return jsonify({'error': 'Nom, email, et mot de passe sont requis'}), 400
 
     hashed_password = generate_password_hash(password)
 
+    # Forcer le rôle admin, le formulaire ne l'envoie pas
+    role = 'admin'
+
     try:
         execute_query(
-            "INSERT INTO users (id, name, email, phone, address, password, role) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+            "INSERT INTO users (id, name, email, phone, address, password_hash, role) VALUES (%s, %s, %s, %s, %s, %s, %s)",
             (str(uuid.uuid4()), name, email, phone, address, hashed_password, role),
             commit=True
         )
     except Exception as e:
+        print(f"Erreur création utilisateur : {e}")
         return jsonify({'error': 'Erreur création utilisateur'}), 500
 
     return jsonify({'message': 'Utilisateur admin créé avec succès'}), 201
+
 
 @bp.route('/users/<user_id>', methods=['PUT'])
 @admin_required
@@ -76,15 +78,48 @@ def admin_toggle_user_status(current_user, user_id):
 @bp.route('/orders', methods=['GET'])
 @admin_required
 def admin_get_orders(current_user):
-    orders = execute_query(
-        """
+    # Récupérer les paramètres de filtrage et pagination
+    date_min = request.args.get('date_min')
+    date_max = request.args.get('date_max')
+    limit = request.args.get('limit', type=int, default=10)
+    offset = request.args.get('offset', type=int, default=0)
+
+    query = """
         SELECT o.*, u.name AS user_name, u.email AS user_email
         FROM orders o
         LEFT JOIN users u ON o.user_id = u.id
-        ORDER BY o.created_at DESC
-        """,
-        fetch_all=True
-    )
+        WHERE 1=1
+    """
+    params = []
+
+    if date_min:
+        query += " AND o.created_at >= %s"
+        params.append(date_min)
+    if date_max:
+        query += " AND o.created_at <= %s"
+        params.append(date_max)
+
+    query += " ORDER BY o.created_at DESC LIMIT %s OFFSET %s"
+    params.extend([limit, offset])
+
+    orders = execute_query(query, tuple(params), fetch_all=True)
+
+    count_query = """
+        SELECT COUNT(*) as total
+        FROM orders o
+        WHERE 1=1
+    """
+    count_params = []
+    if date_min:
+        count_query += " AND o.created_at >= %s"
+        count_params.append(date_min)
+    if date_max:
+        count_query += " AND o.created_at <= %s"
+        count_params.append(date_max)
+
+    total_result = execute_query(count_query, tuple(count_params), fetch_one=True)
+    total = total_result.get('total', 0)
+
     response = []
     for order in orders:
         items = execute_query("SELECT * FROM order_items WHERE order_id = %s", (order['id'],), fetch_all=True)
@@ -110,7 +145,8 @@ def admin_get_orders(current_user):
             } for item in items],
             'createdAt': order['created_at'].isoformat() if order.get('created_at') else None
         })
-    return jsonify(response), 200
+
+    return jsonify({'orders': response, 'total': total}), 200
 
 @bp.route('/orders/<order_id>', methods=['GET'])
 @admin_required

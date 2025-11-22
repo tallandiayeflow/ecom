@@ -97,7 +97,7 @@ export const FlashSaleSection = () => {
             <Zap className="h-6 w-6 text-white" />
           </div>
           <div>
-            <h2 className="text-2xl font-bold">Ventes Flash</h2>
+            <h2 className="text-2xl font-bold">Promo Décembre</h2>
             <p className="text-sm text-muted-foreground">Offres limitées - Dépêchez-vous !</p>
           </div>
         </div>
@@ -112,8 +112,17 @@ export const FlashSaleSection = () => {
               <span>:</span>
               <span>{String(timeLeft.seconds).padStart(2, '0')}</span>
             </div>
+            <Button
+              size="sm"
+              className="ml-3 px-3 py-1 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded hover:from-orange-600 hover:to-red-600"
+              onClick={() => navigate('/flash')}
+            >
+              Voir
+            </Button>
           </div>
         )}
+
+        
       </div>
 
       <div className="relative group">

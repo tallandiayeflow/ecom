@@ -72,7 +72,7 @@ def create_order():
         return jsonify({'error': 'Champs manquants'}), 400
 
     if user_id:
-        loyalty_points = int(final_total / 10)
+        loyalty_points = int(final_total / 5000)
 
     order_id = str(uuid.uuid4())
     try:

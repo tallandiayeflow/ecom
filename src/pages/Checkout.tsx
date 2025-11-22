@@ -31,7 +31,7 @@ const Checkout = () => {
 
   const shippingCost = cartTotal >= 500 ? 0 : 50;
   const finalTotal = cartTotal - discount + shippingCost;
-  const loyaltyPointsToEarn = user ? Math.floor(finalTotal / 100) : 0;
+  const loyaltyPointsToEarn = user ? Math.floor(finalTotal / 5000) : 0;
 
   useEffect(() => {
     if (cart.length === 0) {
@@ -100,7 +100,7 @@ const Checkout = () => {
     e.preventDefault();
     if (!formData.name || !formData.phone || !formData.address || !formData.city) 
       return toast.error('Veuillez remplir tous les champs');
-    if (formData.phone.length < 10) return toast.error('Numéro invalide');
+    if (formData.phone.length < 10) return toast.error('VeuillzNuméro invalide');
 
     setLoading(true);
     try {
@@ -156,7 +156,7 @@ const Checkout = () => {
           <div key={field}>
             <Label htmlFor={field}>
               {field === 'name' ? 'Nom complet *' : 
-               field === 'phone' ? 'Téléphone *' : 
+               field === 'phone' ? 'Téléphone ( avec l\'indicatif) *' : 
                field === 'address' ? 'Adresse complète *' : 'Ville *'}
             </Label>
             <Input 

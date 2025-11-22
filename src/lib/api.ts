@@ -540,8 +540,15 @@ export const toggleUserStatus = async (
   return response.data;
 };
 
-export const getAllOrders = async (): Promise<Order[]> => {
-  const response = await api.get('/admin/orders');
+interface GetOrdersParams {
+  date_min?: string;
+  date_max?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export const getAllOrders = async (params?: GetOrdersParams): Promise<{ orders: Order[]; total: number }> => {
+  const response = await api.get('/admin/orders', { params });
   return response.data;
 };
 
@@ -717,6 +724,7 @@ export interface InventoryItem {
 
 export interface InventoryResponse {
   inventory: InventoryItem[];
+  items: InventoryItem[];
   total: number;
   page: number;
   totalPages: number;
@@ -734,6 +742,7 @@ export interface StockMovement {
   reason: string;
   user: string;
   date: string;
+  createdAt?: string;
 }
 
 export interface StockMovementsResponse {

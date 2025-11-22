@@ -1,14 +1,11 @@
 from flask import Blueprint, request, jsonify
 from utils.database import execute_query
 from utils.auth import admin_required
-from utils.cache import cache  # ✅ AJOUTER cette ligne
 import uuid
 import json
 from datetime import datetime
 
-
 bp = Blueprint('flash_sales', __name__)
-
 
 # ================= GET ALL FLASH SALES (ADMIN) =================
 @bp.route('/admin', methods=['GET'])
@@ -16,7 +13,7 @@ bp = Blueprint('flash_sales', __name__)
 def get_all_flash_sales(current_user):
     """
     Retourne toutes les ventes flash, passées, en cours ou futures.
-    Admin seulement. PAS DE CACHE (données admin en temps réel).
+    Admin seulement.
     """
     flash_sales = execute_query(
         """
@@ -65,11 +62,8 @@ def get_all_flash_sales(current_user):
         })
 
     return jsonify(formatted_sales), 200
-
-
 # ================= GET ACTIVE FLASH SALES (PUBLIC) =================
 @bp.route('', methods=['GET'])
-@cache.cached(timeout=60, query_string=True)  # ✅ Cache court (1 minute) avec paramètres
 def get_active_flash_sales():
     """Liste uniquement les ventes flash actives et valides"""
     search = request.args.get('search', type=str)
@@ -187,10 +181,8 @@ def get_active_flash_sales():
         'currentPage': page
     })
 
-
 # ================= GET FLASH SALE BY ID =================
 @bp.route('/<flash_id>', methods=['GET'])
-@cache.cached(timeout=30)  # ✅ Cache très court (30 secondes) pour données dynamiques
 def get_flash_sale_by_id(flash_id):
     flash_sale = execute_query("""
         SELECT
@@ -275,7 +267,6 @@ def get_flash_sale_by_id(flash_id):
 
     return jsonify(response)
 
-
 # ================= CREATE FLASH SALE =================
 @bp.route('', methods=['POST'])
 @admin_required
@@ -332,11 +323,7 @@ def create_flash_sale(current_user):
         commit=True
     )
 
-    # ✅ AJOUTER : Invalider le cache des ventes flash actives
-    cache.delete_memoized(get_active_flash_sales)
-    
     return jsonify({'id': flash_sale_id, 'message': 'Flash sale created successfully'}), 201
-
 
 # ================= UPDATE FLASH SALE =================
 @bp.route('/<flash_sale_id>', methods=['PUT'])
@@ -346,6 +333,7 @@ def update_flash_sale(current_user, flash_sale_id):
 
     data = request.get_json()
 
+    # Vérification que la vente flash existe
     sale = execute_query(
         "SELECT * FROM flash_sales WHERE id = %s",
         (flash_sale_id,),
@@ -357,6 +345,7 @@ def update_flash_sale(current_user, flash_sale_id):
     update_fields = []
     params = []
 
+    # Gestion des champs modifiables
     if 'discountPrice' in data:
         update_fields.append("sale_price = %s")
         params.append(data['discountPrice'])
@@ -393,12 +382,7 @@ def update_flash_sale(current_user, flash_sale_id):
 
     execute_query(query, tuple(params), commit=True)
 
-    # ✅ AJOUTER : Invalider les caches
-    cache.delete_memoized(get_active_flash_sales)
-    cache.delete_memoized(get_flash_sale_by_id, flash_sale_id)
-
     return jsonify({'message': 'Flash sale updated successfully'}), 200
-
 
 # ================= DELETE FLASH SALE =================
 @bp.route('/<flash_sale_id>', methods=['DELETE'])
@@ -418,9 +402,5 @@ def delete_flash_sale(current_user, flash_sale_id):
         (flash_sale_id,),
         commit=True
     )
-
-    # ✅ AJOUTER : Invalider les caches
-    cache.delete_memoized(get_active_flash_sales)
-    cache.delete_memoized(get_flash_sale_by_id, flash_sale_id)
 
     return jsonify({'message': 'Flash sale deleted successfully'}), 200

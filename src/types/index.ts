@@ -164,3 +164,15 @@ export interface AdminStats {
   totalRevenue: number;
   pendingOrders: number;
 }
+
+
+export type MovementType = "in" | "out" | "return" | "adjustment";
+
+export interface StockMovement {
+  id: string;
+  productId: string;
+  type: MovementType;
+  quantity: number;
+  reason: string;
+  createdAt: string;
+}
