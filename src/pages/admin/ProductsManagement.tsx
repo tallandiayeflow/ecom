@@ -594,24 +594,77 @@ const ProductsManagement = () => {
                 />
               </div>
 
-              {/* Images */}
-              <div className="col-span-2 space-y-2">
-                <Label htmlFor="images">Images (URLs séparées par des virgules) *</Label>
-                <Textarea
-                  id="images"
-                  value={formData.images}
-                  onChange={(e) => setFormData({ ...formData, images: e.target.value })}
-                  placeholder="https://example.com/image1.jpg, https://example.com/image2.jpg"
-                  rows={2}
-                  required
-                  disabled={submitting}
-                />
-                <p className="text-xs text-muted-foreground">
-                  La première URL sera l'image principale
-                </p>
-              </div>
+                {/* Images - multiple URL inputs dynamiques */}
+                <div className="col-span-2 space-y-2">
+                <Label>Images (URLs) *</Label>
+                {(() => {
+                  const imagesArray = formData.images
+                  ? formData.images.split(",").map((s) => s.trim())
+                  : [""];
+                  return (
+                  <div className="space-y-2">
+                    {imagesArray.map((img, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      <Input
+                      value={img}
+                      onChange={(e) => {
+                        const arr = [...imagesArray];
+                        arr[idx] = e.target.value;
+                        setFormData({
+                        ...formData,
+                        images: arr.join(", "),
+                        });
+                      }}
+                      placeholder="https://example.com/image1.jpg"
+                      disabled={submitting}
+                      />
+                      <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        const arr = [...imagesArray];
+                        arr.splice(idx, 1);
+                        // ensure at least one input remains
+                        const newArr = arr.length ? arr : [""];
+                        setFormData({
+                        ...formData,
+                        images: newArr.join(", "),
+                        });
+                      }}
+                      disabled={submitting}
+                      aria-label={`Supprimer l'URL ${idx + 1}`}
+                      >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                      {idx === imagesArray.length - 1 && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() =>
+                        setFormData({
+                          ...formData,
+                          images: [...imagesArray, ""].join(", "),
+                        })
+                        }
+                        disabled={submitting}
+                        aria-label="Ajouter un autre URL"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                      )}
+                    </div>
+                    ))}
+                    <p className="text-xs text-muted-foreground">
+                    Entrez une URL par champ. La première URL sera l'image principale. Les URLs seront concaténées et envoyées séparées par des virgules.
+                    </p>
+                  </div>
+                  );
+                })()}
+                </div>
+              
 
-              {/* Spécifications */}
+              {/* Spécifications *
               <div className="col-span-2 space-y-2">
                 <Label htmlFor="specifications">Caractéristiques (JSON) *</Label>
                 <Textarea
@@ -627,7 +680,7 @@ const ProductsManagement = () => {
                 <p className="text-xs text-muted-foreground">
                   Format JSON valide requis
                 </p>
-              </div>
+              </div> */}
             </div>
 
             <DialogFooter>
