@@ -4,6 +4,7 @@ from utils.auth import hash_password, verify_password, generate_token,token_requ
 import uuid
 import random
 import time
+import string
 import os
 import secrets
 import smtplib
@@ -14,40 +15,44 @@ from utils.cache import cache  # Importer le cache
 
 bp = Blueprint('auth', __name__)
 
-
+def generate_unique_code(length=8):
+    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=length))
 
 @bp.route('/register', methods=['POST'])
 def register():
     data = request.get_json()
-    
+
     email = data.get('email', '').strip().lower()
     phone = data.get('phone', '').strip()
     password = data.get('password', '')
     name = data.get('name', '').strip()
-    
+
     if not email or not phone or not password or not name:
         return jsonify({'error': 'Email, téléphone, mot de passe et nom sont requis'}), 400
-    
+
     existing_user = execute_query(
         "SELECT id FROM users WHERE email = %s OR phone = %s",
         (email, phone),
         fetch_one=True
     )
-    
+
     if existing_user:
         return jsonify({'error': 'Email ou téléphone déjà utilisé'}), 409
-    
+
+    # Générer un code unique 8 caractères. Vous pouvez contrôler l'unicité par boucle si nécessaire.
+    unique_code = generate_unique_code()
+
     user_id = str(uuid.uuid4())
     password_hash = hash_password(password)
-    
+
     execute_query(
-        "INSERT INTO users (id, email, phone, password_hash, name, role) VALUES (%s, %s, %s, %s, %s, %s)",
-        (user_id, email, phone, password_hash, name, 'user'),
+        "INSERT INTO users (id, email, phone, password_hash, name, role, code) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+        (user_id, email, phone, password_hash, name, 'user', unique_code),
         commit=True
     )
-    
+
     token = generate_token(user_id, email, 'user')
-    
+
     return jsonify({
         'user': {
             'id': user_id,
@@ -55,11 +60,11 @@ def register():
             'phone': phone,
             'name': name,
             'role': 'user',
+            'code': unique_code,
             'loyaltyPoints': 0
         },
         'token': token
     }), 201
-
 
 @bp.route('/login', methods=['POST'])
 def login():

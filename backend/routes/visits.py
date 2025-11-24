@@ -1,21 +1,22 @@
 from flask import Blueprint, request, jsonify
 from utils.database import execute_query
 from utils.auth import admin_required, token_required
-from datetime import datetime
+from datetime import datetime, timezone
 
 bp = Blueprint('visit', __name__)
 
-# Enregistrer une visite utilisateur (login utilisateur)
+# Enregistrer une visite utilisateur (login utilisateur), avec date en UTC
 @bp.route('', methods=['POST'])
 @token_required
 def register_visit(current_user):
     try:
         user_id = current_user['user_id']
         phone = current_user.get('phone')
+        now_utc = datetime.now(timezone.utc)
 
         execute_query(
-            "INSERT INTO user_visits (user_id, visit_date, phone) VALUES (%s, NOW(), %s)",
-            (user_id, phone),
+            "INSERT INTO user_visits (user_id, visit_date, phone) VALUES (%s, %s, %s)",
+            (user_id, now_utc, phone),
             commit=True
         )
         return jsonify({"message": "Visite enregistrée avec téléphone"}), 201
@@ -37,9 +38,10 @@ def validate_visit_by_code(current_user):
         return jsonify({"error": "Utilisateur non trouvé pour ce code."}), 404
 
     try:
+        now_utc = datetime.now(timezone.utc)
         execute_query(
-            "INSERT INTO user_visits (user_id, visit_date, phone) VALUES (%s, NOW(), %s)",
-            (user['id'], user['phone']),
+            "INSERT INTO user_visits (user_id, visit_date, phone) VALUES (%s, %s, %s)",
+            (user['id'], now_utc, user['phone']),
             commit=True
         )
         return jsonify({"message": f"Visite enregistrée pour utilisateur {user_code} avec téléphone."}), 201

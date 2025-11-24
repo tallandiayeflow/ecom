@@ -1,12 +1,5 @@
-"use client";
-
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -17,39 +10,43 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { exportVisitsCsv, getVisits, validateVisitByCode } from "@/lib/api";
-import { motion } from "framer-motion";
-import { Camera, Download, Loader2, Search, StopCircle } from "lucide-react";
+import { Download, Loader2, Search } from "lucide-react";
 import React, { useEffect, useState } from "react";
-import QrScanner from "react-qr-scanner";
+import { QrReader } from "react-qr-reader";
 import { toast } from "sonner";
 
 const AdminVisits = () => {
   const [visits, setVisits] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [searchUser, setSearchUser] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [scanning, setScanning] = useState(false);
   const [scanResult, setScanResult] = useState<string | null>(null);
+  const [userCodeToValidate, setUserCodeToValidate] = useState("");
+  const [validating, setValidating] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [totalVisits, setTotalVisits] = useState(0);
   const [todayVisits, setTodayVisits] = useState(0);
-  const [userCodeToValidate, setUserCodeToValidate] = useState("");
-  const [validating, setValidating] = useState(false);
 
   useEffect(() => {
-    loadVisits();
+    fetchVisits();
   }, []);
 
-  const loadVisits = async (filters?: { user_id?: string; date_min?: string; date_max?: string }) => {
+  const fetchVisits = async () => {
     setLoading(true);
     try {
-      const data = await getVisits(filters);
-      setVisits(data);
-      setTotalVisits(data.length);
-
+      const visitsData = await getVisits({
+        user_id: searchUser || undefined,
+        date_min: dateFrom || undefined,
+        date_max: dateTo || undefined,
+      });
+      setVisits(visitsData);
+      setTotalVisits(visitsData.length);
       const today = new Date().toISOString().slice(0, 10);
-      setTodayVisits(data.filter(v => v.visit_date?.startsWith(today)).length);
+      setTodayVisits(
+        visitsData.filter((v) => v.visit_date?.startsWith(today)).length
+      );
     } catch {
       toast.error("Erreur lors du chargement des visites");
     } finally {
@@ -59,18 +56,8 @@ const AdminVisits = () => {
 
   const handleFilterSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    loadVisits({
-      user_id: searchUser || undefined,
-      date_min: dateFrom || undefined,
-      date_max: dateTo || undefined,
-    });
+    fetchVisits();
   };
-
-  const filteredVisits = visits.filter(
-    v =>
-      v.user_id.toLowerCase().includes(searchUser.toLowerCase()) ||
-      v.name.toLowerCase().includes(searchUser.toLowerCase())
-  );
 
   const handleExport = async () => {
     setExporting(true);
@@ -80,7 +67,6 @@ const AdminVisits = () => {
         date_min: dateFrom || undefined,
         date_max: dateTo || undefined,
       });
-
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -89,9 +75,9 @@ const AdminVisits = () => {
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
-
+      toast.success("Export CSV généré");
     } catch {
-      toast.error("Erreur lors de l’export");
+      toast.error("Erreur lors de l'export");
     } finally {
       setExporting(false);
     }
@@ -99,15 +85,17 @@ const AdminVisits = () => {
 
   const handleValidateVisit = async () => {
     if (userCodeToValidate.length !== 8) {
-      toast.error("Le code doit contenir 8 caractères");
+      toast.error("Le code utilisateur doit contenir 8 caractères");
       return;
     }
     setValidating(true);
     try {
-      const res = await validateVisitByCode({ user_code: userCodeToValidate.toUpperCase() });
+      const res = await validateVisitByCode({
+        user_code: userCodeToValidate.toUpperCase(),
+      });
       toast.success(res.message);
       setUserCodeToValidate("");
-      loadVisits();
+      fetchVisits();
     } catch {
       toast.error("Erreur lors de la validation de la visite");
     } finally {
@@ -115,16 +103,17 @@ const AdminVisits = () => {
     }
   };
 
-  const handleScan = async (data: any) => {
-    if (data && typeof data === "string" && !scanResult) {
-      setScanResult(data);
-      setScanning(false);
-      setUserCodeToValidate(data.toUpperCase());
-
+  const handleScan = async (result: any) => {
+    if (result && typeof result === "string" && !scanResult) {
+      setScanResult(result);
+      setUserCodeToValidate(result.toUpperCase());
       try {
-        await validateVisitByCode({ user_code: data.toUpperCase() });
-        toast.success("Visite validée pour le code " + data);
-        loadVisits();
+        const res = await validateVisitByCode({
+          user_code: result.toUpperCase(),
+        });
+        toast.success("Visite validée pour le code " + result);
+        fetchVisits();
+        setScanning(false);
       } catch {
         toast.error("Erreur lors de la validation de la visite");
       }
@@ -132,177 +121,198 @@ const AdminVisits = () => {
   };
 
   const handleError = (err: any) => {
-    toast.error("Erreur lors de la capture du QR Code");
+    toast.error("Erreur de lecture QR Code : " + err?.message || err);
   };
 
-  const previewStyle = { height: 260, width: 340 };
-
   return (
-    <div className="max-w-7xl mx-auto p-6 md:p-10 space-y-10 transition-colors">
-      <motion.h1
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="text-3xl md:text-4xl font-bold text-center mb-6"
-      >
+    <div className="max-w-7xl mx-auto p-8 space-y-10 bg-white rounded-3xl shadow-lg">
+      <h1 className="text-4xl font-extrabold text-center text-primary mb-10">
         Gestion des Visites Utilisateurs
-      </motion.h1>
+      </h1>
 
       {/* Statistiques */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-        <Card className="rounded-2xl shadow-lg border border-muted/40">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 mb-12">
+        <Card className="bg-gradient-to-r from-purple-600 to-indigo-700 text-white shadow-md">
           <CardHeader>
-            <CardTitle className="text-lg font-semibold">Total Visites</CardTitle>
+            <CardTitle className="text-3xl font-semibold">
+              Total Visites
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-5xl font-extrabold">{totalVisits}</p>
+            <p className="text-7xl font-black">{totalVisits}</p>
           </CardContent>
         </Card>
-
-        <Card className="rounded-2xl shadow-lg border border-muted/40">
+        <Card className="bg-gradient-to-r from-green-600 to-emerald-700 text-white shadow-md">
           <CardHeader>
-            <CardTitle className="text-lg font-semibold">Visites Aujourd'hui</CardTitle>
+            <CardTitle className="text-3xl font-semibold">
+              Visites Aujourd'hui
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-5xl font-extrabold">{todayVisits}</p>
+            <p className="text-7xl font-black">{todayVisits}</p>
           </CardContent>
         </Card>
       </div>
 
       {/* Validation manuelle */}
-      <Card className="rounded-2xl shadow-lg border border-muted/40 p-6">
+      <Card className="shadow-lg rounded-3xl border border-gray-200 p-8 mb-10">
         <CardHeader>
-          <CardTitle className="text-lg font-semibold">Validation Manuelle</CardTitle>
+          <CardTitle className="text-xl font-bold mb-6">
+            Validation Manuelle de Visite
+          </CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-col md:flex-row items-center gap-4">
+        <CardContent className="flex flex-col sm:flex-row gap-6 items-center">
           <Input
-            placeholder="Code utilisateur (8 caractères)"
+            placeholder="Entrez le code utilisateur (8 caractères)"
             value={userCodeToValidate}
-            onChange={e => setUserCodeToValidate(e.target.value.toUpperCase())}
+            onChange={(e) =>
+              setUserCodeToValidate(e.target.value.toUpperCase())
+            }
             maxLength={8}
-            className="flex-1 rounded-xl"
+            className="flex-1 p-4 rounded-2xl border-2 border-primary text-xl focus:ring-2 focus:ring-primary"
           />
-
           <Button
             onClick={handleValidateVisit}
             disabled={validating || userCodeToValidate.length !== 8}
-            className="rounded-xl"
+            className="px-10 py-4 rounded-2xl bg-primary text-white font-bold text-lg hover:bg-primary-dark transition"
           >
-            {validating ? "Validation..." : "Valider"}
+            {validating ? "Validation en cours..." : "Valider la visite"}
           </Button>
         </CardContent>
       </Card>
 
-      {/* Scanner */}
-      <Card className="rounded-2xl shadow-lg border border-muted/40 p-6">
+      {/* Scanner QR Code */}
+      <Card className="shadow-lg rounded-3xl border border-gray-200 p-8">
         <CardHeader>
-          <CardTitle className="text-lg font-semibold">Validation par QR Code</CardTitle>
-        </CardHeader>
-
-        <CardContent className="flex flex-col items-center gap-6">
-          {!scanning && (
+          <CardTitle className="text-xl font-bold mb-6 flex justify-between items-center">
+            Validation par Code QR
             <Button
-              onClick={() => { setScanning(true); setScanResult(null); }}
-              className="rounded-xl flex items-center gap-2"
+              size="sm"
+              onClick={() => {
+                setScanning((prev) => !prev);
+                setScanResult(null);
+              }}
+              className="bg-indigo-600 text-white rounded-lg px-4 py-2 hover:bg-indigo-700 transition"
             >
-              <Camera className="w-5 h-5" /> Lancer la caméra
+              {scanning ? "Arrêter" : "Démarrer la caméra"}
             </Button>
-          )}
-
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col items-center gap-6">
           {scanning && (
-            <>
-              <QrScanner
-                delay={300}
-                style={previewStyle}
-                onError={handleError}
-                onScan={handleScan}
+            <div style={{ width: "360px", maxWidth: "100%" }}>
+              <QrReader
+                constraints={{ facingMode: "environment" }} // caméra arrière
+                onResult={(result, error) => {
+                  if (result) handleScan(result.getText());
+                  if (error) handleError(error);
+                }}
               />
-
-              <Button
-                variant="outline"
-                onClick={() => setScanning(false)}
-                className="rounded-xl flex items-center gap-2"
-              >
-                <StopCircle className="w-5 h-5" /> Arrêter
-              </Button>
-            </>
+            </div>
           )}
-
           {scanResult && (
-            <p className="text-green-600 font-medium">Code scanné : {scanResult}</p>
+            <p className="text-green-700 font-mono text-lg select-all mt-2">
+              Code scanné : {scanResult}
+            </p>
           )}
         </CardContent>
       </Card>
 
-      {/* Filtres */}
-      <form onSubmit={handleFilterSubmit} className="flex flex-col md:flex-row gap-4 items-center">
+      {/* Filtrage */}
+      <form
+        onSubmit={handleFilterSubmit}
+        className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-8"
+      >
         <Input
-          placeholder="Recherche utilisateur"
+          placeholder="Recherche par utilisateur"
           value={searchUser}
-          onChange={e => setSearchUser(e.target.value)}
-          className="rounded-xl max-w-xs"
+          onChange={(e) => setSearchUser(e.target.value)}
+          className="rounded-2xl p-4 border border-gray-300"
         />
-
-        <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="rounded-xl" />
-        <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="rounded-xl" />
-
-        <Button type="submit" className="rounded-xl flex items-center gap-2">
-          <Search className="w-5 h-5" /> Filtrer
-        </Button>
-
+        <Input
+          type="date"
+          value={dateFrom}
+          onChange={(e) => setDateFrom(e.target.value)}
+          className="rounded-2xl p-4 border border-gray-300"
+        />
+        <Input
+          type="date"
+          value={dateTo}
+          onChange={(e) => setDateTo(e.target.value)}
+          className="rounded-2xl p-4 border border-gray-300"
+        />
         <Button
-          type="button"
-          variant="outline"
-          onClick={handleExport}
-          disabled={exporting}
-          className="rounded-xl flex items-center gap-2"
+          type="submit"
+          className="flex items-center gap-2 bg-primary text-white p-4 rounded-2xl hover:bg-primary-dark transition"
         >
-          {exporting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Download className="w-5 h-5" />} Exporter
+          <Search className="w-6 h-6" />
+          Filtrer
         </Button>
       </form>
 
-      {/* Tableau */}
-      <Card className="rounded-2xl shadow-lg border border-muted/40 p-4 max-h-[440px] overflow-auto">
-        <CardHeader>
-          <CardTitle className="text-lg font-semibold">Historique des visites</CardTitle>
-        </CardHeader>
+      {/* Export CSV */}
+      <div className="flex justify-end mb-6">
+        <Button
+          onClick={handleExport}
+          disabled={exporting}
+          variant="outline"
+          className="flex items-center gap-2 px-6 py-3 rounded-2xl border border-gray-300 hover:bg-gray-100 transition"
+        >
+          {exporting ? (
+            <Loader2 className="animate-spin w-6 h-6" />
+          ) : (
+            <Download className="w-6 h-6" />
+          )}
+          Exporter CSV
+        </Button>
+      </div>
 
+      {/* Tableau des visites */}
+      <Card className="shadow-lg rounded-3xl border border-gray-200 p-6 max-h-[500px] overflow-auto">
+        <CardHeader>
+          <CardTitle className="text-xl font-bold mb-4">
+            Historique des visites
+          </CardTitle>
+        </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="flex justify-center py-16">
-              <Loader2 className="animate-spin w-10 h-10" />
+            <div className="flex justify-center py-20">
+              <Loader2 className="animate-spin w-14 h-14 text-primary" />
             </div>
+          ) : visits.length === 0 ? (
+            <p className="text-center text-gray-500 py-20 text-lg">
+              Aucune visite trouvée.
+            </p>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>ID</TableHead>
-                    <TableHead>Utilisateur</TableHead>
-                    <TableHead>Téléphone</TableHead>
-                    <TableHead>Date</TableHead>
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-gray-100">
+                  <TableHead>ID</TableHead>
+                  <TableHead>Utilisateur</TableHead>
+                  <TableHead>Téléphone</TableHead>
+                  <TableHead>Date de visite</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {visits.map((visit) => (
+                  <TableRow
+                    key={visit.id}
+                    className="hover:bg-gray-50 transition-colors"
+                  >
+                    <TableCell className="font-mono">{visit.id}</TableCell>
+                    <TableCell>
+                      {visit.name} ({visit.user_id})
+                    </TableCell>
+                    <TableCell>{visit.phone ?? "-"}</TableCell>
+                    <TableCell>
+                      {visit.visit_date
+                        ? new Date(visit.visit_date).toLocaleString()
+                        : "-"}
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-
-                <TableBody>
-                  {filteredVisits.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={4} className="text-center py-10 text-muted-foreground">
-                        Aucune visite trouvée
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    filteredVisits.map(visit => (
-                      <TableRow key={visit.id} className="hover:bg-muted/10">
-                        <TableCell>{visit.id}</TableCell>
-                        <TableCell>{visit.name} ({visit.user_id})</TableCell>
-                        <TableCell>{visit.phone || "-"}</TableCell>
-                        <TableCell>{visit.visit_date ? new Date(visit.visit_date).toLocaleString() : "-"}</TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
+                ))}
+              </TableBody>
+            </Table>
           )}
         </CardContent>
       </Card>
