@@ -12,7 +12,7 @@ import {
 import { exportVisitsCsv, getVisits, validateVisitByCode } from "@/lib/api";
 import { Download, Loader2, Search } from "lucide-react";
 import React, { useEffect, useState } from "react";
-import { QrReader } from "react-qr-reader";
+import QrScanner from "react-qr-scanner";
 import { toast } from "sonner";
 
 const AdminVisits = () => {
@@ -201,7 +201,7 @@ const AdminVisits = () => {
         <CardContent className="flex flex-col items-center gap-6">
           {scanning && (
             <div style={{ width: "360px", maxWidth: "100%" }}>
-              <QrReader
+              <QrScanner
                 constraints={{ facingMode: "environment" }} // caméra arrière
                 onResult={(result, error) => {
                   if (result) handleScan(result.getText());
