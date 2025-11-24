@@ -33,6 +33,33 @@ const AdminVisits = () => {
   const [totalVisits, setTotalVisits] = useState(0);
   const [todayVisits, setTodayVisits] = useState(0);
   const [exporting, setExporting] = useState(false);
+  const [rearCameraId, setRearCameraId] = useState<string | null>(null);
+
+useEffect(() => {
+  const findRearCamera = async () => {
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoDevices = devices.filter(d => d.kind === "videoinput");
+
+      // Cherche la caméra arrière
+      const backCam =
+        videoDevices.find(d =>
+          d.label.toLowerCase().includes("back")
+        ) ||
+        videoDevices.find(d =>
+          d.label.toLowerCase().includes("environment")
+        ) ||
+        videoDevices[videoDevices.length - 1]; // fallback
+
+      setRearCameraId(backCam.deviceId);
+    } catch (err) {
+      console.error("Erreur caméra:", err);
+    }
+  };
+
+  findRearCamera();
+}, []);
+
 
   useEffect(() => {
     fetchVisits();
@@ -119,13 +146,20 @@ const AdminVisits = () => {
         <div className="flex flex-col items-center justify-center h-screen space-y-6">
           <h2 className="text-2xl font-semibold text-primary mb-4">Scanner le QR Code</h2>
           <div style={{ width: 320, maxWidth: "90vw" }}>
-            <QrScanner
-              delay={300}
-              constraints={{ facingMode: { exact: "environment" } }}
+            {rearCameraId && (
+  <QrScanner
+    delay={300}
+    onError={handleError}
+    onScan={handleScan}
+    constraints={{
+      video: {
+        deviceId: rearCameraId ? { exact: rearCameraId } : undefined,
+      }
+    }}
+    style={{ width: "100%" }}
+  />
+)}
 
-              onError={handleError}
-              onScan={handleScan}
-            />
           </div>
           <Button
             onClick={() => {
