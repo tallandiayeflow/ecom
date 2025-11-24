@@ -20,7 +20,6 @@ import QrScanner from "qr-scanner";
 import React, { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
-
 const QRCodeScanner: React.FC = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const scannerRef = useRef<QrScanner | null>(null);
@@ -39,7 +38,6 @@ const QRCodeScanner: React.FC = () => {
   const [totalVisits, setTotalVisits] = useState(0);
   const [todayVisits, setTodayVisits] = useState(0);
 
-  // Charger les visites avec filtres
   const fetchVisits = async () => {
     setLoading(true);
     try {
@@ -63,7 +61,6 @@ const QRCodeScanner: React.FC = () => {
     fetchVisits();
   }, []);
 
-  // Gestion scanner QR code
   useEffect(() => {
     if (scanning && videoRef.current) {
       scannerRef.current = new QrScanner(
@@ -78,7 +75,7 @@ const QRCodeScanner: React.FC = () => {
         {
           highlightScanRegion: true,
           highlightCodeOutline: true,
-          preferredCamera: "environment", // force caméra arrière
+          preferredCamera: "environment",
         }
       );
       scannerRef.current.start();
@@ -90,7 +87,6 @@ const QRCodeScanner: React.FC = () => {
     };
   }, [scanning]);
 
-  // Validation d'un code scanné ou saisi
   const handleValidateScan = async (code: string) => {
     setValidating(true);
     try {
@@ -107,7 +103,6 @@ const QRCodeScanner: React.FC = () => {
     }
   };
 
-  // Soumission validation manuelle par code saisi
   const handleValidateManual = async () => {
     if (userCodeToValidate.length !== 8) {
       toast.error("Le code utilisateur doit contenir 8 caractères");
@@ -116,13 +111,11 @@ const QRCodeScanner: React.FC = () => {
     await handleValidateScan(userCodeToValidate);
   };
 
-  // Filtrage des visites via formulaire
   const handleFilterSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     fetchVisits();
   };
 
-  // Export CSV
   const handleExport = async () => {
     setExporting(true);
     try {
@@ -148,17 +141,37 @@ const QRCodeScanner: React.FC = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto p-8 space-y-10 bg-white rounded-3xl shadow-lg min-h-screen">
-      <h1 className="text-4xl font-extrabold text-center text-primary mb-10">
-        Scanner et Gérer les Visites Utilisateurs
+    <div className="max-w-7xl mx-auto p-6 sm:p-8 space-y-8 bg-gray-50 rounded-3xl min-h-screen">
+      <h1 className="text-4xl sm:text-5xl font-extrabold text-center text-primary mb-8 sm:mb-12">
+        Scanner et Gérer les Visites
       </h1>
+
+      {/* Statistiques */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8 mb-6">
+        <Card className="bg-gradient-to-r from-purple-500 to-indigo-600 text-white shadow-lg rounded-3xl">
+          <CardHeader>
+            <CardTitle className="text-2xl sm:text-3xl font-semibold">Total Visites</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-5xl sm:text-6xl font-black text-center">{totalVisits}</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg rounded-3xl">
+          <CardHeader>
+            <CardTitle className="text-2xl sm:text-3xl font-semibold">Visites Aujourd'hui</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-5xl sm:text-6xl font-black text-center">{todayVisits}</p>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Zone de scan QR code */}
       {scanning ? (
-        <div className="flex flex-col items-center justify-center space-y-6">
+        <div className="flex flex-col items-center justify-center space-y-4">
           <video
             ref={videoRef}
-            className="w-full max-w-md rounded-2xl border border-gray-300"
+            className="w-full max-w-md rounded-3xl border border-gray-300 shadow-md"
             muted
             autoPlay
           />
@@ -169,27 +182,25 @@ const QRCodeScanner: React.FC = () => {
               setValidating(false);
               scannerRef.current?.stop();
             }}
-            className="px-8 py-3 rounded-xl bg-red-600 text-white hover:bg-red-700 transition"
+            className="px-8 py-3 rounded-2xl bg-red-600 text-white hover:bg-red-700 transition"
           >
             Arrêter le scan
           </Button>
-
           {validating && (
-            <div className="flex items-center space-x-2 mt-4 text-primary text-lg font-semibold">
+            <div className="flex items-center space-x-2 mt-2 text-primary text-lg font-semibold">
               <Loader2 className="animate-spin w-6 h-6" />
               <span>Validation en cours...</span>
             </div>
           )}
-
           {scanResult && !validating && (
-            <div className="mt-4 text-green-600 font-medium text-center">
+            <div className="mt-2 text-green-600 font-medium text-center">
               Visite validée pour le code : <span className="font-mono">{scanResult}</span>
             </div>
           )}
         </div>
       ) : (
         <>
-          {/* Bouton pour démarrer le scan */}
+          {/* Bouton démarrer scan */}
           <div className="flex justify-center mb-6">
             <Button
               onClick={() => {
@@ -197,65 +208,62 @@ const QRCodeScanner: React.FC = () => {
                 setScanResult(null);
                 setValidating(false);
               }}
-              className="bg-indigo-600 text-white py-4 px-10 rounded-3xl hover:bg-indigo-700 transition"
+              className="bg-indigo-600 text-white py-4 px-12 rounded-3xl hover:bg-indigo-700 transition text-lg sm:text-xl"
             >
               📷 Démarrer le scan QR
             </Button>
           </div>
 
-          {/* Validation manuelle par code */}
-          <Card className="shadow-lg rounded-3xl border border-gray-200 p-8 mb-10">
+          {/* Validation manuelle */}
+          <Card className="shadow-lg rounded-3xl border border-gray-200 p-6 sm:p-8 mb-8">
             <CardHeader>
-              <CardTitle className="text-xl font-bold mb-6">
-                Validation manuelle par code
+              <CardTitle className="text-xl sm:text-2xl font-bold mb-4">
+                Validation manuelle
               </CardTitle>
             </CardHeader>
-            <CardContent className="flex flex-col sm:flex-row gap-6 items-center">
+            <CardContent className="flex flex-col sm:flex-row gap-4 sm:gap-6 items-center">
               <Input
                 placeholder="Entrez le code utilisateur (8 caractères)"
                 value={userCodeToValidate}
                 onChange={(e) => setUserCodeToValidate(e.target.value.toUpperCase())}
                 maxLength={8}
-                className="flex-1 p-4 rounded-2xl border-2 border-primary text-xl focus:ring-2 focus:ring-primary"
+                className="flex-1 p-4 rounded-2xl border-2 border-primary text-lg sm:text-xl focus:ring-2 focus:ring-primary"
               />
               <Button
                 onClick={handleValidateManual}
                 disabled={validating || userCodeToValidate.length !== 8}
-                className="px-10 py-4 rounded-2xl bg-primary text-white font-bold text-lg hover:bg-primary-dark transition"
+                className="px-8 py-3 rounded-2xl bg-primary text-white font-bold hover:bg-primary-dark transition text-lg sm:text-xl"
               >
-                {validating ? "Validation en cours..." : "Valider la visite"}
+                {validating ? "Validation..." : "Valider"}
               </Button>
             </CardContent>
           </Card>
 
-          {/* Filtrage */}
-          <form onSubmit={handleFilterSubmit} className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-8">
-            <Input
-              placeholder="Recherche par utilisateur"
-              value={searchUser}
-              onChange={(e) => setSearchUser(e.target.value)}
-              className="rounded-2xl p-4 border border-gray-300"
-            />
-            <Input
-              type="date"
-              value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
-              className="rounded-2xl p-4 border border-gray-300"
-            />
-            <Input
-              type="date"
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
-              className="rounded-2xl p-4 border border-gray-300"
-            />
-            <Button type="submit" className="flex items-center gap-2 bg-primary text-white p-4 rounded-2xl hover:bg-primary-dark transition">
-              <Search className="w-6 h-6" />
-              Filtrer
-            </Button>
-          </form>
-
-          {/* Export CSV */}
-          <div className="flex justify-end mb-6">
+          {/* Filtrage et export */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 flex-wrap">
+            <form onSubmit={handleFilterSubmit} className="flex flex-col sm:flex-row gap-4 flex-1 flex-wrap">
+              <Input
+                placeholder="Recherche par utilisateur"
+                value={searchUser}
+                onChange={(e) => setSearchUser(e.target.value)}
+                className="rounded-2xl p-3 sm:p-4 border border-gray-300 flex-1 min-w-[150px]"
+              />
+              <Input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="rounded-2xl p-3 sm:p-4 border border-gray-300"
+              />
+              <Input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="rounded-2xl p-3 sm:p-4 border border-gray-300"
+              />
+              <Button type="submit" className="flex items-center gap-2 bg-primary text-white p-3 sm:p-4 rounded-2xl hover:bg-primary-dark transition">
+                <Search className="w-5 h-5 sm:w-6 sm:h-6" /> Filtrer
+              </Button>
+            </form>
             <Button
               onClick={handleExport}
               disabled={exporting}
@@ -268,19 +276,19 @@ const QRCodeScanner: React.FC = () => {
           </div>
 
           {/* Tableau des visites */}
-          <Card className="shadow-lg rounded-3xl border border-gray-200 p-6 max-h-[500px] overflow-auto">
+          <Card className="shadow-lg rounded-3xl border border-gray-200 p-4 sm:p-6 overflow-auto">
             <CardHeader>
-              <CardTitle className="text-xl font-bold mb-4">Historique des visites</CardTitle>
+              <CardTitle className="text-xl sm:text-2xl font-bold mb-4">Historique des visites</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="overflow-x-auto">
               {loading ? (
-                <div className="flex justify-center py-20">
-                  <Loader2 className="animate-spin w-14 h-14 text-primary" />
+                <div className="flex justify-center py-12">
+                  <Loader2 className="animate-spin w-12 h-12 text-primary" />
                 </div>
               ) : visits.length === 0 ? (
-                <p className="text-center text-gray-500 py-20 text-lg">Aucune visite trouvée.</p>
+                <p className="text-center text-gray-500 py-12 text-lg">Aucune visite trouvée.</p>
               ) : (
-                <Table>
+                <Table className="min-w-[600px]">
                   <TableHeader>
                     <TableRow className="bg-gray-100">
                       <TableHead>ID</TableHead>
