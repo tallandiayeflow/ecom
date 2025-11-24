@@ -121,7 +121,8 @@ const AdminVisits = () => {
           <div style={{ width: 320, maxWidth: "90vw" }}>
             <QrScanner
               delay={300}
-              facingMode="environment"
+              constraints={{ facingMode: { exact: "environment" } }}
+
               onError={handleError}
               onScan={handleScan}
             />
