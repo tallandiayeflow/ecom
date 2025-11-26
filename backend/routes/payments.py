@@ -12,7 +12,8 @@ bp = Blueprint('payments', __name__)
 PAYTECH_API_KEY = os.getenv('PAYTECH_API_KEY')
 PAYTECH_API_SECRET = os.getenv('PAYTECH_API_SECRET')
 PAYTECH_API_URL = 'https://paytech.sn/api/payment/request-payment'
-
+FRONTEND_URL = os.getenv('CORS_ORIGINS', 'https://talla-phone.vercel.app')
+BACKEND_URL = os.getenv('BACKEND_URL', 'https://phone-backend.duckdns.org')
 
 def create_order_from_data(data):
     user_id = data.get('user_id')
@@ -179,9 +180,9 @@ def request_payment():
         "ref_command": ref_command,
         "command_name": item_name,
         "env": "test",  # changer en "prod" en production
-        "ipn_url": "https://ton-domaine.com/api/payments/ipn",
-        "success_url": f"https://ton-domaine.com/payment-success/{order_id}",
-        "cancel_url": f"https://ton-domaine.com/payment-cancel/{order_id}",
+        "ipn_url": f"{BACKEND_URL}/api/payments/ipn",
+        "success_url": f"{FRONTEND_URL}/payment-success",
+        "cancel_url": f"{FRONTEND_URL}/payment-cancel/{order_id}",
         "custom_field": json.dumps(data),  # transmet toutes les données utiles
         
     }

@@ -21,6 +21,8 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import OrderSuccess from "./pages/OrderSuccess";
 import Orders from "./pages/Orders";
+import PaymentCancel from "./pages/Payment-cancel";
+import PaymentSuccess from "./pages/Payment-succes";
 import ProductDetail from "./pages/ProductDetail";
 import Products from "./pages/Products";
 import Profile from "./pages/Profile";
@@ -76,6 +78,9 @@ const App = () => (
                           <Route path="/rewards" element={<LoyaltyRewards />} />
                           <Route path="/reset-password" element={<ResetPassword />} />
                           <Route path="/forgot-password" element={<ForgotPassword />} />
+                          <Route path="/payment-success" element={<PaymentSuccess />} />
+                          <Route path="/payment-cancel" element={<PaymentCancel />} />
+                          
                         </Routes>
                       </main>
                       <Footer />
