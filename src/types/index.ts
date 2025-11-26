@@ -7,11 +7,11 @@ export interface User {
   address?: string;
   city?: string;
   role: 'user' | 'admin';
-  isAdmin?: boolean;  // ✅ Ajout pour compatibilité
+  isAdmin?: boolean;
   loyaltyPoints: number;
   createdAt: string;
   isActive: boolean;
-  code?:string
+  code?: string;
 }
 
 // ==================== PRODUCT ====================
@@ -22,9 +22,9 @@ export interface Product {
   price: number;
   originalPrice?: number;
   category: string;
-  categoryId?: string;  // ✅ Ajout pour l'ID de catégorie
+  categoryId?: string;
   images: string[];
-  image_url?: string;  // ✅ Fallback pour une seule image
+  image_url?: string;
   inStock: boolean;
   stockQuantity: number;
   specifications: Record<string, string>;
@@ -39,7 +39,7 @@ export interface Category {
   name: string;
   slug: string;
   icon?: string;
-  productCount?: number;  // ✅ Optionnel car calculé dynamiquement
+  productCount?: number;
 }
 
 // ==================== CART ====================
@@ -50,7 +50,6 @@ export interface CartItem {
 }
 
 // ==================== ORDERS ====================
-
 // Interface pour créer une commande
 export interface CreateOrderData {
   items: {
@@ -69,27 +68,25 @@ export interface CreateOrderData {
   discount?: number;
 }
 
-
-
 // Interface pour un item de commande
 export interface OrderItem {
   id: string;
-  productId?: string;  // ✅ Optionnel
-  productName: string;  // ✅ Nom principal
-  productImage?: string;  // ✅ Optionnel
+  productId?: string;
+  productName: string;
+  productImage?: string;
   price: number;
   quantity: number;
-  name:string
+  name: string;
 }
 
 // Interface pour une commande
 export interface Order {
   id: string;
-  userId?: string;  // ✅ Optionnel pour le frontend
+  userId?: string;
   items: OrderItem[];
   total: number;
-  discount?: number;  // ✅ Optionnel
-  finalTotal?: number;  // ✅ Optionnel
+  discount?: number;
+  finalTotal?: number;
   status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
   shippingAddress: {
     name: string;
@@ -98,14 +95,13 @@ export interface Order {
     city: string;
   };
   voucherCode?: string;
-  loyaltyPointsEarned?: number;  // ✅ Optionnel
+  loyaltyPointsEarned?: number;
   qrCode?: string;
-  createdAt?: string;  // ✅ Optionnel
-  updatedAt?: string;  // ✅ Optionnel
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 // ==================== VOUCHERS ====================
-
 // Interface pour la validation de voucher
 export interface VoucherValidationResult {
   valid: boolean;
@@ -121,19 +117,17 @@ export interface VoucherData {
   minPurchase: number;
   maxUses: number | null;
   usedCount?: number;
-  validFrom: string;      // ✅ AJOUT
-  validUntil: string;     // ✅ RENOMMAGE depuis expiryDate
+  validFrom: string;
+  validUntil: string;
   isActive: boolean;
-  createdAt?: string;     // ✅ AJOUT
+  createdAt?: string;
 }
-
-
 
 // ==================== FLASH SALES ====================
 export interface FlashSale {
   id: string;
   productId: string;
-  product?: Product; // Optionnel, peut contenir la donnée produit complète
+  product?: Product;
   discountPrice: number;
   discountPercentage: number;
   startDate: string;
@@ -143,19 +137,18 @@ export interface FlashSale {
   isActive: boolean;
 }
 
-
 // ==================== BANNERS ====================
 export interface BannerSlide {
   id: string;
   title: string;
-  subtitle?: string;  // ✅ Optionnel
+  subtitle?: string;
   imageUrl: string;
-  productId?: string;  // ✅ Optionnel
-  product?: Product;  // ✅ Optionnel
-  images?: string[];  // ✅ Optionnel pour compatibilité
+  productId?: string;
+  product?: Product;
+  images?: string[];
   order: number;
   isActive: boolean;
-  link?: string;  // ✅ Ajout pour lien externe
+  link?: string;
 }
 
 // ==================== ADMIN ====================
@@ -166,7 +159,6 @@ export interface AdminStats {
   pendingOrders: number;
 }
 
-
 export type MovementType = "in" | "out" | "return" | "adjustment";
 
 export interface StockMovement {
@@ -176,4 +168,17 @@ export interface StockMovement {
   quantity: number;
   reason: string;
   createdAt: string;
+}
+
+// Interfaces spécifiques pour PayTech
+
+export interface PaytechPaymentRequest {
+  order_id: string;
+  payment_method?: string;
+}
+
+export interface PaytechPaymentResponse {
+  success: number;
+  redirect_url?: string;
+  message?: string;
 }

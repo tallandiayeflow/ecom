@@ -2,7 +2,7 @@ from utils.cache import cache
 from flask import Flask, jsonify
 from flask_cors import CORS
 from config import Config
-from routes import auth, products, categories, cart, orders, flash_sales, banners, vouchers, admin, user, factures, stock,loyalty,visits
+from routes import auth, products, categories, cart, orders, flash_sales, banners, vouchers, admin, user, factures, stock,loyalty,visits,payments
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -35,6 +35,7 @@ app.register_blueprint(factures.factures_bp, url_prefix='/api/factures')
 app.register_blueprint(stock.bp, url_prefix='/api/stock')
 app.register_blueprint(loyalty.bp, url_prefix='/api/loyalty')
 app.register_blueprint(visits.bp, url_prefix='/api/visits')
+app.register_blueprint(payments.bp, url_prefix='/api/payments')
 
 
 # Health check

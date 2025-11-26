@@ -84,6 +84,7 @@ export interface ApiError {
 
 
 export interface CreateOrderData {
+  order_id: 'temp';
   items: {
     productId: string;
     quantity: number;
@@ -931,6 +932,23 @@ export const getVisitsStats = async (): Promise<VisitsStats> => {
   const response = await api.get('/visits/stats');
   return response.data;
 };
+//=================== ENDPOINTS Paytech====================
+
+
+import type { PaytechPaymentRequest, PaytechPaymentResponse } from '@/types';
+
+/**
+ * Initialise la demande de paiement PayTech
+ * @param data Données de paiement conformes à CreateOrderData + payment_method, user_id optionnel
+ * @returns Réponse contenant succès et URL redirection
+ */
+export const requestPaytechPayment = async (
+  data: CreateOrderData & PaytechPaymentRequest & { user_id?: string }
+): Promise<PaytechPaymentResponse> => {
+  const response = await api.post<PaytechPaymentResponse>('/payments/request-payment', data);
+  return response.data;
+};
+
 
 
 // ==================== UTILITY ====================

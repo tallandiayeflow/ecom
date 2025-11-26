@@ -10,6 +10,8 @@ class Config:
     DATABASE_PASSWORD = os.getenv('DATABASE_PASSWORD', '')
     DATABASE_NAME = os.getenv('DATABASE_NAME', 'phone_shop')
     DATABASE_PORT = int(os.getenv('DATABASE_PORT', 3306))
+    PAYTECH_API_KEY = os.getenv('PAYTECH_API_KEY', '')
+    PAYTECH_API_SECRET = os.getenv('PAYTECH_API_SECRET', '')
     
     # Flask
     SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
