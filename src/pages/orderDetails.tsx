@@ -34,7 +34,7 @@ export default function OrderDetails() {
       const data = await getOrderPubic(id!);
       setOrder(data);
     } catch {
-      toast.error('Erreur lors du chargement des détails de la commande');
+      toast.error('Erreur lors du chargement de la commande');
       navigate('/admin/orders');
     } finally {
       setLoading(false);
@@ -64,47 +64,58 @@ export default function OrderDetails() {
         <CardHeader>
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <CardTitle className="text-2xl font-bold">
-              Commande #{order.id.substring(0, 8)}
+              Commande #{order.id?.substring(0, 8)}
             </CardTitle>
-            <Badge variant={statusStyles[order.status] || 'default'} className="px-3 py-1 text-sm">
+
+            <Badge
+              variant={statusStyles[order.status] || 'default'}
+              className="px-3 py-1 text-sm"
+            >
               {order.status}
             </Badge>
           </div>
         </CardHeader>
 
         <CardContent className="space-y-8">
-          {/* Client info */}
+
+          {/* ----------- Info Client ----------- */}
           <div className="grid md:grid-cols-2 gap-6 bg-gray-50 dark:bg-gray-900 p-4 rounded-xl shadow-inner">
             <div>
               <h3 className="font-semibold text-lg mb-2">Informations client</h3>
               <div className="space-y-1 text-sm">
-                <p><span className="font-semibold">Nom: </span>{order.userName || order.shippingAddress.name}</p>
-                <p><span className="font-semibold">Telephone: </span>{order.phone || order.shippingAddress.phone}</p>
+                <p>
+                  <span className="font-semibold">Nom: </span>
+                  {order.shippingAddress?.name}
+                </p>
+                <p>
+                  <span className="font-semibold">Téléphone: </span>
+                  {order.shippingAddress?.phone}
+                </p>
               </div>
             </div>
 
-            {/* Shipping address */}
+            {/* ----------- Adresse de livraison ----------- */}
             <div>
               <h3 className="font-semibold text-lg mb-2">Adresse de livraison</h3>
               <div className="space-y-1 text-sm">
-                <p>{order.shippingAddress.name}</p>
-                <p>{order.shippingAddress.phone}</p>
-                <p>{order.shippingAddress.address}</p>
-                <p>{order.shippingAddress.city}</p>
+                <p>{order.shippingAddress?.name}</p>
+                <p>{order.shippingAddress?.phone}</p>
+                <p>{order.shippingAddress?.address}</p>
+                <p>{order.shippingAddress?.city}</p>
               </div>
             </div>
           </div>
 
           <Separator />
 
-          {/* Items */}
+          {/* ----------- Articles ----------- */}
           <div>
             <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
               <Package className="w-5 h-5" /> Articles commandés
             </h3>
 
             <div className="space-y-4">
-              {order.items.map((item: any) => (
+              {order.items?.map((item: any) => (
                 <div
                   key={item.id}
                   className="flex items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-gray-900 shadow-sm"
@@ -118,11 +129,15 @@ export default function OrderDetails() {
                     )}
                     <div>
                       <p className="font-medium">{item.productName}</p>
-                      <p className="text-sm text-muted-foreground">{item.quantity} × {item.price} FCFA</p>
+                      <p className="text-sm text-muted-foreground">
+                        {item.quantity} × {item.price} FCFA
+                      </p>
                     </div>
                   </div>
 
-                  <p className="font-semibold text-right">{(item.quantity * item.price).toFixed(2)} FCFA</p>
+                  <p className="font-semibold text-right">
+                    {(item.quantity * item.price).toFixed(2)} FCFA
+                  </p>
                 </div>
               ))}
             </div>
@@ -130,41 +145,71 @@ export default function OrderDetails() {
 
           <Separator />
 
-          {/* Prices and totals */}
+          {/* ----------- Totaux ----------- */}
           <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-xl space-y-3 text-right shadow-inner">
             <div className="text-sm">
               <span className="font-semibold">Sous-total: </span>
-              {order.total.toFixed(2)} FCFA
+              {order.total?.toFixed(2)} FCFA
             </div>
 
             {order.discount > 0 && (
               <div className="text-green-600 dark:text-green-400 flex justify-end gap-2 items-center text-sm">
                 <Tag className="w-4 h-4" />
-                <span className="font-semibold">Réduction ({order.voucherCode}): </span>
-                -{order.discount.toFixed(2)} FCFA
+                <span className="font-semibold">
+                  Réduction ({order.voucherCode}):
+                </span>
+                -{order.discount?.toFixed(2)} FCFA
               </div>
             )}
 
             <div className="text-xl font-bold border-t pt-3">
-              Total final: <span className="text-green-600 dark:text-green-400">{order.finalTotal.toFixed(2)} FCFA</span>
+              Total final:{" "}
+              <span className="text-green-600 dark:text-green-400">
+                {order.finalTotal?.toFixed(2)} FCFA
+              </span>
             </div>
 
             {order.loyaltyPointsEarned > 0 && (
-              <p className="text-blue-600 dark:text-blue-400 text-sm">+
-                {order.loyaltyPointsEarned} points fidélité
+              <p className="text-blue-600 dark:text-blue-400 text-sm">
+                +{order.loyaltyPointsEarned} points fidélité
               </p>
             )}
           </div>
 
           <Separator />
 
-          {/* Date */}
+          {/* ----------- Paiement ----------- */}
+          <div className="text-sm space-y-1">
+            <p>
+              <span className="font-semibold">Méthode de paiement : </span>
+              {order.paymentMethod || "Non-payé"}
+            </p>
+
+            <p>
+              <span className="font-semibold">Statut du paiement : </span>
+              {order.paymentStatus}
+            </p>
+
+            {order.paymentReference && (
+              <p>
+                <span className="font-semibold">Référence : </span>
+                {order.paymentReference}
+              </p>
+            )}
+          </div>
+
+          <Separator />
+
+          {/* ----------- Date ----------- */}
           <p className="text-sm text-gray-600 dark:text-gray-400">
             <span className="font-semibold">Date de commande: </span>
-            {new Date(order.createdAt).toLocaleDateString('fr-FR')} —
-            {" "}
-            {new Date(order.createdAt).toLocaleTimeString('fr-FR')}
+            {order.createdAt
+              ? new Date(order.createdAt).toLocaleDateString('fr-FR') +
+                " — " +
+                new Date(order.createdAt).toLocaleTimeString('fr-FR')
+              : "N/A"}
           </p>
+
         </CardContent>
       </Card>
     </div>

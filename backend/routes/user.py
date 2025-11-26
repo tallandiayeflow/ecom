@@ -73,6 +73,9 @@ def get_user_orders(current_user):
         formatted_orders.append({
             'id': order['id'],
             'status': order['status'],
+            'paymentMethod': order.get('payment_method'),
+            'paymentStatus': order.get('payment_status'),
+            'paymentreference': order.get('payment_ref'),
             'total': float(order['total']),
             'discount': float(order.get('discount', 0)),
             'finalTotal': float(order.get('final_total', order['total'])),

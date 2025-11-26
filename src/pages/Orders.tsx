@@ -13,7 +13,7 @@ import type { Order } from "@/types";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { motion } from "framer-motion";
-import { Loader2, MapPin, Package, Phone, Tag, User } from "lucide-react";
+import { CreditCard, Loader2, MapPin, Package, Phone, Tag, User } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -44,6 +44,7 @@ const Orders = () => {
         Mes Commandes
       </h2>
 
+      {/* ================= LOADING ================= */}
       {loading ? (
         <div className="flex justify-center items-center h-64">
           <Loader2 className="h-10 w-10 animate-spin text-primary" />
@@ -58,7 +59,7 @@ const Orders = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05 }}
-              className="bg-white dark:bg-muted/10 rounded-2xl shadow-md p-5 flex flex-col justify-between hover:shadow-lg hover:scale-[1.01] transition-all border border-gray-200 dark:border-gray-700"
+              className="bg-white dark:bg-muted/10 rounded-2xl shadow-md p-5 hover:shadow-lg hover:scale-[1.01] transition-all border border-gray-200 dark:border-gray-700"
             >
               <div className="flex justify-between items-start mb-3">
                 <div>
@@ -66,30 +67,46 @@ const Orders = () => {
                     Commande #{order.id.substring(0, 8)}
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    {format(new Date(order.createdAt), "dd MMM yyyy", { locale: fr })}
+                    {order.createdAt
+                      ? format(new Date(order.createdAt), "dd MMM yyyy", { locale: fr })
+                      : "Date inconnue"}
                   </p>
                 </div>
+
+                {/* Status */}
                 <div className="text-right">
                   <p className="font-bold text-primary text-lg md:text-xl">
                     {(order.finalTotal ?? order.total).toFixed(2)} FCFA
                   </p>
+
                   <span
-                    className={`inline-block mt-1 px-2 py-1 rounded-full text-xs font-medium ${
-                      order.status === "delivered"
-                        ? "bg-green-100 text-green-800"
-                        : order.status === "pending"
-                        ? "bg-yellow-100 text-yellow-800"
-                        : "bg-red-100 text-red-800"
-                    }`}
+                    className={`inline-block mt-1 px-2 py-1 rounded-full text-xs font-medium
+                      ${
+                        order.status === "delivered"
+                          ? "bg-green-100 text-green-800"
+                          : order.status === "processing"
+                          ? "bg-blue-100 text-blue-800"
+                          : order.status === "shipped"
+                          ? "bg-indigo-100 text-indigo-800"
+                          : order.status === "pending"
+                          ? "bg-yellow-100 text-yellow-800"
+                          : "bg-red-100 text-red-800"
+                      }
+                    `}
                   >
                     {order.status === "delivered"
                       ? "Livrée"
+                      : order.status === "processing"
+                      ? "Traitement"
+                      : order.status === "shipped"
+                      ? "Expédiée"
                       : order.status === "pending"
-                      ? "En cours"
+                      ? "En attente"
                       : "Annulée"}
                   </span>
                 </div>
               </div>
+
               <Button
                 variant="outline"
                 className="w-full mt-3 hover:bg-primary hover:text-white transition"
@@ -102,7 +119,7 @@ const Orders = () => {
         </div>
       )}
 
-      {/* Détails de la commande */}
+      {/* =============== DIALOG DÉTAILS =============== */}
       <Dialog open={!!selectedOrder} onOpenChange={() => setSelectedOrder(null)}>
         <DialogContent className="fixed top-1/2 left-1/2 max-w-3xl max-h-[85vh] w-full -translate-x-1/2 -translate-y-1/2 overflow-y-auto bg-background text-foreground rounded-2xl shadow-2xl p-6 border border-border">
           <DialogHeader>
@@ -112,33 +129,38 @@ const Orders = () => {
           </DialogHeader>
 
           {selectedOrder && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="space-y-6 mt-4"
-            >
-              {/* Client */}
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6 mt-4">
+
+              {/* =================== CLIENT =================== */}
               <section className="bg-muted/40 dark:bg-muted/20 p-4 rounded-lg border">
                 <h3 className="font-semibold mb-3 flex items-center gap-2">
                   <User className="w-5 h-5 text-primary" /> Informations client
                 </h3>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                   <div>
                     <p className="text-muted-foreground">Nom</p>
-                    <p className="font-medium">{selectedOrder.shippingAddress?.name || "Non spécifié"}</p>
+                    <p className="font-medium">
+                      {selectedOrder.shippingAddress?.name || "Non spécifié"}
+                    </p>
                   </div>
+
                   <div>
                     <p className="text-muted-foreground flex items-center gap-1">
                       <Phone className="w-4 h-4" /> Téléphone
                     </p>
-                    <p className="font-medium">{selectedOrder.shippingAddress?.phone || "Non spécifié"}</p>
+                    <p className="font-medium">
+                      {selectedOrder.shippingAddress?.phone || "Non spécifié"}
+                    </p>
                   </div>
+
                   <div className="col-span-1 md:col-span-2">
                     <p className="text-muted-foreground flex items-center gap-1">
                       <MapPin className="w-4 h-4" /> Adresse de livraison
                     </p>
                     <p className="font-medium">
-                      {selectedOrder.shippingAddress?.address}, {selectedOrder.shippingAddress?.city}
+                      {selectedOrder.shippingAddress?.address},{" "}
+                      {selectedOrder.shippingAddress?.city}
                     </p>
                   </div>
                 </div>
@@ -146,13 +168,14 @@ const Orders = () => {
 
               <Separator />
 
-              {/* Articles */}
+              {/* ================= ARTICLES ================= */}
               <section>
                 <h3 className="font-semibold mb-3 flex items-center gap-2">
                   <Package className="w-5 h-5 text-primary" /> Articles commandés
                 </h3>
+
                 <div className="space-y-3">
-                  {selectedOrder.items?.map((item, idx) => (
+                  {selectedOrder.items.map((item, idx) => (
                     <motion.div
                       key={idx}
                       initial={{ opacity: 0, x: -10 }}
@@ -165,7 +188,7 @@ const Orders = () => {
                           Quantité: {item.quantity} × {(item.price || 0).toFixed(2)} FCFA
                         </p>
                       </div>
-                      <p className="font-semibold whitespace-nowrap text-right sm:text-left">
+                      <p className="font-semibold whitespace-nowrap">
                         {((item.price || 0) * item.quantity).toFixed(2)} FCFA
                       </p>
                     </motion.div>
@@ -175,7 +198,35 @@ const Orders = () => {
 
               <Separator />
 
-              {/* Totaux */}
+              {/* =================== PAIEMENT =================== */}
+              <section>
+                <h3 className="font-semibold mb-3 flex items-center gap-2">
+                  <CreditCard className="w-5 h-5 text-primary" /> Paiement
+                </h3>
+
+                <div className="text-sm space-y-2">
+                  <p>
+                    <span className="font-semibold">Méthode :</span>{" "}
+                    {selectedOrder.paymentMethod || "Non payé"}
+                  </p>
+
+                  <p>
+                    <span className="font-semibold">Statut du paiement :</span>{" "}
+                    {selectedOrder.paymentStatus}
+                  </p>
+
+                  {selectedOrder.paymentReference && (
+                    <p>
+                      <span className="font-semibold">Référence :</span>{" "}
+                      {selectedOrder.paymentReference}
+                    </p>
+                  )}
+                </div>
+              </section>
+
+              <Separator />
+
+              {/* =================== TOTAUX =================== */}
               <section className="space-y-2">
                 <div className="flex justify-between items-center text-base">
                   <p className="text-muted-foreground">Sous-total :</p>
@@ -188,7 +239,7 @@ const Orders = () => {
                       <Tag className="w-4 h-4" />
                       Réduction ({selectedOrder.voucherCode}) :
                     </p>
-                    <p className="font-semibold">-{selectedOrder.discount.toFixed(2)} FCFA</p>
+                    <p>-{selectedOrder.discount.toFixed(2)} FCFA</p>
                   </div>
                 )}
 
@@ -196,12 +247,14 @@ const Orders = () => {
 
                 <div className="flex justify-between items-center font-semibold text-lg pt-2">
                   <p>Total final :</p>
-                  <p className="text-primary">{(selectedOrder.finalTotal ?? selectedOrder.total).toFixed(2)} FCFA</p>
+                  <p className="text-primary">
+                    {(selectedOrder.finalTotal ?? selectedOrder.total).toFixed(2)} FCFA
+                  </p>
                 </div>
 
                 {selectedOrder.loyaltyPointsEarned > 0 && (
                   <p className="text-sm text-blue-600 mt-2">
-                    🎁 Points de fidélité gagnés : {selectedOrder.loyaltyPointsEarned}
+                    🎁 Points fidélité gagnés : {selectedOrder.loyaltyPointsEarned}
                   </p>
                 )}
               </section>

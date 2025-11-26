@@ -99,6 +99,9 @@ export interface Order {
   qrCode?: string;
   createdAt?: string;
   updatedAt?: string;
+  paymentMethod?: string;
+  paymentStatus?: 'pending' | 'paid' | 'failed';
+  paymentReference?: string;
 }
 
 // ==================== VOUCHERS ====================
@@ -181,4 +184,13 @@ export interface PaytechPaymentResponse {
   success: number;
   redirect_url?: string;
   message?: string;
+}
+
+export type PaymentStatus = "pending" | "paid" | "failed";
+
+export interface UpdateOrderPayload {
+  status?: "pending" | "processing" | "shipped" | "delivered" | "cancelled";
+  payment_method?: string;
+  payment_status?: PaymentStatus;
+  payment_reference?: string;
 }

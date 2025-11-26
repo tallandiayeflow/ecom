@@ -33,6 +33,7 @@ import BannersManagement from "./pages/admin/BannersManagement";
 import CategoriesManagement from "./pages/admin/CategoriesManagement";
 import FlashSalesManagement from "./pages/admin/FlashSalesManagement";
 import InvoicesManagement from "./pages/admin/InvoicesManagement";
+import OrderDetailUpdate from "./pages/admin/OrderUpdate";
 import OrdersManagement from "./pages/admin/OrdersManagement";
 import Overview from "./pages/admin/Overview";
 import ProductsManagement from "./pages/admin/ProductsManagement";
@@ -97,6 +98,7 @@ const App = () => (
                   <Route path="products" element={<ProductsManagement />} />
                   <Route path="categories" element={<CategoriesManagement />} />
                   <Route path="orders" element={<OrdersManagement />} />
+                  <Route path="orders/update/:id" element={<OrderDetailUpdate />} />
                   <Route path="flash-sales" element={<FlashSalesManagement />} />
                   <Route path="banners" element={<BannersManagement />} />
                   <Route path="users" element={<UsersManagement />} />

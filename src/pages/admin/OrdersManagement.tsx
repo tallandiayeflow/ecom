@@ -9,14 +9,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { deleteOrder, getAllOrders, updateOrderStatus } from "@/lib/api";
-import { Eye, Loader2, Package, Trash } from "lucide-react";
+import { deleteOrder, getAllOrders, updateOrderDetails } from "@/lib/api";
+
+import { Edit, Eye, Loader2, Package, Trash } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
+import type { Order, PaymentStatus } from "@/types/index";
+
 const OrdersManagement = () => {
-  const [orders, setOrders] = useState([]);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
   const [statusUpdating, setStatusUpdating] = useState(false);
   const [search, setSearch] = useState("");
@@ -29,7 +32,17 @@ const OrdersManagement = () => {
   const [total, setTotal] = useState(0);
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [orderToDelete, setOrderToDelete] = useState(null);
+  const [orderToDelete, setOrderToDelete] = useState<Order | null>(null);
+  
+
+  // Dialog edition
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [orderToEdit, setOrderToEdit] = useState<Order | null>(null);
+  const [editOrderStatus, setEditOrderStatus] = useState<Order["status"]>("pending");
+  const [editPaymentStatus, setEditPaymentStatus] = useState<PaymentStatus>("pending");
+  const [editPaymentMethod, setEditPaymentMethod] = useState<string>("");
+  const [editPaymentReference, setEditPaymentReference] = useState<string>("");
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const navigate = useNavigate();
 
@@ -57,10 +70,11 @@ const OrdersManagement = () => {
     }
   };
 
-  const handleStatusChange = async (orderId, newStatus) => {
+  // Met à jour seulement le statut via dropdown rapide
+  const handleStatusChange = async (orderId: string, newStatus: Order["status"]) => {
     setStatusUpdating(true);
     try {
-      await updateOrderStatus(orderId, newStatus);
+      await updateOrderDetails(orderId, { status: newStatus });
       toast.success("Statut mis à jour");
       fetchOrders();
     } catch {
@@ -70,7 +84,7 @@ const OrdersManagement = () => {
     }
   };
 
-  const confirmDelete = (order) => {
+  const confirmDelete = (order: Order) => {
     setOrderToDelete(order);
     setDeleteDialogOpen(true);
   };
@@ -90,30 +104,77 @@ const OrdersManagement = () => {
     }
   };
 
-  // On frontend, on filtre encore sur search texte (nom, tel, email)
+  // Ouvrir dialogue édition avec données chargées
+  const openEditDialog = (order: Order) => {
+    setOrderToEdit(order);
+    setEditOrderStatus(order.status);
+    setEditPaymentStatus(order.paymentStatus ?? "pending");
+    setEditPaymentMethod(order.paymentMethod ?? "");
+    setEditPaymentReference(order.paymentReference ?? "");
+    setEditDialogOpen(true);
+  };
+
+  // Sauvegarde modifications complètes
+  const saveEdit = async () => {
+    if (!orderToEdit) return;
+    setSavingEdit(true);
+    try {
+      await updateOrderDetails(orderToEdit.id, {
+        status: editOrderStatus,
+        payment_method: editPaymentMethod,
+        payment_status: editPaymentStatus,
+        payment_reference: editPaymentReference,
+      });
+      toast.success("Mise à jour effectuée");
+      setEditDialogOpen(false);
+      setOrderToEdit(null);
+      fetchOrders();
+    } catch {
+      toast.error("Erreur lors de la sauvegarde");
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
   const filteredOrders = orders.filter((order) => {
-    const query = search.toLowerCase();
+    const q = search.toLowerCase();
+    const ship = order.shippingAddress;
     return (
-      order.shippingAddress?.name?.toLowerCase().includes(query) ||
-      order.shippingAddress?.phone?.toLowerCase().includes(query) ||
-      order.shippingAddress?.email?.toLowerCase().includes(query)
+      ship?.name?.toLowerCase().includes(q) ||
+      ship?.phone?.toLowerCase().includes(q) ||
+      ship?.city?.toLowerCase().includes(q) ||
+      ship?.address?.toLowerCase().includes(q)
     );
   });
 
   const totalPages = Math.ceil(total / perPage);
 
+  const statusBadge = (status: Order["status"]) => {
+    switch (status) {
+      case "pending":
+        return "secondary";
+      case "processing":
+        return "warning";
+      case "shipped":
+        return "info";
+      case "delivered":
+        return "success";
+      default:
+        return "destructive";
+    }
+  };
+
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
-      <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Gestion des commandes</h1>
+      <h1 className="text-3xl font-bold">Gestion des commandes</h1>
 
-      {/* Search, Filter, Date Filter, and Pagination Size */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-4 flex-wrap">
         <input
           type="text"
-          placeholder="Rechercher par nom, téléphone ou email"
+          placeholder="Rechercher par nom, téléphone, ville..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="flex-1 p-2 rounded border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+          className="flex-1 p-2 rounded border"
         />
 
         <select
@@ -122,7 +183,7 @@ const OrdersManagement = () => {
             setFilterStatus(e.target.value);
             setPage(1);
           }}
-          className="p-2 rounded border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+          className="p-2 rounded border"
         >
           <option value="">Tous les statuts</option>
           <option value="pending">En attente</option>
@@ -132,36 +193,13 @@ const OrdersManagement = () => {
           <option value="cancelled">Annulée</option>
         </select>
 
-        <input
-          type="date"
-          value={dateMin}
-          onChange={(e) => {
-            setDateMin(e.target.value);
-            setPage(1);
-          }}
-          className="p-2 rounded border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-          placeholder="Date min"
-        />
-
-        <input
-          type="date"
-          value={dateMax}
-          onChange={(e) => {
-            setDateMax(e.target.value);
-            setPage(1);
-          }}
-          className="p-2 rounded border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-          placeholder="Date max"
-        />
+        <input type="date" value={dateMin} onChange={(e) => setDateMin(e.target.value)} className="p-2 rounded border" />
+        <input type="date" value={dateMax} onChange={(e) => setDateMax(e.target.value)} className="p-2 rounded border" />
 
         <select
           value={perPage}
-          onChange={(e) => {
-            setPerPage(Number(e.target.value));
-            setPage(1);
-          }}
-          className="p-2 rounded border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-          title="Éléments par page"
+          onChange={(e) => setPerPage(Number(e.target.value))}
+          className="p-2 rounded border"
         >
           <option value={10}>10 par page</option>
           <option value={20}>20 par page</option>
@@ -171,101 +209,77 @@ const OrdersManagement = () => {
 
       {loading ? (
         <div className="flex justify-center py-10">
-          <Loader2 className="w-10 h-10 animate-spin text-gray-700 dark:text-gray-300" />
+          <Loader2 className="w-10 h-10 animate-spin" />
         </div>
       ) : filteredOrders.length === 0 ? (
-        <p className="text-gray-700 dark:text-gray-300">Aucune commande trouvée.</p>
+        <p>Aucune commande trouvée.</p>
       ) : (
         <>
-          {/* TABLEAU sur medium et plus */}
-          <div className="hidden md:block overflow-x-auto rounded-lg border border-gray-300 dark:border-gray-700">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
-              <thead className="bg-gray-100 dark:bg-gray-800">
+          <div className="hidden md:block overflow-x-auto border rounded-lg">
+            <table className="min-w-full text-sm">
+              <thead className="bg-gray-100">
                 <tr>
                   <th className="p-3 text-left">ID</th>
                   <th>Client</th>
                   <th>Statut</th>
+                  <th>Paiement</th>
                   <th>Date</th>
                   <th>Total</th>
                   <th>Réduction</th>
-                  <th>Total Final</th>
+                  <th>Total final</th>
                   <th>Articles</th>
-                  <th className="text-center w-40">Actions</th>
+                  <th className="w-56 text-center">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+
+              <tbody>
                 {filteredOrders.map((order) => (
-                  <tr
-                    key={order.id}
-                    className="hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors"
-                  >
+                  <tr key={order.id} className="border-t">
                     <td className="p-3 font-mono">{order.id.slice(0, 8)}</td>
-                    <td>{order.shippingAddress?.name || "Inconnu"}</td>
+                    <td>{order.shippingAddress?.name}</td>
+
                     <td>
-                      <Badge
-                        variant={
-                          order.status === "pending"
-                            ? "secondary"
-                            : order.status === "processing"
-                            ? "warning"
-                            : order.status === "shipped"
-                            ? "info"
-                            : order.status === "delivered"
-                            ? "success"
-                            : "destructive"
-                        }
-                      >
-                        {order.status === "pending"
-                          ? "En attente"
-                          : order.status === "processing"
-                          ? "En cours"
-                          : order.status === "shipped"
-                          ? "Expédiée"
-                          : order.status === "delivered"
-                          ? "Livrée"
-                          : "Annulée"}
-                      </Badge>
+                      <Badge variant={statusBadge(order.status)}>{order.status}</Badge>
                     </td>
-                    <td>{new Date(order.createdAt).toLocaleDateString()}</td>
-                    <td className="text-left font-bold">
-                      {order.total}
+
+                    <td>
+                      <div className="text-xs">
+                        <Badge
+                          variant={
+                            order.paymentStatus === "paid"
+                              ? "success"
+                              : order.paymentStatus === "failed"
+                              ? "destructive"
+                              : "secondary"
+                          }
+                        >
+                          {order.paymentStatus || "pending"}
+                        </Badge>
+                      </div>
                     </td>
-                    <td className="text-left text-green-600">
-                      {order.discount > 0 ? `-${order.discount}` : "-"}
-                    </td>
-                    <td className="text-left font-bold">{order.finalTotal} FCFA</td>
-                    
+
+                    <td>{order.createdAt ? new Date(order.createdAt).toLocaleDateString() : "—"}</td>
+
+                    <td>{order.total} FCFA</td>
+                    <td>{order.discount ? `-${order.discount}` : "-"}</td>
+                    <td className="font-bold">{order.finalTotal} FCFA</td>
+
                     <td>
                       {order.items.length} <Package className="inline w-4 h-4 ml-1" />
                     </td>
-                    <td className="flex items-center gap-2 justify-center">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => navigate(`/orders/${order.id}`)}
-                        title="Voir les détails"
-                      >
+
+                    <td className="flex items-center justify-center gap-2">
+                      <Button size="sm" variant="outline" onClick={() => navigate(`/orders/${order.id}`)} title="Voir les détails">
                         <Eye className="w-4 h-4" />
                       </Button>
-                      <select
-                        value={order.status}
-                        onChange={(e) => handleStatusChange(order.id, e.target.value)}
-                        disabled={statusUpdating}
-                        className="border rounded px-2 py-1 text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100"
-                      >
-                        <option value="pending">En attente</option>
-                        <option value="processing">En cours</option>
-                        <option value="shipped">Expédiée</option>
-                        <option value="delivered">Livrée</option>
-                        <option value="cancelled">Annulée</option>
-                      </select>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => confirmDelete(order)}
-                        title="Supprimer"
-                      >
+
+
+                      <Button size="sm" variant="destructive" onClick={() => confirmDelete(order)} title="Supprimer la commande">
                         <Trash className="w-4 h-4" />
+                      </Button>
+
+                      <Button size="sm" variant="secondary" onClick={() => openEditDialog(order)} title="Modifier informations paiement et statut">
+                        Modifier
                       </Button>
                     </td>
                   </tr>
@@ -274,62 +288,31 @@ const OrdersManagement = () => {
             </table>
           </div>
 
-          {/* CARTES pour mobile */}
+          {/* MOBILE CARDS */}
           <div className="md:hidden space-y-4">
             {filteredOrders.map((order) => (
-              <div
-                key={order.id}
-                className="border rounded-xl p-4 shadow-sm dark:bg-muted/10 dark:border-gray-700"
-              >
+              <div key={order.id} className="border rounded-xl p-4 shadow-sm">
                 <div className="flex justify-between items-center mb-2">
-                  <p className="font-semibold text-base">{order.shippingAddress?.name || "Inconnu"}</p>
-                  <Badge
-                    variant={
-                      order.status === "pending"
-                        ? "secondary"
-                        : order.status === "processing"
-                        ? "warning"
-                        : order.status === "shipped"
-                        ? "info"
-                        : order.status === "delivered"
-                        ? "success"
-                        : "destructive"
-                    }
-                  >
-                    {order.status === "pending"
-                      ? "En attente"
-                      : order.status === "processing"
-                      ? "En cours"
-                      : order.status === "shipped"
-                      ? "Expédiée"
-                      : order.status === "delivered"
-                      ? "Livrée"
-                      : "Annulée"}
-                  </Badge>
+                  <p className="font-semibold">{order.shippingAddress?.name}</p>
+                  <Badge variant={statusBadge(order.status)}>{order.status}</Badge>
                 </div>
-                <p className="text-sm text-muted-foreground mb-1">
-                  ID: {order.id.slice(0, 8)}
-                </p>
-                <p className="text-sm text-muted-foreground mb-1">
-                  Total: {order.finalTotal} FCFA
-                </p>
-                <p className="text-sm text-muted-foreground mb-1">
-                  Articles: {order.items.length}
-                </p>
 
-                <div className="flex flex-wrap gap-2 mt-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => navigate(`/orders/${order.id}`)}
-                  >
+                <p className="text-sm">ID: {order.id.slice(0, 8)}</p>
+                <p className="text-sm">Total: {order.finalTotal} FCFA</p>
+                <p className="text-sm">Paiement: {order.paymentMethod || "—"} ({order.paymentStatus})</p>
+                <p className="text-sm">Articles: {order.items.length}</p>
+
+                <div className="flex gap-2 mt-3 flex-wrap">
+                  <Button size="sm" variant="outline" onClick={() => navigate(`/orders/${order.id}`)}>
                     <Eye className="w-4 h-4" /> Détails
                   </Button>
+
                   <select
                     value={order.status}
-                    onChange={(e) => handleStatusChange(order.id, e.target.value)}
+                    onChange={(e) => handleStatusChange(order.id, e.target.value as Order["status"])}
                     disabled={statusUpdating}
-                    className="border rounded px-2 py-1 text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100"
+                    className="border rounded px-2 py-1 text-sm"
+                    title="Modifier le statut"
                   >
                     <option value="pending">En attente</option>
                     <option value="processing">En cours</option>
@@ -337,12 +320,13 @@ const OrdersManagement = () => {
                     <option value="delivered">Livrée</option>
                     <option value="cancelled">Annulée</option>
                   </select>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => confirmDelete(order)}
-                  >
+
+                  <Button size="sm" variant="destructive" onClick={() => confirmDelete(order)}>
                     <Trash className="w-4 h-4" /> Supprimer
+                  </Button>
+
+                  <Button size="sm" variant="secondary" onClick={() => openEditDialog(order)} title="Modifier infos paiement et statut">
+                    <Edit className="w-4 h-4" /> Modifier
                   </Button>
                 </div>
               </div>
@@ -354,42 +338,95 @@ const OrdersManagement = () => {
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex justify-center items-center gap-4 mt-6">
-          <Button
-            onClick={() => setPage((p) => Math.max(p - 1, 1))}
-            disabled={page === 1}
-            variant="outline"
-          >
+          <Button onClick={() => setPage((p) => Math.max(p - 1, 1))} disabled={page === 1} variant="outline">
             Précédent
           </Button>
-          <span>
-            Page {page} / {totalPages}
-          </span>
-          <Button
-            onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
-            disabled={page === totalPages}
-            variant="outline"
-          >
+          <span>Page {page} / {totalPages}</span>
+          <Button onClick={() => setPage((p) => Math.min(p + 1, totalPages))} disabled={page === totalPages} variant="outline">
             Suivant
           </Button>
         </div>
       )}
 
-      {/* DELETE CONFIRMATION DIALOG */}
+      {/* DELETE DIALOG */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Confirmer la suppression</DialogTitle>
           </DialogHeader>
+          <p>Êtes-vous sûr de vouloir supprimer cette commande ?</p>
+          <DialogFooter className="mt-4 flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>Annuler</Button>
+            <Button variant="destructive" onClick={handleDelete}>Supprimer</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-          <p>Êtes-vous sûr de vouloir supprimer cette commande ? Cette action est irréversible.</p>
+      {/* EDIT DIALOG */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Modifier la commande</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 mt-2">
+            <div>
+              <label className="block font-medium mb-1">Statut commande</label>
+              <select
+                value={editOrderStatus}
+                onChange={(e) => setEditOrderStatus(e.target.value as Order["status"])}
+                className="w-full border rounded p-2"
+              >
+                <option value="pending">En attente</option>
+                <option value="processing">En cours</option>
+                <option value="shipped">Expédiée</option>
+                <option value="delivered">Livrée</option>
+                <option value="cancelled">Annulée</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block font-medium mb-1">Statut paiement</label>
+              <select
+                value={editPaymentStatus}
+                onChange={(e) => setEditPaymentStatus(e.target.value as PaymentStatus)}
+                className="w-full border rounded p-2"
+              >
+                <option value="pending">Pending</option>
+                <option value="paid">Paid</option>
+                <option value="failed">Failed</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block font-medium mb-1">Méthode de paiement</label>
+              <input
+                type="text"
+                value={editPaymentMethod}
+                onChange={(e) => setEditPaymentMethod(e.target.value)}
+                className="w-full border rounded p-2"
+                placeholder="Ex : Orange Money"
+              />
+            </div>
+
+            <div>
+              <label className="block font-medium mb-1">Référence paiement</label>
+              <input
+                type="text"
+                value={editPaymentReference}
+                onChange={(e) => setEditPaymentReference(e.target.value)}
+                className="w-full border rounded p-2"
+                placeholder="Référence de transaction"
+              />
+            </div>
+          </div>
 
           <DialogFooter className="mt-4 flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
               Annuler
             </Button>
-
-            <Button variant="destructive" onClick={handleDelete}>
-              Supprimer
+            <Button onClick={saveEdit} disabled={savingEdit}>
+              {savingEdit ? "Sauvegarde..." : "Sauvegarder"}
             </Button>
           </DialogFooter>
         </DialogContent>

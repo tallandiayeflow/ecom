@@ -129,6 +129,9 @@ def admin_get_orders(current_user):
             'userName': order.get('user_name'),
             'userEmail': order.get('user_email'),
             'status': order['status'],
+            'paymentMethod': order.get('payment_method'),
+            'paymentStatus': order.get('payment_status'),
+            'paymentReference': order.get('payment_ref'),
             'total': float(order['total']),
             'discount': float(order.get('discount', 0)),
             'finalTotal': float(order.get('final_total', order['total'])),
@@ -170,6 +173,9 @@ def admin_get_order_detail(current_user, order_id):
         'userName': order.get('user_name'),
         'userEmail': order.get('user_email'),
         'status': order['status'],
+        'paymentMethod': order.get('payment_method'),
+        'paymentStatus': order.get('payment_status'),
+        'paymentReference': order.get('payment_ref'),
         'total': float(order['total']),
         'discount': float(order.get('discount', 0)),
         'finalTotal': float(order.get('final_total', order['total'])),
@@ -187,19 +193,55 @@ def admin_get_order_detail(current_user, order_id):
         'createdAt': order.get('created_at').isoformat() if order.get('created_at') else None
     }), 200
 
-@bp.route('/orders/<order_id>/status', methods=['PUT'])
+@bp.route('/orders/update/<order_id>', methods=['PUT'])
 @admin_required
 def admin_update_order_status(current_user, order_id):
     data = request.get_json()
     new_status = data.get('status')
+    new_payment_method = data.get('payment_method')
+    new_payment_status = data.get('payment_status')
+    new_payment_reference = data.get('payment_reference')
+    print(data)
+
     valid_statuses = ['pending', 'processing', 'shipped', 'delivered', 'cancelled']
-    if new_status not in valid_statuses:
-        return jsonify({'error': 'Statut invalide'}), 400
+    valid_payment_statuses = ['pending', 'paid', 'failed']
+
+    if new_status and new_status not in valid_statuses:
+        return jsonify({'error': 'Statut commande invalide'}), 400
+
+    if new_payment_status and new_payment_status not in valid_payment_statuses:
+        return jsonify({'error': 'Statut paiement invalide'}), 400
+
     order = execute_query("SELECT id FROM orders WHERE id = %s", (order_id,), fetch_one=True)
     if not order:
         return jsonify({'error': 'Commande non trouvée'}), 404
-    execute_query("UPDATE orders SET status = %s WHERE id = %s", (new_status, order_id), commit=True)
-    return jsonify({'message': 'Statut mis à jour'}), 200
+
+    # Construire la requête de mise à jour dynamique selon champs fournis
+    fields_to_update = []
+    params = []
+
+    if new_status:
+        fields_to_update.append("status = %s")
+        params.append(new_status)
+    if new_payment_method is not None:
+        fields_to_update.append("payment_method = %s")
+        params.append(new_payment_method)
+    if new_payment_status is not None:
+        fields_to_update.append("payment_status = %s")
+        params.append(new_payment_status)
+    if new_payment_reference is not None:
+        fields_to_update.append("payment_ref = %s")
+        params.append(new_payment_reference)
+
+    if not fields_to_update:
+        return jsonify({'error': 'Aucun champ à mettre à jour fourni'}), 400
+
+    query = f"UPDATE orders SET {', '.join(fields_to_update)} WHERE id = %s"
+    params.append(order_id)
+
+    execute_query(query, tuple(params), commit=True)
+    return jsonify({'message': 'Commande mise à jour avec succès'}), 200
+
 
 @bp.route('/orders/<order_id>', methods=['DELETE'])
 @admin_required

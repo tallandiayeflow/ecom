@@ -217,7 +217,7 @@ export const verifyResetToken = async (
  */
 export const resetPassword = async (
   token: string,
-  newPassword: string
+  newPassword?: string
 ): Promise<{ message: string; email?: string }> => {
   const response = await api.post('/auth/reset-password', {
     token,
@@ -388,6 +388,22 @@ export const updateOrderStatus = async (
   const response = await api.put(`/orders/status/${id}`, { status });
   return response.data;
 };
+
+// Met à jour le statut, la méthode paiement, le statut paiement et référence d'une commande
+export const updateOrderDetails = async (
+  orderId: string,
+  updates: {
+    status?: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled',
+    payment_method?: string,
+    payment_status?: 'pending' | 'paid' | 'failed',
+    payment_reference?: string,
+  }
+): Promise<{ message: string }> => {
+  const response = await api.put(`/admin/orders/update/${orderId}`, updates);
+  return response.data;
+};
+
+
 
 // ==================== FLASH SALES ====================
 export interface FlashSaleFilters {
@@ -650,6 +666,7 @@ export const getUserInfo = async (): Promise<{
   address?: string;
   city?: string;
   loyaltyPoints: number;
+  code?: string;
 }> => {
   const response = await api.get('/user');
   return response.data;
