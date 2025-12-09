@@ -9,43 +9,61 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+
 import { deleteOrder, getAllOrders, updateOrderDetails } from "@/lib/api";
 
-import { Edit, Eye, Loader2, Package, Trash } from "lucide-react";
+import {
+  Edit,
+  Eye,
+  Loader2,
+  MessageCircle,
+  Package,
+  RefreshCcw,
+  Trash,
+} from "lucide-react";
+
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { toast } from "sonner";
 
 import type { Order, PaymentStatus } from "@/types/index";
+import { toast } from "sonner";
+
+// =====================================================
+// PAGE GESTION DES COMMANDES – version améliorée
+// =====================================================
 
 const OrdersManagement = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
   const [statusUpdating, setStatusUpdating] = useState(false);
   const [search, setSearch] = useState("");
-  const [filterStatus, setFilterStatus] = useState("");
 
+  const [filterStatus, setFilterStatus] = useState("");
   const [dateMin, setDateMin] = useState("");
   const [dateMax, setDateMax] = useState("");
+
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
   const [total, setTotal] = useState(0);
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<Order | null>(null);
-  
 
-  // Dialog edition
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [orderToEdit, setOrderToEdit] = useState<Order | null>(null);
-  const [editOrderStatus, setEditOrderStatus] = useState<Order["status"]>("pending");
-  const [editPaymentStatus, setEditPaymentStatus] = useState<PaymentStatus>("pending");
-  const [editPaymentMethod, setEditPaymentMethod] = useState<string>("");
-  const [editPaymentReference, setEditPaymentReference] = useState<string>("");
+  const [editOrderStatus, setEditOrderStatus] =
+    useState<Order["status"]>("pending");
+  const [editPaymentStatus, setEditPaymentStatus] =
+    useState<PaymentStatus>("pending");
+  const [editPaymentMethod, setEditPaymentMethod] = useState("");
+  const [editPaymentReference, setEditPaymentReference] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
 
   const navigate = useNavigate();
 
+  // ===========================================
+  // Fetch commandes
+  // ===========================================
   useEffect(() => {
     fetchOrders();
   }, [page, perPage, filterStatus, dateMin, dateMax]);
@@ -60,6 +78,7 @@ const OrdersManagement = () => {
         offset: (page - 1) * perPage,
         status: filterStatus || undefined,
       };
+
       const data = await getAllOrders(params);
       setOrders(data.orders);
       setTotal(data.total);
@@ -70,8 +89,13 @@ const OrdersManagement = () => {
     }
   };
 
-  // Met à jour seulement le statut via dropdown rapide
-  const handleStatusChange = async (orderId: string, newStatus: Order["status"]) => {
+  // ===========================================
+  // Mise à jour rapide du statut
+  // ===========================================
+  const handleStatusChange = async (
+    orderId: string,
+    newStatus: Order["status"]
+  ) => {
     setStatusUpdating(true);
     try {
       await updateOrderDetails(orderId, { status: newStatus });
@@ -84,6 +108,9 @@ const OrdersManagement = () => {
     }
   };
 
+  // ===========================================
+  // Suppression commande
+  // ===========================================
   const confirmDelete = (order: Order) => {
     setOrderToDelete(order);
     setDeleteDialogOpen(true);
@@ -104,7 +131,9 @@ const OrdersManagement = () => {
     }
   };
 
-  // Ouvrir dialogue édition avec données chargées
+  // ===========================================
+  // Edition commande (dialog)
+  // ===========================================
   const openEditDialog = (order: Order) => {
     setOrderToEdit(order);
     setEditOrderStatus(order.status);
@@ -114,7 +143,6 @@ const OrdersManagement = () => {
     setEditDialogOpen(true);
   };
 
-  // Sauvegarde modifications complètes
   const saveEdit = async () => {
     if (!orderToEdit) return;
     setSavingEdit(true);
@@ -136,9 +164,13 @@ const OrdersManagement = () => {
     }
   };
 
+  // ===========================================
+  // Filtrage recherche
+  // ===========================================
   const filteredOrders = orders.filter((order) => {
     const q = search.toLowerCase();
     const ship = order.shippingAddress;
+
     return (
       ship?.name?.toLowerCase().includes(q) ||
       ship?.phone?.toLowerCase().includes(q) ||
@@ -149,6 +181,9 @@ const OrdersManagement = () => {
 
   const totalPages = Math.ceil(total / perPage);
 
+  // ===========================================
+  // Badge statut
+  // ===========================================
   const statusBadge = (status: Order["status"]) => {
     switch (status) {
       case "pending":
@@ -164,17 +199,23 @@ const OrdersManagement = () => {
     }
   };
 
+  // ===========================================
+  // Render page
+  // ===========================================
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
-      <h1 className="text-3xl font-bold">Gestion des commandes</h1>
+      <h1 className="text-3xl font-bold">📦 Gestion des commandes</h1>
 
-      <div className="flex flex-col sm:flex-row sm:items-center gap-4 flex-wrap">
+      {/* =====================================================
+         BARRE FILTRES + RECHERCHE
+      ===================================================== */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 bg-white p-4 rounded-xl shadow-sm border">
         <input
           type="text"
-          placeholder="Rechercher par nom, téléphone, ville..."
+          placeholder="🔍 Rechercher : nom, téléphone, ville..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="flex-1 p-2 rounded border"
+          className="p-2 rounded-lg border focus:ring focus:ring-primary/30"
         />
 
         <select
@@ -183,7 +224,7 @@ const OrdersManagement = () => {
             setFilterStatus(e.target.value);
             setPage(1);
           }}
-          className="p-2 rounded border"
+          className="p-2 rounded-lg border"
         >
           <option value="">Tous les statuts</option>
           <option value="pending">En attente</option>
@@ -193,20 +234,49 @@ const OrdersManagement = () => {
           <option value="cancelled">Annulée</option>
         </select>
 
-        <input type="date" value={dateMin} onChange={(e) => setDateMin(e.target.value)} className="p-2 rounded border" />
-        <input type="date" value={dateMax} onChange={(e) => setDateMax(e.target.value)} className="p-2 rounded border" />
+        <input
+          type="date"
+          value={dateMin}
+          onChange={(e) => setDateMin(e.target.value)}
+          className="p-2 rounded-lg border"
+        />
+
+        <input
+          type="date"
+          value={dateMax}
+          onChange={(e) => setDateMax(e.target.value)}
+          className="p-2 rounded-lg border"
+        />
 
         <select
           value={perPage}
           onChange={(e) => setPerPage(Number(e.target.value))}
-          className="p-2 rounded border"
+          className="p-2 rounded-lg border"
         >
-          <option value={10}>10 par page</option>
-          <option value={20}>20 par page</option>
-          <option value={50}>50 par page</option>
+          <option value={10}>10 / page</option>
+          <option value={20}>20 / page</option>
+          <option value={50}>50 / page</option>
         </select>
+        <Button
+          variant="outline"
+          onClick={() => fetchOrders()}
+          className="flex items-center gap-2 hover:bg-blue-50"
+        >
+          <RefreshCcw className="w-4 h-4 animate-spin-slow" /> Actualiser
+        </Button>
+
+        <style>
+          {`
+        .animate-spin-slow {
+          animation: spin 2s linear infinite;
+        }
+      `}
+        </style>
       </div>
 
+      {/* =====================================================
+         TABLEAU DESKTOP
+      ===================================================== */}
       {loading ? (
         <div className="flex justify-center py-10">
           <Loader2 className="w-10 h-10 animate-spin" />
@@ -215,7 +285,8 @@ const OrdersManagement = () => {
         <p>Aucune commande trouvée.</p>
       ) : (
         <>
-          <div className="hidden md:block overflow-x-auto border rounded-lg">
+          {/* DESKTOP TABLE */}
+          <div className="hidden md:block overflow-x-auto border rounded-lg shadow-sm bg-white">
             <table className="min-w-full text-sm">
               <thead className="bg-gray-100">
                 <tr>
@@ -228,22 +299,29 @@ const OrdersManagement = () => {
                   <th>Réduction</th>
                   <th>Total final</th>
                   <th>Articles</th>
-                  <th className="w-56 text-center">Actions</th>
+                  <th className="w-64 text-center">Actions</th>
                 </tr>
               </thead>
 
               <tbody>
-                {filteredOrders.map((order) => (
-                  <tr key={order.id} className="border-t">
-                    <td className="p-3 font-mono">{order.id.slice(0, 8)}</td>
-                    <td>{order.shippingAddress?.name}</td>
+                {filteredOrders.map((order) => {
+                  const phone = order.shippingAddress?.phone?.replace(
+                    /[^0-9]/g,
+                    ""
+                  );
 
-                    <td>
-                      <Badge variant={statusBadge(order.status)}>{order.status}</Badge>
-                    </td>
+                  return (
+                    <tr key={order.id} className="border-t">
+                      <td className="p-3 font-mono">{order.id.slice(0, 8)}</td>
+                      <td>{order.shippingAddress?.name}</td>
 
-                    <td>
-                      <div className="text-xs">
+                      <td>
+                        <Badge variant={statusBadge(order.status)}>
+                          {order.status}
+                        </Badge>
+                      </td>
+
+                      <td>
                         <Badge
                           variant={
                             order.paymentStatus === "paid"
@@ -253,102 +331,222 @@ const OrdersManagement = () => {
                               : "secondary"
                           }
                         >
-                          {order.paymentStatus || "pending"}
+                          {order.paymentStatus}
                         </Badge>
-                      </div>
-                    </td>
+                      </td>
 
-                    <td>{order.createdAt ? new Date(order.createdAt).toLocaleDateString() : "—"}</td>
+                      <td>
+                        {order.createdAt
+                          ? new Date(order.createdAt).toLocaleDateString()
+                          : "—"}
+                      </td>
 
-                    <td>{order.total} FCFA</td>
-                    <td>{order.discount ? `-${order.discount}` : "-"}</td>
-                    <td className="font-bold">{order.finalTotal} FCFA</td>
+                      <td>{order.total} FCFA</td>
+                      <td>{order.discount ? `-${order.discount}` : "-"}</td>
+                      <td className="font-bold">{order.finalTotal} FCFA</td>
 
-                    <td>
-                      {order.items.length} <Package className="inline w-4 h-4 ml-1" />
-                    </td>
+                      <td>
+                        {order.items.length}{" "}
+                        <Package className="inline w-4 h-4 ml-1" />
+                      </td>
 
-                    <td className="flex items-center justify-center gap-2">
-                      <Button size="sm" variant="outline" onClick={() => navigate(`/orders/${order.id}`)} title="Voir les détails">
-                        <Eye className="w-4 h-4" />
-                      </Button>
+                      <td className="flex items-center justify-center gap-2">
+                        {/* Voir détails */}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => navigate(`/orders/${order.id}`)}
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
 
+                        {/* WhatsApp */}
+                        <Button
+                          size="sm"
+                          className="bg-green-500 hover:bg-green-600 text-white"
+                          onClick={() => {
+                            const msg = encodeURIComponent(
+                              `Bonjour ${
+                                order.shippingAddress?.name
+                              }, concernant votre commande #${order.id.slice(
+                                0,
+                                8
+                              )}…nous vous contactons pour vous tenir informé(e) que votre commande est en cours de traitement.`
+                            );
+                            window.open(
+                              `https://wa.me/${phone}?text=${msg}`,
+                              "_blank"
+                            );
+                          }}
+                        >
+                          <MessageCircle className="w-4 h-4" />
+                        </Button>
 
-                      <Button size="sm" variant="destructive" onClick={() => confirmDelete(order)} title="Supprimer la commande">
-                        <Trash className="w-4 h-4" />
-                      </Button>
+                        {/* Edit */}
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => openEditDialog(order)}
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
 
-                      <Button size="sm" variant="secondary" onClick={() => openEditDialog(order)} title="Modifier informations paiement et statut">
-                        Modifier
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
+                        {/* Delete */}
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => confirmDelete(order)}
+                        >
+                          <Trash className="w-4 h-4" />
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
 
-          {/* MOBILE CARDS */}
+          {/* =====================================================
+             MOBILE CARDS
+          ===================================================== */}
           <div className="md:hidden space-y-4">
-            {filteredOrders.map((order) => (
-              <div key={order.id} className="border rounded-xl p-4 shadow-sm">
-                <div className="flex justify-between items-center mb-2">
-                  <p className="font-semibold">{order.shippingAddress?.name}</p>
-                  <Badge variant={statusBadge(order.status)}>{order.status}</Badge>
+            {filteredOrders.map((order) => {
+              const phone = order.shippingAddress?.phone?.replace(
+                /[^0-9]/g,
+                ""
+              );
+
+              return (
+                <div
+                  key={order.id}
+                  className="border rounded-xl p-4 shadow-md bg-white"
+                >
+                  <div className="flex justify-between items-center mb-3">
+                    <p className="font-semibold text-lg">
+                      {order.shippingAddress?.name}
+                    </p>
+                    <Badge variant={statusBadge(order.status)}>
+                      {order.status}
+                    </Badge>
+                  </div>
+
+                  <div className="space-y-1 text-sm mb-3">
+                    <p>
+                      <strong>ID:</strong> {order.id.slice(0, 8)}
+                    </p>
+                    <p>
+                      <strong>Total :</strong> {order.finalTotal} FCFA
+                    </p>
+                    <p>
+                      <strong>Articles :</strong> {order.items.length}
+                    </p>
+                    <p>
+                      <strong>Paiement :</strong> {order.paymentMethod || "—"} (
+                      {order.paymentStatus})
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => navigate(`/orders/${order.id}`)}
+                    >
+                      <Eye className="w-4 h-4" /> Détails
+                    </Button>
+
+                    {/* WhatsApp mobile */}
+                    <Button
+                      size="sm"
+                      className="bg-green-500 hover:bg-green-600 text-white"
+                      onClick={() => {
+                        const msg = encodeURIComponent(
+                          `Bonjour ${
+                            order.shippingAddress?.name
+                          }, concernant votre commande #${order.id.slice(
+                            0,
+                            8
+                          )}…nous vous contactons pour vous tenir informé(e) que votre commande est en cours de traitement.`
+                        );
+                        window.open(
+                          `https://wa.me/${phone}?text=${msg}`,
+                          "_blank"
+                        );
+                      }}
+                    >
+                      <MessageCircle className="w-4 h-4" /> WhatsApp
+                    </Button>
+
+                    <select
+                      value={order.status}
+                      onChange={(e) =>
+                        handleStatusChange(
+                          order.id,
+                          e.target.value as Order["status"]
+                        )
+                      }
+                      disabled={statusUpdating}
+                      className="border rounded px-2 py-1 text-sm"
+                    >
+                      <option value="pending">En attente</option>
+                      <option value="processing">En cours</option>
+                      <option value="shipped">Expédiée</option>
+                      <option value="delivered">Livrée</option>
+                      <option value="cancelled">Annulée</option>
+                    </select>
+
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => openEditDialog(order)}
+                    >
+                      <Edit className="w-4 h-4" /> Modifier
+                    </Button>
+
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => confirmDelete(order)}
+                    >
+                      <Trash className="w-4 h-4" /> Supprimer
+                    </Button>
+                  </div>
                 </div>
-
-                <p className="text-sm">ID: {order.id.slice(0, 8)}</p>
-                <p className="text-sm">Total: {order.finalTotal} FCFA</p>
-                <p className="text-sm">Paiement: {order.paymentMethod || "—"} ({order.paymentStatus})</p>
-                <p className="text-sm">Articles: {order.items.length}</p>
-
-                <div className="flex gap-2 mt-3 flex-wrap">
-                  <Button size="sm" variant="outline" onClick={() => navigate(`/orders/${order.id}`)}>
-                    <Eye className="w-4 h-4" /> Détails
-                  </Button>
-
-                  <select
-                    value={order.status}
-                    onChange={(e) => handleStatusChange(order.id, e.target.value as Order["status"])}
-                    disabled={statusUpdating}
-                    className="border rounded px-2 py-1 text-sm"
-                    title="Modifier le statut"
-                  >
-                    <option value="pending">En attente</option>
-                    <option value="processing">En cours</option>
-                    <option value="shipped">Expédiée</option>
-                    <option value="delivered">Livrée</option>
-                    <option value="cancelled">Annulée</option>
-                  </select>
-
-                  <Button size="sm" variant="destructive" onClick={() => confirmDelete(order)}>
-                    <Trash className="w-4 h-4" /> Supprimer
-                  </Button>
-
-                  <Button size="sm" variant="secondary" onClick={() => openEditDialog(order)} title="Modifier infos paiement et statut">
-                    <Edit className="w-4 h-4" /> Modifier
-                  </Button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </>
       )}
 
-      {/* Pagination */}
+      {/* =====================================================
+         PAGINATION
+      ===================================================== */}
       {totalPages > 1 && (
         <div className="flex justify-center items-center gap-4 mt-6">
-          <Button onClick={() => setPage((p) => Math.max(p - 1, 1))} disabled={page === 1} variant="outline">
+          <Button
+            onClick={() => setPage((p) => Math.max(p - 1, 1))}
+            disabled={page === 1}
+            variant="outline"
+          >
             Précédent
           </Button>
-          <span>Page {page} / {totalPages}</span>
-          <Button onClick={() => setPage((p) => Math.min(p + 1, totalPages))} disabled={page === totalPages} variant="outline">
+          <span>
+            Page {page} / {totalPages}
+          </span>
+          <Button
+            onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
+            disabled={page === totalPages}
+            variant="outline"
+          >
             Suivant
           </Button>
         </div>
       )}
 
-      {/* DELETE DIALOG */}
+      {/* =====================================================
+         DIALOG SUPPRESSION
+      ===================================================== */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -356,13 +554,22 @@ const OrdersManagement = () => {
           </DialogHeader>
           <p>Êtes-vous sûr de vouloir supprimer cette commande ?</p>
           <DialogFooter className="mt-4 flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>Annuler</Button>
-            <Button variant="destructive" onClick={handleDelete}>Supprimer</Button>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(false)}
+            >
+              Annuler
+            </Button>
+            <Button variant="destructive" onClick={handleDelete}>
+              Supprimer
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* EDIT DIALOG */}
+      {/* =====================================================
+         DIALOG EDIT
+      ===================================================== */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -374,7 +581,9 @@ const OrdersManagement = () => {
               <label className="block font-medium mb-1">Statut commande</label>
               <select
                 value={editOrderStatus}
-                onChange={(e) => setEditOrderStatus(e.target.value as Order["status"])}
+                onChange={(e) =>
+                  setEditOrderStatus(e.target.value as Order["status"])
+                }
                 className="w-full border rounded p-2"
               >
                 <option value="pending">En attente</option>
@@ -389,7 +598,9 @@ const OrdersManagement = () => {
               <label className="block font-medium mb-1">Statut paiement</label>
               <select
                 value={editPaymentStatus}
-                onChange={(e) => setEditPaymentStatus(e.target.value as PaymentStatus)}
+                onChange={(e) =>
+                  setEditPaymentStatus(e.target.value as PaymentStatus)
+                }
                 className="w-full border rounded p-2"
               >
                 <option value="pending">Pending</option>
@@ -399,7 +610,9 @@ const OrdersManagement = () => {
             </div>
 
             <div>
-              <label className="block font-medium mb-1">Méthode de paiement</label>
+              <label className="block font-medium mb-1">
+                Méthode de paiement
+              </label>
               <input
                 type="text"
                 value={editPaymentMethod}
@@ -410,7 +623,9 @@ const OrdersManagement = () => {
             </div>
 
             <div>
-              <label className="block font-medium mb-1">Référence paiement</label>
+              <label className="block font-medium mb-1">
+                Référence paiement
+              </label>
               <input
                 type="text"
                 value={editPaymentReference}

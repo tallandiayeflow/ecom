@@ -60,11 +60,10 @@ const CategoriesManagement = () => {
 
   const [formData, setFormData] = useState({
     name: "",
-    slug: "",
     icon: "",
   });
 
-  // Charger les catégories
+  // Charger catégories
   useEffect(() => {
     loadCategories();
   }, []);
@@ -81,44 +80,24 @@ const CategoriesManagement = () => {
     }
   };
 
-  const generateSlug = (name: string): string => {
-    return name
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "");
-  };
-
   const handleOpenDialog = (category?: Category) => {
     if (category) {
       setEditingCategory(category);
       setFormData({
         name: category.name,
-        slug: category.slug,
         icon: category.icon || "",
       });
     } else {
       setEditingCategory(null);
-      setFormData({
-        name: "",
-        slug: "",
-        icon: "",
-      });
+      setFormData({ name: "", icon: "" });
     }
-    setIsDialogOpen(true);
-  };
 
-  const handleNameChange = (name: string) => {
-    setFormData({
-      ...formData,
-      name,
-      slug: editingCategory ? formData.slug : generateSlug(name),
-    });
+    setIsDialogOpen(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (!formData.name.trim()) {
       toast.error("Le nom est requis");
       return;
@@ -126,25 +105,25 @@ const CategoriesManagement = () => {
 
     try {
       setSubmitting(true);
-      const slug = formData.slug || generateSlug(formData.name);
+
       const categoryData = {
         name: formData.name.trim(),
-        slug,
+        slug: "default-slug", // 🔥 valeur fixe
         icon: formData.icon.trim() || undefined,
       };
 
       if (editingCategory) {
         await updateCategory(editingCategory.id, categoryData);
-        toast.success("Catégorie modifiée avec succès ✅");
+        toast.success("Catégorie modifiée avec succès");
       } else {
         await createCategory(categoryData);
-        toast.success("Catégorie ajoutée avec succès 🎉");
+        toast.success("Catégorie ajoutée avec succès");
       }
 
       setIsDialogOpen(false);
       loadCategories();
-    } catch (error: any) {
-      toast.error(error.response?.data?.error || "Erreur lors de la sauvegarde");
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || "Erreur lors de l'enregistrement");
     } finally {
       setSubmitting(false);
     }
@@ -157,10 +136,11 @@ const CategoriesManagement = () => {
 
   const handleDelete = async () => {
     if (!deletingCategory) return;
+
     try {
       setSubmitting(true);
       await deleteCategory(deletingCategory.id);
-      toast.success("Catégorie supprimée avec succès 🗑️");
+      toast.success("Catégorie supprimée");
       setIsDeleteDialogOpen(false);
       setDeletingCategory(null);
       loadCategories();
@@ -184,11 +164,18 @@ const CategoriesManagement = () => {
               {categories.length} catégorie(s) enregistrée(s)
             </CardDescription>
           </div>
+
           <div className="flex gap-2 mt-4 sm:mt-0">
             <Button onClick={() => handleOpenDialog()}>
               <Plus className="mr-2 h-4 w-4" /> Nouvelle Catégorie
             </Button>
-            <Button variant="outline" onClick={loadCategories} disabled={loading}>
+
+            {/* Bouton Actualiser */}
+            <Button
+              variant="outline"
+              onClick={loadCategories}
+              disabled={loading}
+            >
               <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
               Actualiser
             </Button>
@@ -196,7 +183,6 @@ const CategoriesManagement = () => {
         </CardHeader>
 
         <CardContent className="space-y-4">
-          {/* Table responsive */}
           <div className="rounded-md border overflow-hidden">
             {loading ? (
               <div className="flex items-center justify-center p-8">
@@ -208,55 +194,51 @@ const CategoriesManagement = () => {
               </div>
             ) : (
               <>
-                {/* Vue table (desktop) */}
+                {/* Vue Desktop */}
                 <div className="hidden md:block">
                   <Table>
                     <TableHeader>
                       <TableRow>
                         <TableHead>Nom</TableHead>
-                        <TableHead>Slug</TableHead>
                         <TableHead>Icône</TableHead>
                         <TableHead>Produits</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
+
                     <TableBody>
-                      {categories.map((category) => (
-                        <TableRow
-                          key={category.id}
-                          className="hover:bg-muted/40 transition-colors"
-                        >
+                      {categories.map((cat) => (
+                        <TableRow key={cat.id} className="hover:bg-muted/40">
                           <TableCell className="font-semibold">
-                            {category.name}
+                            {cat.name}
                           </TableCell>
-                          <TableCell>
-                            <code className="text-sm bg-muted px-2 py-1 rounded">
-                              {category.slug}
-                            </code>
-                          </TableCell>
+
                           <TableCell className="text-lg">
-                            {category.icon || "📁"}
+                            {cat.icon || "📁"}
                           </TableCell>
+
                           <TableCell>
                             <Badge variant="secondary">
-                              {category.productCount || 0} produit(s)
+                              {cat.productCount || 0} produit(s)
                             </Badge>
                           </TableCell>
+
                           <TableCell className="text-right">
                             <div className="flex justify-end gap-2">
                               <Button
                                 size="icon"
                                 variant="ghost"
-                                onClick={() => handleOpenDialog(category)}
+                                onClick={() => handleOpenDialog(cat)}
                               >
                                 <Pencil className="h-4 w-4" />
                               </Button>
+
                               <Button
                                 size="icon"
                                 variant="ghost"
-                                onClick={() => handleOpenDeleteDialog(category)}
                                 className="text-destructive"
-                                disabled={(category.productCount || 0) > 0}
+                                disabled={(cat.productCount || 0) > 0}
+                                onClick={() => handleOpenDeleteDialog(cat)}
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
@@ -268,7 +250,7 @@ const CategoriesManagement = () => {
                   </Table>
                 </div>
 
-                {/* Vue cartes (mobile) */}
+                {/* Vue Mobile */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:hidden">
                   {categories.map((cat) => (
                     <motion.div
@@ -282,11 +264,10 @@ const CategoriesManagement = () => {
                           {cat.productCount || 0} produit(s)
                         </Badge>
                       </div>
+
                       <h3 className="font-semibold text-lg">{cat.name}</h3>
-                      <p className="text-xs text-muted-foreground mb-2">
-                        /{cat.slug}
-                      </p>
-                      <div className="flex justify-end gap-2">
+
+                      <div className="flex justify-end gap-2 mt-2">
                         <Button
                           size="icon"
                           variant="ghost"
@@ -294,12 +275,13 @@ const CategoriesManagement = () => {
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
+
                         <Button
                           size="icon"
                           variant="ghost"
-                          onClick={() => handleOpenDeleteDialog(cat)}
                           className="text-destructive"
                           disabled={(cat.productCount || 0) > 0}
+                          onClick={() => handleOpenDeleteDialog(cat)}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -313,7 +295,7 @@ const CategoriesManagement = () => {
         </CardContent>
       </Card>
 
-      {/* Dialog Ajout / Modification */}
+      {/* Dialog Ajouter / Modifier */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -321,7 +303,7 @@ const CategoriesManagement = () => {
               {editingCategory ? "Modifier la Catégorie" : "Ajouter une Catégorie"}
             </DialogTitle>
             <DialogDescription>
-              Définissez le nom, le slug et l’icône de la catégorie.
+              Définissez le nom et l’icône de la catégorie.
             </DialogDescription>
           </DialogHeader>
 
@@ -330,24 +312,12 @@ const CategoriesManagement = () => {
               <Label>Nom *</Label>
               <Input
                 value={formData.name}
-                onChange={(e) => handleNameChange(e.target.value)}
-                placeholder="ex: Smartphones"
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Slug (URL)</Label>
-              <Input
-                value={formData.slug}
                 onChange={(e) =>
-                  setFormData({ ...formData, slug: e.target.value })
+                  setFormData({ ...formData, name: e.target.value })
                 }
-                placeholder="ex: smartphones"
+                required
+                placeholder="ex: Smartphones"
               />
-              <p className="text-xs text-muted-foreground">
-                Généré automatiquement si vide.
-              </p>
             </div>
 
             <div className="space-y-2">
@@ -370,10 +340,12 @@ const CategoriesManagement = () => {
               >
                 Annuler
               </Button>
+
               <Button type="submit" disabled={submitting}>
                 {submitting ? (
                   <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Enregistrement...
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Enregistrement...
                   </>
                 ) : editingCategory ? (
                   "Modifier"
@@ -392,17 +364,14 @@ const CategoriesManagement = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
             <AlertDialogDescription>
-              Voulez-vous vraiment supprimer la catégorie{" "}
+              Voulez-vous supprimer la catégorie{" "}
               <strong>{deletingCategory?.name}</strong> ?
-              {(deletingCategory?.productCount || 0) > 0 && (
-                <span className="block text-destructive mt-2">
-                  Cette catégorie contient des produits.
-                </span>
-              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
+
           <AlertDialogFooter>
             <AlertDialogCancel>Annuler</AlertDialogCancel>
+
             <AlertDialogAction
               onClick={handleDelete}
               disabled={(deletingCategory?.productCount || 0) > 0}
@@ -410,13 +379,15 @@ const CategoriesManagement = () => {
             >
               {submitting ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Suppression...
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Suppression...
                 </>
               ) : (
                 "Supprimer"
               )}
             </AlertDialogAction>
           </AlertDialogFooter>
+
         </AlertDialogContent>
       </AlertDialog>
     </div>
