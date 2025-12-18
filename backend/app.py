@@ -10,7 +10,7 @@ cache.init_app(app)
 
 
 # CORSssss
-"""CORS(app, resources={
+CORS(app, resources={
     r"/api/*": {
         "origins": Config.CORS_ORIGINS,
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
@@ -18,7 +18,7 @@ cache.init_app(app)
         "supports_credentials": True
     }
 })
-"""
+
 #CORS(app)
 # Blueprints tests
 app.register_blueprint(auth.bp, url_prefix='/api/auth')
