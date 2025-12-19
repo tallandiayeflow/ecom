@@ -114,9 +114,19 @@ export const Navbar = () => {
                       <p className="text-sm font-semibold">{user?.name}</p>
                       <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
                       {user?.role === 'admin' && (
+                        <>
+                        
                         <Badge className="w-fit text-xs mt-1" variant="secondary">
                           Administrateur
                         </Badge>
+                        <DropdownMenuItem
+                          onClick={() => navigate('/admin')}
+                          className="cursor-pointer"
+                        >
+                          <User className="mr-2 h-4 w-4" />
+                          Admin Panel
+                        </DropdownMenuItem>
+                        </>
                       )}
                     </div>
                   </DropdownMenuLabel>
