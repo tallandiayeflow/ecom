@@ -689,6 +689,11 @@ export const getUsers = async (): Promise<User[]> => {
   return response.data;
 };
 
+export const deleteUser = async (id: string): Promise<{ message: string }> => {
+  const response = await api.delete<{ message: string }>(`/admin/users/${id}`);
+  return response.data;
+} 
+
 // Mettre à jour un utilisateur (admin)
 export const updateUser = async (
   id: string,

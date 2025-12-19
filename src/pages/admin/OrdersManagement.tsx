@@ -1,69 +1,120 @@
 "use client";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-
-import { deleteOrder, getAllOrders, updateOrderDetails } from "@/lib/api";
-
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { deleteOrder, getAllOrders, updateOrderDetails } from "@/lib/api";
+import type { Order, PaymentStatus } from "@/types";
+import { motion } from "framer-motion";
+import {
+  AlertCircle,
+  Calendar,
+  CheckCircle,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  CreditCard,
   Edit,
   Eye,
+  Filter,
   Loader2,
+  MapPin,
   MessageCircle,
   Package,
-  RefreshCcw,
-  Trash,
+  PackageCheck,
+  RefreshCw,
+  Search,
+  ShoppingBag,
+  Trash2,
+  Truck,
+  User,
+  X,
+  XCircle,
 } from "lucide-react";
-
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-
-import type { Order, PaymentStatus } from "@/types/index";
 import { toast } from "sonner";
 
-// =====================================================
-// PAGE GESTION DES COMMANDES – version améliorée
-// =====================================================
+type OrderStatus = "pending" | "processing" | "shipped" | "delivered" | "cancelled";
 
 const OrdersManagement = () => {
+  const navigate = useNavigate();
+  
+  // State pour les commandes
   const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [statusUpdating, setStatusUpdating] = useState(false);
+  
+  // Filtres et recherche
   const [search, setSearch] = useState("");
-
-  const [filterStatus, setFilterStatus] = useState("");
+  const [filterStatus, setFilterStatus] = useState("all");
   const [dateMin, setDateMin] = useState("");
   const [dateMax, setDateMax] = useState("");
-
+  
+  // Pagination
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
   const [total, setTotal] = useState(0);
-
+  
+  // Dialog suppression
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<Order | null>(null);
-
+  
+  // Dialog édition
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [orderToEdit, setOrderToEdit] = useState<Order | null>(null);
-  const [editOrderStatus, setEditOrderStatus] =
-    useState<Order["status"]>("pending");
-  const [editPaymentStatus, setEditPaymentStatus] =
-    useState<PaymentStatus>("pending");
+  const [editOrderStatus, setEditOrderStatus] = useState<OrderStatus>("pending");
+  const [editPaymentStatus, setEditPaymentStatus] = useState<PaymentStatus>("pending");
   const [editPaymentMethod, setEditPaymentMethod] = useState("");
   const [editPaymentReference, setEditPaymentReference] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
+  
+  // Dialog détails
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
-  const navigate = useNavigate();
-
-  // ===========================================
-  // Fetch commandes
-  // ===========================================
   useEffect(() => {
     fetchOrders();
   }, [page, perPage, filterStatus, dateMin, dateMax]);
@@ -71,35 +122,48 @@ const OrdersManagement = () => {
   const fetchOrders = async () => {
     setLoading(true);
     try {
-      const params = {
-        date_min: dateMin || undefined,
-        date_max: dateMax || undefined,
+      const params: any = {
         limit: perPage,
         offset: (page - 1) * perPage,
-        status: filterStatus || undefined,
       };
 
+      if (filterStatus && filterStatus !== "all") {
+        params.status = filterStatus;
+      }
+      if (dateMin) params.date_min = dateMin;
+      if (dateMax) params.date_max = dateMax;
+
       const data = await getAllOrders(params);
-      setOrders(data.orders);
-      setTotal(data.total);
-    } catch {
+      setOrders(data.orders || []);
+      setTotal(data.total || 0);
+    } catch (error) {
       toast.error("Erreur lors du chargement des commandes");
+      console.error(error);
     } finally {
       setLoading(false);
     }
   };
 
-  // ===========================================
+  // Filtrage recherche locale
+  const filteredOrders = orders.filter((order) => {
+    if (!search) return true;
+    const q = search.toLowerCase();
+    const ship = order.shippingAddress;
+    return (
+      order.id.toLowerCase().includes(q) ||
+      ship?.name?.toLowerCase().includes(q) ||
+      ship?.phone?.toLowerCase().includes(q) ||
+      ship?.city?.toLowerCase().includes(q) ||
+      ship?.address?.toLowerCase().includes(q)
+    );
+  });
+
   // Mise à jour rapide du statut
-  // ===========================================
-  const handleStatusChange = async (
-    orderId: string,
-    newStatus: Order["status"]
-  ) => {
+  const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
     setStatusUpdating(true);
     try {
       await updateOrderDetails(orderId, { status: newStatus });
-      toast.success("Statut mis à jour");
+      toast.success("Statut mis à jour ! ✅");
       fetchOrders();
     } catch {
       toast.error("Erreur durant la mise à jour");
@@ -108,9 +172,7 @@ const OrdersManagement = () => {
     }
   };
 
-  // ===========================================
-  // Suppression commande
-  // ===========================================
+  // Suppression
   const confirmDelete = (order: Order) => {
     setOrderToDelete(order);
     setDeleteDialogOpen(true);
@@ -120,9 +182,8 @@ const OrdersManagement = () => {
     if (!orderToDelete) return;
     try {
       await deleteOrder(orderToDelete.id);
-      toast.success("Commande supprimée");
-      setOrders((prev) => prev.filter((o) => o.id !== orderToDelete.id));
-      setTotal((t) => t - 1);
+      toast.success("Commande supprimée 🗑️");
+      fetchOrders();
     } catch {
       toast.error("Erreur lors de la suppression");
     } finally {
@@ -131,12 +192,10 @@ const OrdersManagement = () => {
     }
   };
 
-  // ===========================================
-  // Edition commande (dialog)
-  // ===========================================
+  // Édition
   const openEditDialog = (order: Order) => {
     setOrderToEdit(order);
-    setEditOrderStatus(order.status);
+    setEditOrderStatus(order.status as OrderStatus);
     setEditPaymentStatus(order.paymentStatus ?? "pending");
     setEditPaymentMethod(order.paymentMethod ?? "");
     setEditPaymentReference(order.paymentReference ?? "");
@@ -153,7 +212,7 @@ const OrdersManagement = () => {
         payment_status: editPaymentStatus,
         payment_reference: editPaymentReference,
       });
-      toast.success("Mise à jour effectuée");
+      toast.success("Mise à jour effectuée ! ✅");
       setEditDialogOpen(false);
       setOrderToEdit(null);
       fetchOrders();
@@ -164,488 +223,796 @@ const OrdersManagement = () => {
     }
   };
 
-  // ===========================================
-  // Filtrage recherche
-  // ===========================================
-  const filteredOrders = orders.filter((order) => {
-    const q = search.toLowerCase();
-    const ship = order.shippingAddress;
+  // Voir détails
+  const handleViewDetails = (order: Order) => {
+    setSelectedOrder(order);
+    setDetailsDialogOpen(true);
+  };
 
-    return (
-      ship?.name?.toLowerCase().includes(q) ||
-      ship?.phone?.toLowerCase().includes(q) ||
-      ship?.city?.toLowerCase().includes(q) ||
-      ship?.address?.toLowerCase().includes(q)
+  // WhatsApp
+  const sendWhatsApp = (order: Order) => {
+    const phone = order.shippingAddress?.phone?.replace(/[^0-9]/g, "");
+    const msg = encodeURIComponent(
+      `Bonjour ${order.shippingAddress?.name}, concernant votre commande #${order.id.slice(
+        0,
+        8
+      )}… nous vous contactons pour vous tenir informé(e) que votre commande est en cours de traitement.`
     );
-  });
+    window.open(`https://wa.me/${phone}?text=${msg}`, "_blank");
+  };
+
+  // Configuration des statuts
+  const statusConfig: Record<OrderStatus, { label: string; icon: any; className: string }> = {
+    pending: {
+      label: "En attente",
+      icon: Clock,
+      className: "bg-yellow-500/10 text-yellow-500 hover:bg-yellow-500/20",
+    },
+    processing: {
+      label: "En traitement",
+      icon: Package,
+      className: "bg-purple-500/10 text-purple-500 hover:bg-purple-500/20",
+    },
+    shipped: {
+      label: "Expédiée",
+      icon: Truck,
+      className: "bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500/20",
+    },
+    delivered: {
+      label: "Livrée",
+      icon: PackageCheck,
+      className: "bg-green-500/10 text-green-500 hover:bg-green-500/20",
+    },
+    cancelled: {
+      label: "Annulée",
+      icon: XCircle,
+      className: "bg-red-500/10 text-red-500 hover:bg-red-500/20",
+    },
+  };
+
+  const getStatusBadge = (status: string) => {
+    const config = statusConfig[status as OrderStatus];
+    if (!config) return null;
+    const Icon = config.icon;
+    return (
+      <Badge className={`gap-1 ${config.className}`}>
+        <Icon className="h-3 w-3" />
+        {config.label}
+      </Badge>
+    );
+  };
+
+  const getPaymentBadge = (status?: PaymentStatus) => {
+    if (status === "paid") {
+      return <Badge className="bg-green-500/10 text-green-500 hover:bg-green-500/20">Payé</Badge>;
+    }
+    if (status === "failed") {
+      return <Badge variant="destructive">Échoué</Badge>;
+    }
+    return <Badge variant="secondary">En attente</Badge>;
+  };
+
+  // Stats
+  const stats = {
+    total: total,
+    pending: orders.filter((o) => o.status === "pending").length,
+    processing: orders.filter((o) => o.status === "processing").length,
+    delivered: orders.filter((o) => o.status === "delivered").length,
+    revenue: orders
+      .filter((o) => o.status !== "cancelled")
+      .reduce((sum, o) => sum + (o.finalTotal || o.total), 0),
+  };
 
   const totalPages = Math.ceil(total / perPage);
 
-  // ===========================================
-  // Badge statut
-  // ===========================================
-  const statusBadge = (status: Order["status"]) => {
-    switch (status) {
-      case "pending":
-        return "secondary";
-      case "processing":
-        return "warning";
-      case "shipped":
-        return "info";
-      case "delivered":
-        return "success";
-      default:
-        return "destructive";
-    }
-  };
-
-  // ===========================================
-  // Render page
-  // ===========================================
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
-      <h1 className="text-3xl font-bold">📦 Gestion des commandes</h1>
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom duration-500">
+      {/* Stats Cards */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card className="transition-all duration-300 hover:shadow-lg hover:scale-[1.02] border-primary/20">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Commandes</CardTitle>
+            <ShoppingBag className="h-4 w-4 text-primary" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.total}</div>
+            <p className="text-xs text-muted-foreground">Toutes les commandes</p>
+          </CardContent>
+        </Card>
 
-      {/* =====================================================
-         BARRE FILTRES + RECHERCHE
-      ===================================================== */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 bg-white p-4 rounded-xl shadow-sm border">
-        <input
-          type="text"
-          placeholder="🔍 Rechercher : nom, téléphone, ville..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="p-2 rounded-lg border focus:ring focus:ring-primary/30"
-        />
+        <Card className="transition-all duration-300 hover:shadow-lg hover:scale-[1.02] border-yellow-500/20">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">En Attente</CardTitle>
+            <Clock className="h-4 w-4 text-yellow-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-yellow-500">{stats.pending}</div>
+            <p className="text-xs text-muted-foreground">À traiter</p>
+          </CardContent>
+        </Card>
 
-        <select
-          value={filterStatus}
-          onChange={(e) => {
-            setFilterStatus(e.target.value);
-            setPage(1);
-          }}
-          className="p-2 rounded-lg border"
-        >
-          <option value="">Tous les statuts</option>
-          <option value="pending">En attente</option>
-          <option value="processing">En cours</option>
-          <option value="shipped">Expédiée</option>
-          <option value="delivered">Livrée</option>
-          <option value="cancelled">Annulée</option>
-        </select>
+        <Card className="transition-all duration-300 hover:shadow-lg hover:scale-[1.02] border-purple-500/20">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">En Traitement</CardTitle>
+            <Package className="h-4 w-4 text-purple-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-purple-500">{stats.processing}</div>
+            <p className="text-xs text-muted-foreground">En cours</p>
+          </CardContent>
+        </Card>
 
-        <input
-          type="date"
-          value={dateMin}
-          onChange={(e) => setDateMin(e.target.value)}
-          className="p-2 rounded-lg border"
-        />
-
-        <input
-          type="date"
-          value={dateMax}
-          onChange={(e) => setDateMax(e.target.value)}
-          className="p-2 rounded-lg border"
-        />
-
-        <select
-          value={perPage}
-          onChange={(e) => setPerPage(Number(e.target.value))}
-          className="p-2 rounded-lg border"
-        >
-          <option value={10}>10 / page</option>
-          <option value={20}>20 / page</option>
-          <option value={50}>50 / page</option>
-        </select>
-        <Button
-          variant="outline"
-          onClick={() => fetchOrders()}
-          className="flex items-center gap-2 hover:bg-blue-50"
-        >
-          <RefreshCcw className="w-4 h-4 animate-spin-slow" /> Actualiser
-        </Button>
-
-        <style>
-          {`
-        .animate-spin-slow {
-          animation: spin 2s linear infinite;
-        }
-      `}
-        </style>
+        <Card className="transition-all duration-300 hover:shadow-lg hover:scale-[1.02] border-green-500/20">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Livrées</CardTitle>
+            <PackageCheck className="h-4 w-4 text-green-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-500">{stats.delivered}</div>
+            <p className="text-xs text-muted-foreground">Complétées</p>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* =====================================================
-         TABLEAU DESKTOP
-      ===================================================== */}
-      {loading ? (
-        <div className="flex justify-center py-10">
-          <Loader2 className="w-10 h-10 animate-spin" />
-        </div>
-      ) : filteredOrders.length === 0 ? (
-        <p>Aucune commande trouvée.</p>
-      ) : (
-        <>
-          {/* DESKTOP TABLE */}
-          <div className="hidden md:block overflow-x-auto border rounded-lg shadow-sm bg-white">
-            <table className="min-w-full text-sm">
-              <thead className="bg-gray-100">
-                <tr>
-                  <th className="p-3 text-left">ID</th>
-                  <th>Client</th>
-                  <th>Statut</th>
-                  <th>Paiement</th>
-                  <th>Date</th>
-                  <th>Total</th>
-                  <th>Réduction</th>
-                  <th>Total final</th>
-                  <th>Articles</th>
-                  <th className="w-64 text-center">Actions</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {filteredOrders.map((order) => {
-                  const phone = order.shippingAddress?.phone?.replace(
-                    /[^0-9]/g,
-                    ""
-                  );
-
-                  return (
-                    <tr key={order.id} className="border-t">
-                      <td className="p-3 font-mono">{order.id.slice(0, 8)}</td>
-                      <td>{order.shippingAddress?.name}</td>
-
-                      <td>
-                        <Badge variant={statusBadge(order.status)}>
-                          {order.status}
-                        </Badge>
-                      </td>
-
-                      <td>
-                        <Badge
-                          variant={
-                            order.paymentStatus === "paid"
-                              ? "success"
-                              : order.paymentStatus === "failed"
-                              ? "destructive"
-                              : "secondary"
-                          }
-                        >
-                          {order.paymentStatus}
-                        </Badge>
-                      </td>
-
-                      <td>
-                        {order.createdAt
-                          ? new Date(order.createdAt).toLocaleDateString()
-                          : "—"}
-                      </td>
-
-                      <td>{order.total} FCFA</td>
-                      <td>{order.discount ? `-${order.discount}` : "-"}</td>
-                      <td className="font-bold">{order.finalTotal} FCFA</td>
-
-                      <td>
-                        {order.items.length}{" "}
-                        <Package className="inline w-4 h-4 ml-1" />
-                      </td>
-
-                      <td className="flex items-center justify-center gap-2">
-                        {/* Voir détails */}
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => navigate(`/orders/${order.id}`)}
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Button>
-
-                        {/* WhatsApp */}
-                        <Button
-                          size="sm"
-                          className="bg-green-500 hover:bg-green-600 text-white"
-                          onClick={() => {
-                            const msg = encodeURIComponent(
-                              `Bonjour ${
-                                order.shippingAddress?.name
-                              }, concernant votre commande #${order.id.slice(
-                                0,
-                                8
-                              )}…nous vous contactons pour vous tenir informé(e) que votre commande est en cours de traitement.`
-                            );
-                            window.open(
-                              `https://wa.me/${phone}?text=${msg}`,
-                              "_blank"
-                            );
-                          }}
-                        >
-                          <MessageCircle className="w-4 h-4" />
-                        </Button>
-
-                        {/* Edit */}
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          onClick={() => openEditDialog(order)}
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Button>
-
-                        {/* Delete */}
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => confirmDelete(order)}
-                        >
-                          <Trash className="w-4 h-4" />
-                        </Button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          {/* =====================================================
-             MOBILE CARDS
-          ===================================================== */}
-          <div className="md:hidden space-y-4">
-            {filteredOrders.map((order) => {
-              const phone = order.shippingAddress?.phone?.replace(
-                /[^0-9]/g,
-                ""
-              );
-
-              return (
-                <div
-                  key={order.id}
-                  className="border rounded-xl p-4 shadow-md bg-white"
-                >
-                  <div className="flex justify-between items-center mb-3">
-                    <p className="font-semibold text-lg">
-                      {order.shippingAddress?.name}
-                    </p>
-                    <Badge variant={statusBadge(order.status)}>
-                      {order.status}
-                    </Badge>
-                  </div>
-
-                  <div className="space-y-1 text-sm mb-3">
-                    <p>
-                      <strong>ID:</strong> {order.id.slice(0, 8)}
-                    </p>
-                    <p>
-                      <strong>Total :</strong> {order.finalTotal} FCFA
-                    </p>
-                    <p>
-                      <strong>Articles :</strong> {order.items.length}
-                    </p>
-                    <p>
-                      <strong>Paiement :</strong> {order.paymentMethod || "—"} (
-                      {order.paymentStatus})
-                    </p>
-                  </div>
-
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => navigate(`/orders/${order.id}`)}
-                    >
-                      <Eye className="w-4 h-4" /> Détails
-                    </Button>
-
-                    {/* WhatsApp mobile */}
-                    <Button
-                      size="sm"
-                      className="bg-green-500 hover:bg-green-600 text-white"
-                      onClick={() => {
-                        const msg = encodeURIComponent(
-                          `Bonjour ${
-                            order.shippingAddress?.name
-                          }, concernant votre commande #${order.id.slice(
-                            0,
-                            8
-                          )}…nous vous contactons pour vous tenir informé(e) que votre commande est en cours de traitement.`
-                        );
-                        window.open(
-                          `https://wa.me/${phone}?text=${msg}`,
-                          "_blank"
-                        );
-                      }}
-                    >
-                      <MessageCircle className="w-4 h-4" /> WhatsApp
-                    </Button>
-
-                    <select
-                      value={order.status}
-                      onChange={(e) =>
-                        handleStatusChange(
-                          order.id,
-                          e.target.value as Order["status"]
-                        )
-                      }
-                      disabled={statusUpdating}
-                      className="border rounded px-2 py-1 text-sm"
-                    >
-                      <option value="pending">En attente</option>
-                      <option value="processing">En cours</option>
-                      <option value="shipped">Expédiée</option>
-                      <option value="delivered">Livrée</option>
-                      <option value="cancelled">Annulée</option>
-                    </select>
-
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => openEditDialog(order)}
-                    >
-                      <Edit className="w-4 h-4" /> Modifier
-                    </Button>
-
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => confirmDelete(order)}
-                    >
-                      <Trash className="w-4 h-4" /> Supprimer
-                    </Button>
-                  </div>
+      {/* Main Card */}
+      <Card className="border-primary/10 shadow-lg">
+        <CardHeader className="bg-gradient-to-r from-primary/5 via-transparent to-transparent">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="space-y-1">
+              <CardTitle className="text-2xl flex items-center gap-2">
+                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg">
+                  <ShoppingBag className="h-5 w-5 text-primary-foreground" />
                 </div>
-              );
-            })}
-          </div>
-        </>
-      )}
-
-      {/* =====================================================
-         PAGINATION
-      ===================================================== */}
-      {totalPages > 1 && (
-        <div className="flex justify-center items-center gap-4 mt-6">
-          <Button
-            onClick={() => setPage((p) => Math.max(p - 1, 1))}
-            disabled={page === 1}
-            variant="outline"
-          >
-            Précédent
-          </Button>
-          <span>
-            Page {page} / {totalPages}
-          </span>
-          <Button
-            onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
-            disabled={page === totalPages}
-            variant="outline"
-          >
-            Suivant
-          </Button>
-        </div>
-      )}
-
-      {/* =====================================================
-         DIALOG SUPPRESSION
-      ===================================================== */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirmer la suppression</DialogTitle>
-          </DialogHeader>
-          <p>Êtes-vous sûr de vouloir supprimer cette commande ?</p>
-          <DialogFooter className="mt-4 flex justify-end gap-2">
+                Gestion des Commandes
+              </CardTitle>
+              <CardDescription className="text-sm">
+                {filteredOrders.length} commande(s) • {stats.revenue.toLocaleString()} FCFA
+              </CardDescription>
+            </div>
             <Button
               variant="outline"
-              onClick={() => setDeleteDialogOpen(false)}
+              onClick={fetchOrders}
+              disabled={loading}
+              className="transition-all duration-300 hover:scale-105"
             >
-              Annuler
+              <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+              Actualiser
             </Button>
-            <Button variant="destructive" onClick={handleDelete}>
-              Supprimer
-            </Button>
-          </DialogFooter>
+          </div>
+        </CardHeader>
+
+        <CardContent className="space-y-4 p-6">
+          {/* Filters */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3">
+            {/* Recherche */}
+            <div className="relative lg:col-span-2">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Rechercher : nom, téléphone, ville..."
+                className="pl-10 h-11"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              {search && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8"
+                  onClick={() => setSearch("")}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+
+            {/* Filtre statut */}
+            <Select value={filterStatus} onValueChange={(v) => { setFilterStatus(v); setPage(1); }}>
+              <SelectTrigger className="h-11">
+                <Filter className="mr-2 h-4 w-4" />
+                <SelectValue placeholder="Statut" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les statuts</SelectItem>
+                <SelectItem value="pending">En attente</SelectItem>
+                <SelectItem value="processing">En traitement</SelectItem>
+                <SelectItem value="shipped">Expédiée</SelectItem>
+                <SelectItem value="delivered">Livrée</SelectItem>
+                <SelectItem value="cancelled">Annulée</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Date min */}
+            <Input
+              type="date"
+              value={dateMin}
+              onChange={(e) => setDateMin(e.target.value)}
+              className="h-11"
+            />
+
+            {/* Date max */}
+            <Input
+              type="date"
+              value={dateMax}
+              onChange={(e) => setDateMax(e.target.value)}
+              className="h-11"
+            />
+
+            {/* Items par page */}
+            <Select value={perPage.toString()} onValueChange={(v) => setPerPage(Number(v))}>
+              <SelectTrigger className="h-11">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="10">10 / page</SelectItem>
+                <SelectItem value="20">20 / page</SelectItem>
+                <SelectItem value="50">50 / page</SelectItem>
+                <SelectItem value="100">100 / page</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Table */}
+          <div className="rounded-lg border overflow-hidden bg-card">
+            {loading ? (
+              <div className="p-8 space-y-4">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} className="flex items-center gap-4">
+                    <Skeleton className="h-16 w-16 rounded-lg" />
+                    <div className="space-y-2 flex-1">
+                      <Skeleton className="h-4 w-1/3" />
+                      <Skeleton className="h-3 w-1/4" />
+                    </div>
+                    <Skeleton className="h-8 w-24" />
+                  </div>
+                ))}
+              </div>
+            ) : filteredOrders.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <div className="h-20 w-20 rounded-full bg-muted flex items-center justify-center mb-4">
+                  <ShoppingBag className="h-10 w-10 text-muted-foreground" />
+                </div>
+                <h3 className="text-lg font-semibold mb-2">Aucune commande trouvée</h3>
+                <p className="text-muted-foreground max-w-md">
+                  {search || filterStatus !== "all" || dateMin || dateMax
+                    ? "Essayez de modifier vos critères de recherche"
+                    : "Les commandes apparaîtront ici une fois qu'elles seront passées"}
+                </p>
+              </div>
+            ) : (
+              <>
+                {/* Desktop Table */}
+                <div className="hidden lg:block overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="hover:bg-transparent border-b-2">
+                        <TableHead className="font-semibold">ID</TableHead>
+                        <TableHead className="font-semibold">Client</TableHead>
+                        <TableHead className="font-semibold">Date</TableHead>
+                        <TableHead className="font-semibold">Total</TableHead>
+                        <TableHead className="font-semibold">Réduction</TableHead>
+                        <TableHead className="font-semibold">Final</TableHead>
+                        <TableHead className="font-semibold text-center">Statut</TableHead>
+                        <TableHead className="font-semibold text-center">Paiement</TableHead>
+                        <TableHead className="font-semibold text-center">Articles</TableHead>
+                        <TableHead className="font-semibold text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredOrders.map((order, index) => (
+                        <motion.tr
+                          key={order.id}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: index * 0.05 }}
+                          className="group hover:bg-accent/50 transition-all duration-200 border-b"
+                        >
+                          <TableCell>
+                            <p className="font-mono font-semibold text-sm">
+                              #{order.id.slice(0, 8)}
+                            </p>
+                          </TableCell>
+                          <TableCell>
+                            <div className="space-y-1">
+                              <p className="font-medium">{order.shippingAddress?.name || "N/A"}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {order.shippingAddress?.phone || "N/A"}
+                              </p>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <Calendar className="h-4 w-4" />
+                              {order.createdAt
+                                ? new Date(order.createdAt).toLocaleDateString("fr-FR")
+                                : "N/A"}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <p className="font-medium">{order.total.toLocaleString()} FCFA</p>
+                          </TableCell>
+                          <TableCell>
+                            {order.discount && order.discount > 0 ? (
+                              <p className="text-sm text-green-500">
+                                -{order.discount.toLocaleString()}
+                              </p>
+                            ) : (
+                              <p className="text-muted-foreground">-</p>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <p className="font-bold text-primary">
+                              {(order.finalTotal || order.total).toLocaleString()} FCFA
+                            </p>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {getStatusBadge(order.status)}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {getPaymentBadge(order.paymentStatus)}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <div className="flex items-center justify-center gap-1">
+                              <span className="font-medium">{order.items?.length || 0}</span>
+                              <Package className="h-4 w-4 text-muted-foreground" />
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-1">
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => handleViewDetails(order)}
+                                className="h-9 w-9 hover:bg-primary/10 hover:text-primary"
+                                title="Voir détails"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => sendWhatsApp(order)}
+                                className="h-9 w-9 hover:bg-green-500/10 hover:text-green-500"
+                                title="Envoyer WhatsApp"
+                              >
+                                <MessageCircle className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => openEditDialog(order)}
+                                className="h-9 w-9 hover:bg-blue-500/10 hover:text-blue-500"
+                                title="Modifier"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => confirmDelete(order)}
+                                className="h-9 w-9 hover:bg-destructive/10 hover:text-destructive"
+                                title="Supprimer"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </motion.tr>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                {/* Mobile Cards */}
+                <div className="lg:hidden p-4 space-y-4">
+                  {filteredOrders.map((order, index) => (
+                    <motion.div
+                      key={order.id}
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: index * 0.05 }}
+                    >
+                      <Card className="overflow-hidden border-primary/20">
+                        <CardContent className="p-4 space-y-4">
+                          <div className="flex items-start justify-between">
+                            <div className="space-y-1">
+                              <p className="font-semibold">{order.shippingAddress?.name || "N/A"}</p>
+                              <p className="font-mono text-xs text-muted-foreground">
+                                #{order.id.slice(0, 8)}
+                              </p>
+                            </div>
+                            {getStatusBadge(order.status)}
+                          </div>
+
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Total:</span>
+                              <span className="font-bold text-primary">
+                                {(order.finalTotal || order.total).toLocaleString()} FCFA
+                              </span>
+                            </div>
+                            {order.discount && order.discount > 0 && (
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">Réduction:</span>
+                                <span className="text-green-500">-{order.discount.toLocaleString()}</span>
+                              </div>
+                            )}
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Articles:</span>
+                              <span>{order.items?.length || 0}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Paiement:</span>
+                              {getPaymentBadge(order.paymentStatus)}
+                            </div>
+                          </div>
+
+                          {/* Actions Mobile */}
+                          <div className="grid grid-cols-2 gap-2 pt-2 border-t">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleViewDetails(order)}
+                              className="w-full"
+                            >
+                              <Eye className="h-4 w-4 mr-2" />
+                              Détails
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => sendWhatsApp(order)}
+                              className="w-full bg-green-500/10 hover:bg-green-500/20 text-green-600"
+                            >
+                              <MessageCircle className="h-4 w-4 mr-2" />
+                              WhatsApp
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => openEditDialog(order)}
+                              className="w-full"
+                            >
+                              <Edit className="h-4 w-4 mr-2" />
+                              Modifier
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => confirmDelete(order)}
+                              className="w-full text-destructive hover:bg-destructive/10"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Supprimer
+                            </Button>
+                          </div>
+
+                          {/* Status Quick Change Mobile */}
+                          <Select
+                            value={order.status}
+                            onValueChange={(v) => handleStatusChange(order.id, v as OrderStatus)}
+                            disabled={statusUpdating}
+                          >
+                            <SelectTrigger className="w-full">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="pending">En attente</SelectItem>
+                              <SelectItem value="processing">En traitement</SelectItem>
+                              <SelectItem value="shipped">Expédiée</SelectItem>
+                              <SelectItem value="delivered">Livrée</SelectItem>
+                              <SelectItem value="cancelled">Annulée</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </CardContent>
+                      </Card>
+                    </motion.div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t">
+              <p className="text-sm text-muted-foreground">
+                Page <span className="font-semibold text-foreground">{page}</span> sur{" "}
+                <span className="font-semibold text-foreground">{totalPages}</span>
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                >
+                  <ChevronLeft className="h-4 w-4 mr-1" />
+                  Précédent
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                >
+                  Suivant
+                  <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Dialog Détails */}
+      <Dialog open={detailsDialogOpen} onOpenChange={setDetailsDialogOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-2xl flex items-center gap-2">
+              <Eye className="h-5 w-5 text-primary" />
+              Détails de la commande
+            </DialogTitle>
+            <DialogDescription>Commande #{selectedOrder?.id.slice(0, 8)}</DialogDescription>
+          </DialogHeader>
+
+          {selectedOrder && (
+            <div className="space-y-6">
+              {/* Info Client */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase flex items-center gap-2">
+                  <User className="h-4 w-4" />
+                  Informations Client
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg">
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Nom</Label>
+                    <p className="font-medium">{selectedOrder.shippingAddress?.name || "N/A"}</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Téléphone</Label>
+                    <p className="font-medium">{selectedOrder.shippingAddress?.phone || "N/A"}</p>
+                  </div>
+                  <div className="md:col-span-2">
+                    <Label className="text-xs text-muted-foreground">Date</Label>
+                    <p className="font-medium">
+                      {selectedOrder.createdAt
+                        ? new Date(selectedOrder.createdAt).toLocaleString("fr-FR")
+                        : "N/A"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Adresse */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase flex items-center gap-2">
+                  <MapPin className="h-4 w-4" />
+                  Adresse de Livraison
+                </h3>
+                <div className="p-4 bg-muted/30 rounded-lg space-y-1">
+                  <p className="font-medium">{selectedOrder.shippingAddress?.address || "N/A"}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedOrder.shippingAddress?.city || ""}
+                  </p>
+                </div>
+              </div>
+
+              {/* Articles */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase flex items-center gap-2">
+                  <Package className="h-4 w-4" />
+                  Articles ({selectedOrder.items?.length || 0})
+                </h3>
+                <div className="space-y-3">
+                  {selectedOrder.items?.map((item) => (
+                    <div key={item.id} className="flex items-center gap-4 p-3 border rounded-lg">
+                      {item.productImage && (
+                        <img
+                          src={item.productImage}
+                          alt={item.name}
+                          className="h-16 w-16 rounded-lg object-cover"
+                        />
+                      )}
+                      <div className="flex-1">
+                        <p className="font-semibold">{item.name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          Qté: {item.quantity} • {item.price.toLocaleString()} FCFA
+                        </p>
+                      </div>
+                      <p className="font-bold text-primary">
+                        {(item.price * item.quantity).toLocaleString()} FCFA
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Résumé */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase flex items-center gap-2">
+                  <CreditCard className="h-4 w-4" />
+                  Résumé
+                </h3>
+                <div className="space-y-2 p-4 bg-muted/30 rounded-lg">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Sous-total</span>
+                    <span className="font-medium">{selectedOrder.total.toLocaleString()} FCFA</span>
+                  </div>
+                  {selectedOrder.discount && selectedOrder.discount > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Réduction</span>
+                      <span className="font-medium text-green-500">
+                        -{selectedOrder.discount.toLocaleString()} FCFA
+                      </span>
+                    </div>
+                  )}
+                  {selectedOrder.voucherCode && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Code promo</span>
+                      <Badge variant="secondary">{selectedOrder.voucherCode}</Badge>
+                    </div>
+                  )}
+                  <div className="flex justify-between pt-2 border-t">
+                    <span className="font-semibold">Total</span>
+                    <span className="text-xl font-bold text-primary">
+                      {(selectedOrder.finalTotal || selectedOrder.total).toLocaleString()} FCFA
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Paiement */}
+              <div className="p-4 bg-primary/5 rounded-lg border border-primary/20 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Méthode:</span>
+                  <span>{selectedOrder.paymentMethod || "Non spécifié"}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Statut paiement:</span>
+                  {getPaymentBadge(selectedOrder.paymentStatus)}
+                </div>
+                {selectedOrder.paymentReference && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">Référence:</span>
+                    <code className="text-xs bg-muted px-2 py-1 rounded">
+                      {selectedOrder.paymentReference}
+                    </code>
+                  </div>
+                )}
+              </div>
+
+              {/* Statut actuel */}
+              <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium">Statut:</span>
+                  {getStatusBadge(selectedOrder.status)}
+                </div>
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setDetailsDialogOpen(false);
+                    openEditDialog(selectedOrder);
+                  }}
+                >
+                  Modifier
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
-      {/* =====================================================
-         DIALOG EDIT
-      ===================================================== */}
+      {/* Dialog Edit */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Modifier la commande</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit className="h-5 w-5 text-primary" />
+              Modifier la commande
+            </DialogTitle>
+            <DialogDescription>Commande #{orderToEdit?.id.slice(0, 8)}</DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 mt-2">
-            <div>
-              <label className="block font-medium mb-1">Statut commande</label>
-              <select
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Statut commande</Label>
+              <Select
                 value={editOrderStatus}
-                onChange={(e) =>
-                  setEditOrderStatus(e.target.value as Order["status"])
-                }
-                className="w-full border rounded p-2"
+                onValueChange={(v) => setEditOrderStatus(v as OrderStatus)}
               >
-                <option value="pending">En attente</option>
-                <option value="processing">En cours</option>
-                <option value="shipped">Expédiée</option>
-                <option value="delivered">Livrée</option>
-                <option value="cancelled">Annulée</option>
-              </select>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pending">En attente</SelectItem>
+                  <SelectItem value="processing">En traitement</SelectItem>
+                  <SelectItem value="shipped">Expédiée</SelectItem>
+                  <SelectItem value="delivered">Livrée</SelectItem>
+                  <SelectItem value="cancelled">Annulée</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
-            <div>
-              <label className="block font-medium mb-1">Statut paiement</label>
-              <select
+            <div className="space-y-2">
+              <Label>Statut paiement</Label>
+              <Select
                 value={editPaymentStatus}
-                onChange={(e) =>
-                  setEditPaymentStatus(e.target.value as PaymentStatus)
-                }
-                className="w-full border rounded p-2"
+                onValueChange={(v) => setEditPaymentStatus(v as PaymentStatus)}
               >
-                <option value="pending">Pending</option>
-                <option value="paid">Paid</option>
-                <option value="failed">Failed</option>
-              </select>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pending">En attente</SelectItem>
+                  <SelectItem value="paid">Payé</SelectItem>
+                  <SelectItem value="failed">Échoué</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
-            <div>
-              <label className="block font-medium mb-1">
-                Méthode de paiement
-              </label>
-              <input
-                type="text"
+            <div className="space-y-2">
+              <Label>Méthode de paiement</Label>
+              <Input
                 value={editPaymentMethod}
                 onChange={(e) => setEditPaymentMethod(e.target.value)}
-                className="w-full border rounded p-2"
-                placeholder="Ex : Orange Money"
+                placeholder="Ex : Orange Money, Wave..."
               />
             </div>
 
-            <div>
-              <label className="block font-medium mb-1">
-                Référence paiement
-              </label>
-              <input
-                type="text"
+            <div className="space-y-2">
+              <Label>Référence paiement</Label>
+              <Input
                 value={editPaymentReference}
                 onChange={(e) => setEditPaymentReference(e.target.value)}
-                className="w-full border rounded p-2"
                 placeholder="Référence de transaction"
               />
             </div>
           </div>
 
-          <DialogFooter className="mt-4 flex justify-end gap-2">
+          <DialogFooter>
             <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
               Annuler
             </Button>
-            <Button onClick={saveEdit} disabled={savingEdit}>
-              {savingEdit ? "Sauvegarde..." : "Sauvegarder"}
+            <Button onClick={saveEdit} disabled={savingEdit} className="min-w-[100px]">
+              {savingEdit ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Sauvegarde...
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="mr-2 h-4 w-4" />
+                  Sauvegarder
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Dialog Delete */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-destructive" />
+              Confirmer la suppression
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Êtes-vous sûr de vouloir supprimer la commande{" "}
+              <span className="font-semibold">#{orderToDelete?.id.slice(0, 8)}</span> ? Cette
+              action est irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive">
+              <Trash2 className="mr-2 h-4 w-4" />
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

@@ -36,6 +36,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -55,13 +56,22 @@ import {
 import type { Category, Product } from "@/types";
 import { motion } from "framer-motion";
 import {
+  AlertCircle,
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+  Filter,
+  ImageIcon,
   Loader2,
   Package,
+  PackageOpen,
   Pencil,
   Plus,
   RefreshCw,
   Search,
+  Tag,
   Trash2,
+  X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -228,51 +238,121 @@ const ProductsManagement = () => {
     }
   };
 
+  const getStockBadge = (quantity: number) => {
+    if (quantity === 0) {
+      return <Badge variant="destructive" className="gap-1"><AlertCircle className="h-3 w-3" />Rupture</Badge>;
+    }
+    if (quantity < 10) {
+      return <Badge variant="secondary" className="gap-1 bg-orange-500/10 text-orange-500 hover:bg-orange-500/20"><AlertCircle className="h-3 w-3" />Stock faible</Badge>;
+    }
+    return <Badge variant="default" className="gap-1 bg-green-500/10 text-green-500 hover:bg-green-500/20"><Package className="h-3 w-3" />En stock</Badge>;
+  };
+
   return (
-    <div className="space-y-6 px-2 sm:px-4 md:px-6">
-      <Card className="shadow-sm border-border/60">
-        <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <CardTitle className="text-lg md:text-xl font-bold flex items-center gap-2">
-              <Package className="h-5 w-5 text-primary" />
-              Gestion des Produits
-            </CardTitle>
-            <CardDescription className="text-sm text-muted-foreground">
-              {totalProducts} produit(s) enregistré(s)
-            </CardDescription>
-          </div>
-          <div className="flex gap-2 flex-wrap justify-end">
-            <Button onClick={() => handleOpenDialog()} size="sm">
-              <Plus className="mr-2 h-4 w-4" /> Ajouter
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={loadProducts}
-              disabled={loading}
-            >
-              <RefreshCw
-                className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`}
-              />
-              Actualiser
-            </Button>
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom duration-500">
+      {/* Stats Cards */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card className="transition-all duration-300 hover:shadow-lg hover:scale-[1.02] border-primary/20">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Produits</CardTitle>
+            <Package className="h-4 w-4 text-primary" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalProducts}</div>
+            <p className="text-xs text-muted-foreground">Produits enregistrés</p>
+          </CardContent>
+        </Card>
+
+        <Card className="transition-all duration-300 hover:shadow-lg hover:scale-[1.02] border-green-500/20">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">En Stock</CardTitle>
+            <PackageOpen className="h-4 w-4 text-green-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-500">
+              {products.filter(p => p.stockQuantity > 0).length}
+            </div>
+            <p className="text-xs text-muted-foreground">Produits disponibles</p>
+          </CardContent>
+        </Card>
+
+        <Card className="transition-all duration-300 hover:shadow-lg hover:scale-[1.02] border-orange-500/20">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Catégories</CardTitle>
+            <Tag className="h-4 w-4 text-orange-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-orange-500">
+              {categories.length}
+            </div>
+            <p className="text-xs text-muted-foreground">Catégories actives</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Main Card */}
+      <Card className="border-primary/10 shadow-lg">
+        <CardHeader className="bg-gradient-to-r from-primary/5 via-transparent to-transparent">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="space-y-1">
+              <CardTitle className="text-2xl flex items-center gap-2">
+                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg">
+                  <Package className="h-5 w-5 text-primary-foreground" />
+                </div>
+                Gestion des Produits
+              </CardTitle>
+              <CardDescription className="text-sm">
+                {totalProducts} produit(s) • {products.filter(p => p.stockQuantity > 0).length} disponible(s)
+              </CardDescription>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              <Button
+                onClick={() => handleOpenDialog()}
+                className="transition-all duration-300 hover:scale-105 hover:shadow-lg"
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Ajouter un produit
+              </Button>
+              <Button
+                variant="outline"
+                onClick={loadProducts}
+                disabled={loading}
+                className="transition-all duration-300 hover:scale-105"
+              >
+                <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+                Actualiser
+              </Button>
+            </div>
           </div>
         </CardHeader>
 
-        <CardContent className="space-y-4">
-          {/* Barre de recherche + filtre */}
-          <div className="flex flex-col md:flex-row gap-3">
+        <CardContent className="space-y-4 p-6">
+          {/* Filters */}
+          <div className="flex flex-col lg:flex-row gap-3">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Rechercher un produit..."
-                className="pl-10"
+                placeholder="Rechercher par nom, marque ou catégorie..."
+                className="pl-10 h-11 transition-all duration-300 focus:ring-2 focus:ring-primary/20"
                 value={searchTerm}
                 onChange={(e) => {
                   setSearchTerm(e.target.value);
                   setCurrentPage(1);
                 }}
               />
+              {searchTerm && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8"
+                  onClick={() => {
+                    setSearchTerm("");
+                    setCurrentPage(1);
+                  }}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
             </div>
             <Select
               value={selectedCategory}
@@ -281,11 +361,14 @@ const ProductsManagement = () => {
                 setCurrentPage(1);
               }}
             >
-              <SelectTrigger className="md:w-[220px]">
-                <SelectValue placeholder="Catégorie" />
+              <SelectTrigger className="lg:w-[280px] h-11 transition-all duration-300 hover:border-primary/50">
+                <Filter className="mr-2 h-4 w-4" />
+                <SelectValue placeholder="Filtrer par catégorie" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Toutes les catégories</SelectItem>
+                <SelectItem value="all">
+                  <span className="font-medium">Toutes les catégories</span>
+                </SelectItem>
                 {categories.map((cat) => (
                   <SelectItem key={cat.id} value={cat.slug}>
                     {cat.name}
@@ -295,146 +378,215 @@ const ProductsManagement = () => {
             </Select>
           </div>
 
-          {/* Table ou liste responsive */}
-          <div className="rounded-md border overflow-hidden">
+          {/* Table */}
+          <div className="rounded-lg border overflow-hidden bg-card">
             {loading ? (
-              <div className="flex items-center justify-center p-8">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <div className="p-8 space-y-4">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} className="flex items-center gap-4">
+                    <Skeleton className="h-14 w-14 rounded-lg" />
+                    <div className="space-y-2 flex-1">
+                      <Skeleton className="h-4 w-1/3" />
+                      <Skeleton className="h-3 w-1/4" />
+                    </div>
+                    <Skeleton className="h-8 w-24" />
+                  </div>
+                ))}
               </div>
             ) : products.length === 0 ? (
-              <div className="p-8 text-center text-muted-foreground">
-                Aucun produit trouvé
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <div className="h-20 w-20 rounded-full bg-muted flex items-center justify-center mb-4">
+                  <Package className="h-10 w-10 text-muted-foreground" />
+                </div>
+                <h3 className="text-lg font-semibold mb-2">Aucun produit trouvé</h3>
+                <p className="text-muted-foreground mb-6 max-w-md">
+                  {searchTerm || selectedCategory !== "all"
+                    ? "Essayez de modifier vos critères de recherche"
+                    : "Commencez par ajouter votre premier produit"}
+                </p>
+                {!searchTerm && selectedCategory === "all" && (
+                  <Button onClick={() => handleOpenDialog()}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Ajouter un produit
+                  </Button>
+                )}
               </div>
             ) : (
               <>
-                {/* Desktop table */}
-                <div className="hidden md:block">
+                {/* Desktop Table */}
+                <div className="hidden lg:block">
                   <Table>
                     <TableHeader>
-                      <TableRow>
-                        <TableHead>Produit</TableHead>
-                        <TableHead>Catégorie</TableHead>
-                        <TableHead>Prix</TableHead>
-                        <TableHead>Stock</TableHead>
-                        <TableHead>Statut</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
+                      <TableRow className="hover:bg-transparent border-b-2">
+                        <TableHead className="font-semibold">Produit</TableHead>
+                        <TableHead className="font-semibold">Catégorie</TableHead>
+                        <TableHead className="font-semibold">Prix</TableHead>
+                        <TableHead className="font-semibold text-center">Stock</TableHead>
+                        <TableHead className="font-semibold text-center">Statut</TableHead>
+                        <TableHead className="font-semibold text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {products.map((product) => (
-                        <TableRow
+                      {products.map((product, index) => (
+                        <motion.tr
                           key={product.id}
-                          className="hover:bg-muted/40 transition-colors"
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: index * 0.05 }}
+                          className="group hover:bg-accent/50 transition-all duration-200 border-b"
                         >
                           <TableCell>
                             <div className="flex items-center gap-3">
-                              {product.images[0] && (
-                                <img
-                                  src={product.images[0]}
-                                  alt={product.name}
-                                  className="h-10 w-10 rounded object-cover border"
-                                />
-                              )}
-                              <div>
-                                <p className="font-semibold">{product.name}</p>
-                                <p className="text-xs text-muted-foreground">
-                                  {product.brand}
+                              <div className="relative h-14 w-14 rounded-lg overflow-hidden bg-muted ring-2 ring-border transition-all duration-300 group-hover:ring-primary group-hover:scale-110">
+                                {product.images[0] ? (
+                                  <img
+                                    src={product.images[0]}
+                                    alt={product.name}
+                                    className="h-full w-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="h-full w-full flex items-center justify-center">
+                                    <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                                  </div>
+                                )}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="font-semibold truncate group-hover:text-primary transition-colors">
+                                  {product.name}
+                                </p>
+                                <p className="text-xs text-muted-foreground truncate">
+                                  {product.brand || "Sans marque"}
                                 </p>
                               </div>
                             </div>
                           </TableCell>
-                          <TableCell>{product.category}</TableCell>
                           <TableCell>
-                            <span className="font-medium">
-                              {product.price.toLocaleString()} FCFA
-                            </span>
-                          </TableCell>
-                          <TableCell>{product.stockQuantity}</TableCell>
-                          <TableCell>
-                            <Badge
-                              variant={
-                                product.stockQuantity > 0
-                                  ? "default"
-                                  : "destructive"
-                              }
-                            >
-                              {product.stockQuantity > 0
-                                ? "En stock"
-                                : "Rupture"}
+                            <Badge variant="outline" className="capitalize">
+                              {product.category}
                             </Badge>
                           </TableCell>
+                          <TableCell>
+                            <div className="space-y-1">
+                              <span className="font-bold text-primary">
+                                {product.price.toLocaleString()} FCFA
+                              </span>
+                              {product.originalPrice && (
+                                <p className="text-xs text-muted-foreground line-through">
+                                  {product.originalPrice.toLocaleString()} FCFA
+                                </p>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <span className="font-mono font-semibold">
+                              {product.stockQuantity}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {getStockBadge(product.stockQuantity)}
+                          </TableCell>
                           <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
+                            <div className="flex justify-end gap-1">
                               <Button
                                 size="icon"
                                 variant="ghost"
                                 onClick={() => handleOpenDialog(product)}
+                                className="h-9 w-9 transition-all duration-300 hover:scale-110 hover:bg-primary/10 hover:text-primary"
                               >
                                 <Pencil className="h-4 w-4" />
                               </Button>
                               <Button
                                 size="icon"
                                 variant="ghost"
-                                onClick={() =>
-                                  handleOpenDeleteDialog(product)
-                                }
-                                className="text-destructive"
+                                onClick={() => handleOpenDeleteDialog(product)}
+                                className="h-9 w-9 text-destructive transition-all duration-300 hover:scale-110 hover:bg-destructive/10"
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
                             </div>
                           </TableCell>
-                        </TableRow>
+                        </motion.tr>
                       ))}
                     </TableBody>
                   </Table>
                 </div>
 
-                {/* Mobile / tablette : cartes */}
-                <div className="md:hidden grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {products.map((p) => (
+                {/* Mobile Cards */}
+                <div className="lg:hidden p-4 space-y-4">
+                  {products.map((product, index) => (
                     <motion.div
-                      key={p.id}
-                      className="border rounded-lg p-3 flex flex-col gap-2 shadow-sm hover:shadow-md transition-all"
+                      key={product.id}
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: index * 0.05 }}
                     >
-                      <img
-                        src={p.images[0]}
-                        alt={p.name}
-                        className="h-36 w-full object-cover rounded"
-                      />
-                      <div className="flex justify-between items-center">
-                        <span className="font-semibold text-sm">{p.name}</span>
-                        <Badge
-                          variant={
-                            p.stockQuantity > 0 ? "default" : "destructive"
-                          }
-                        >
-                          {p.stockQuantity > 0 ? "En stock" : "Rupture"}
-                        </Badge>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        {p.brand}
-                      </p>
-                      <p className="font-bold text-primary text-sm">
-                        {p.price.toLocaleString()} FCFA
-                      </p>
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => handleOpenDialog(p)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => handleOpenDeleteDialog(p)}
-                          className="text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+                      <Card className="overflow-hidden transition-all duration-300 hover:shadow-lg border-primary/20">
+                        <CardContent className="p-0">
+                          <div className="flex gap-4 p-4">
+                            <div className="relative h-24 w-24 rounded-lg overflow-hidden bg-muted ring-2 ring-border flex-shrink-0">
+                              {product.images[0] ? (
+                                <img
+                                  src={product.images[0]}
+                                  alt={product.name}
+                                  className="h-full w-full object-cover"
+                                />
+                              ) : (
+                                <div className="h-full w-full flex items-center justify-center">
+                                  <ImageIcon className="h-8 w-8 text-muted-foreground" />
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="flex-1 min-w-0 space-y-2">
+                              <div>
+                                <h3 className="font-semibold truncate">{product.name}</h3>
+                                <p className="text-xs text-muted-foreground truncate">
+                                  {product.brand || "Sans marque"}
+                                </p>
+                              </div>
+
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <Badge variant="outline" className="capitalize text-xs">
+                                  {product.category}
+                                </Badge>
+                                {getStockBadge(product.stockQuantity)}
+                              </div>
+
+                              <div className="flex items-baseline gap-2">
+                                <span className="font-bold text-lg text-primary">
+                                  {product.price.toLocaleString()} FCFA
+                                </span>
+                                {product.originalPrice && (
+                                  <span className="text-xs text-muted-foreground line-through">
+                                    {product.originalPrice.toLocaleString()} FCFA
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex gap-2 p-3 border-t bg-muted/30">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleOpenDialog(product)}
+                              className="flex-1 transition-all duration-300 hover:scale-105"
+                            >
+                              <Pencil className="h-4 w-4 mr-2" />
+                              Modifier
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleOpenDeleteDialog(product)}
+                              className="flex-1 text-destructive hover:bg-destructive/10 transition-all duration-300 hover:scale-105"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Supprimer
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
                     </motion.div>
                   ))}
                 </div>
@@ -444,9 +596,10 @@ const ProductsManagement = () => {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex flex-col sm:flex-row items-center justify-between pt-4 gap-2 text-sm">
-              <p className="text-muted-foreground">
-                Page {currentPage} sur {totalPages}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t">
+              <p className="text-sm text-muted-foreground">
+                Page <span className="font-semibold text-foreground">{currentPage}</span> sur{" "}
+                <span className="font-semibold text-foreground">{totalPages}</span>
               </p>
               <div className="flex gap-2">
                 <Button
@@ -454,18 +607,45 @@ const ProductsManagement = () => {
                   size="sm"
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
+                  className="transition-all duration-300 hover:scale-105"
                 >
+                  <ChevronLeft className="h-4 w-4 mr-1" />
                   Précédent
                 </Button>
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNum;
+                    if (totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i;
+                    } else {
+                      pageNum = currentPage - 2 + i;
+                    }
+                    return (
+                      <Button
+                        key={pageNum}
+                        variant={currentPage === pageNum ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setCurrentPage(pageNum)}
+                        className="h-9 w-9 p-0 transition-all duration-300 hover:scale-110"
+                      >
+                        {pageNum}
+                      </Button>
+                    );
+                  })}
+                </div>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() =>
-                    setCurrentPage((p) => Math.min(totalPages, p + 1))
-                  }
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                   disabled={currentPage === totalPages}
+                  className="transition-all duration-300 hover:scale-105"
                 >
                   Suivant
+                  <ChevronRight className="h-4 w-4 ml-1" />
                 </Button>
               </div>
             </div>
@@ -473,217 +653,240 @@ const ProductsManagement = () => {
         </CardContent>
       </Card>
 
-          
-
       {/* Dialog d'ajout/édition */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>
-              {editingProduct ? 'Modifier le produit' : 'Ajouter un produit'}
+            <DialogTitle className="text-2xl flex items-center gap-2">
+              {editingProduct ? (
+                <>
+                  <Pencil className="h-5 w-5 text-primary" />
+                  Modifier le produit
+                </>
+              ) : (
+                <>
+                  <Plus className="h-5 w-5 text-primary" />
+                  Ajouter un produit
+                </>
+              )}
             </DialogTitle>
             <DialogDescription>
-              Remplissez les informations du produit
+              Remplissez les informations du produit. Les champs marqués d'un * sont obligatoires.
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              {/* Nom */}
-              <div className="col-span-2 space-y-2">
-                <Label htmlFor="name">Nom du produit *</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="iPhone 15 Pro Max"
-                  required
-                  disabled={submitting}
-                />
-              </div>
-
-              {/* Catégorie */}
-              <div className="space-y-2">
-                <Label htmlFor="category">Catégorie *</Label>
-                <Select
-                  value={formData.category}
-                  onValueChange={(value) => setFormData({ ...formData, category: value })}
-                  disabled={submitting}
-                  required
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sélectionner une catégorie" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((cat) => (
-                      <SelectItem key={cat.id} value={cat.slug}>
-                        {cat.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Marque */}
-              <div className="space-y-2">
-                <Label htmlFor="brand">Marque</Label>
-                <Input
-                  id="brand"
-                  value={formData.brand}
-                  onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
-                  placeholder="Apple"
-                  disabled={submitting}
-                />
-              </div>
-
-              {/* Description */}
-              <div className="col-span-2 space-y-2">
-                <Label htmlFor="description">Description *</Label>
-                <Textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  placeholder="Description détaillée du produit..."
-                  rows={3}
-                  required
-                  disabled={submitting}
-                />
-              </div>
-
-              {/* Prix */}
-              <div className="space-y-2">
-                <Label htmlFor="price">Prix Promo (Fcfa) *</Label>
-                <Input
-                  id="price"
-                  type="number"
-                  step="0.01"
-                  value={formData.price}
-                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                  placeholder="12999.99"
-                  required
-                  disabled={submitting}
-                />
-              </div>
-
-              {/* Prix original */}
-              <div className="space-y-2">
-                <Label htmlFor="originalPrice">Prix original (Fcfa)</Label>
-                <Input
-                  id="originalPrice"
-                  type="number"
-                  step="0.01"
-                  value={formData.originalPrice}
-                  onChange={(e) => setFormData({ ...formData, originalPrice: e.target.value })}
-                  placeholder="14999.99"
-                  disabled={submitting}
-                />
-              </div>
-
-              {/* Stock */}
-              <div className="col-span-2 space-y-2">
-                <Label htmlFor="stock">Quantité en stock *</Label>
-                <Input
-                  id="stock"
-                  type="number"
-                  min="0"
-                  value={formData.stockQuantity}
-                  onChange={(e) => setFormData({ ...formData, stockQuantity: e.target.value })}
-                  placeholder="50"
-                  required
-                  disabled={submitting}
-                />
-              </div>
-
-                {/* Images - multiple URL inputs dynamiques */}
-                <div className="col-span-2 space-y-2">
-                <Label>Images (URLs) *</Label>
-                {(() => {
-                  const imagesArray = formData.images
-                  ? formData.images.split(",").map((s) => s.trim())
-                  : [""];
-                  return (
-                  <div className="space-y-2">
-                    {imagesArray.map((img, idx) => (
-                    <div key={idx} className="flex items-center gap-2">
-                      <Input
-                      value={img}
-                      onChange={(e) => {
-                        const arr = [...imagesArray];
-                        arr[idx] = e.target.value;
-                        setFormData({
-                        ...formData,
-                        images: arr.join(", "),
-                        });
-                      }}
-                      placeholder="https://example.com/image1.jpg"
-                      disabled={submitting}
-                      />
-                      <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => {
-                        const arr = [...imagesArray];
-                        arr.splice(idx, 1);
-                        // ensure at least one input remains
-                        const newArr = arr.length ? arr : [""];
-                        setFormData({
-                        ...formData,
-                        images: newArr.join(", "),
-                        });
-                      }}
-                      disabled={submitting}
-                      aria-label={`Supprimer l'URL ${idx + 1}`}
-                      >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                      {idx === imagesArray.length - 1 && (
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={() =>
-                        setFormData({
-                          ...formData,
-                          images: [...imagesArray, ""].join(", "),
-                        })
-                        }
-                        disabled={submitting}
-                        aria-label="Ajouter un autre URL"
-                      >
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                      )}
-                    </div>
-                    ))}
-                    <p className="text-xs text-muted-foreground">
-                    Entrez une URL par champ. La première URL sera l'image principale. Les URLs seront concaténées et envoyées séparées par des virgules.
-                    </p>
-                  </div>
-                  );
-                })()}
-                </div>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Informations de base */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                <Package className="h-4 w-4" />
+                Informations de base
+              </h3>
               
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2 space-y-2">
+                  <Label htmlFor="name">Nom du produit *</Label>
+                  <Input
+                    id="name"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    placeholder="Ex: iPhone 15 Pro Max 256GB"
+                    required
+                    disabled={submitting}
+                    className="h-11"
+                  />
+                </div>
 
-              {/* Spécifications *
-              <div className="col-span-2 space-y-2">
-                <Label htmlFor="specifications">Caractéristiques (JSON) *</Label>
-                <Textarea
-                  id="specifications"
-                  value={formData.specifications}
-                  onChange={(e) => setFormData({ ...formData, specifications: e.target.value })}
-                  rows={6}
-                  placeholder='{"Écran": "6.7 pouces", "Processeur": "A17 Pro", "RAM": "8GB"}'
-                  required
-                  disabled={submitting}
-                  className="font-mono text-sm"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Format JSON valide requis
-                </p>
-              </div> */}
+                <div className="space-y-2">
+                  <Label htmlFor="category">Catégorie *</Label>
+                  <Select
+                    value={formData.category}
+                    onValueChange={(value) => setFormData({ ...formData, category: value })}
+                    disabled={submitting}
+                    required
+                  >
+                    <SelectTrigger className="h-11">
+                      <SelectValue placeholder="Sélectionner une catégorie" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories.map((cat) => (
+                        <SelectItem key={cat.id} value={cat.slug}>
+                          {cat.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="brand">Marque</Label>
+                  <Input
+                    id="brand"
+                    value={formData.brand}
+                    onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
+                    placeholder="Ex: Apple, Samsung..."
+                    disabled={submitting}
+                    className="h-11"
+                  />
+                </div>
+
+                <div className="md:col-span-2 space-y-2">
+                  <Label htmlFor="description">Description *</Label>
+                  <Textarea
+                    id="description"
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    placeholder="Description détaillée du produit..."
+                    rows={4}
+                    required
+                    disabled={submitting}
+                    className="resize-none"
+                  />
+                </div>
+              </div>
             </div>
 
-            <DialogFooter>
+            {/* Prix et Stock */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                <Tag className="h-4 w-4" />
+                Prix et Stock
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="price">Prix de vente (FCFA) *</Label>
+                  <Input
+                    id="price"
+                    type="number"
+                    step="0.01"
+                    value={formData.price}
+                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                    placeholder="450000"
+                    required
+                    disabled={submitting}
+                    className="h-11"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="originalPrice">Prix original (FCFA)</Label>
+                  <Input
+                    id="originalPrice"
+                    type="number"
+                    step="0.01"
+                    value={formData.originalPrice}
+                    onChange={(e) => setFormData({ ...formData, originalPrice: e.target.value })}
+                    placeholder="500000"
+                    disabled={submitting}
+                    className="h-11"
+                  />
+                  <p className="text-xs text-muted-foreground">Pour afficher une réduction</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="stock">Quantité en stock *</Label>
+                  <Input
+                    id="stock"
+                    type="number"
+                    min="0"
+                    value={formData.stockQuantity}
+                    onChange={(e) => setFormData({ ...formData, stockQuantity: e.target.value })}
+                    placeholder="50"
+                    required
+                    disabled={submitting}
+                    className="h-11"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Images */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                <ImageIcon className="h-4 w-4" />
+                Images du produit
+              </h3>
+              
+              <div className="space-y-3">
+                {(() => {
+                  const imagesArray = formData.images
+                    ? formData.images.split(",").map((s) => s.trim())
+                    : [""];
+                  return (
+                    <>
+                      {imagesArray.map((img, idx) => (
+                        <div key={idx} className="flex items-center gap-2">
+                          <div className="flex-1 flex items-center gap-2">
+                            <span className="text-sm font-medium text-muted-foreground w-20">
+                              Image {idx + 1}
+                            </span>
+                            <Input
+                              value={img}
+                              onChange={(e) => {
+                                const arr = [...imagesArray];
+                                arr[idx] = e.target.value;
+                                setFormData({
+                                  ...formData,
+                                  images: arr.join(", "),
+                                });
+                              }}
+                              placeholder="https://example.com/image.jpg"
+                              disabled={submitting}
+                              className="h-11"
+                            />
+                          </div>
+                          <div className="flex gap-1">
+                            {imagesArray.length > 1 && (
+                              <Button
+                                type="button"
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => {
+                                  const arr = [...imagesArray];
+                                  arr.splice(idx, 1);
+                                  setFormData({
+                                    ...formData,
+                                    images: arr.join(", "),
+                                  });
+                                }}
+                                disabled={submitting}
+                                className="h-11 w-11 text-destructive hover:bg-destructive/10"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {idx === imagesArray.length - 1 && (
+                              <Button
+                                type="button"
+                                size="icon"
+                                variant="outline"
+                                onClick={() =>
+                                  setFormData({
+                                    ...formData,
+                                    images: [...imagesArray, ""].join(", "),
+                                  })
+                                }
+                                disabled={submitting}
+                                className="h-11 w-11"
+                              >
+                                <Plus className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                      <p className="text-xs text-muted-foreground flex items-start gap-2">
+                        <Eye className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                        La première image sera utilisée comme image principale du produit.
+                      </p>
+                    </>
+                  );
+                })()}
+              </div>
+            </div>
+
+            <DialogFooter className="gap-2">
               <Button
                 type="button"
                 variant="outline"
@@ -692,14 +895,26 @@ const ProductsManagement = () => {
               >
                 Annuler
               </Button>
-              <Button type="submit" disabled={submitting}>
+              <Button type="submit" disabled={submitting} className="min-w-[120px]">
                 {submitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Enregistrement...
+                    {editingProduct ? "Modification..." : "Ajout..."}
                   </>
                 ) : (
-                  editingProduct ? 'Modifier' : 'Ajouter'
+                  <>
+                    {editingProduct ? (
+                      <>
+                        <Pencil className="mr-2 h-4 w-4" />
+                        Modifier
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Ajouter
+                      </>
+                    )}
+                  </>
                 )}
               </Button>
             </DialogFooter>
@@ -711,9 +926,18 @@ const ProductsManagement = () => {
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Êtes-vous sûr ?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Cette action est irréversible. Le produit "{deletingProduct?.name}" sera définitivement supprimé.
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-destructive" />
+              Confirmer la suppression
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p>
+                Êtes-vous sûr de vouloir supprimer le produit{" "}
+                <span className="font-semibold text-foreground">"{deletingProduct?.name}"</span> ?
+              </p>
+              <p className="text-destructive">
+                Cette action est irréversible et supprimera définitivement ce produit.
+              </p>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -729,7 +953,10 @@ const ProductsManagement = () => {
                   Suppression...
                 </>
               ) : (
-                'Supprimer'
+                <>
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Supprimer définitivement
+                </>
               )}
             </AlertDialogAction>
           </AlertDialogFooter>
