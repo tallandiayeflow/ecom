@@ -3,19 +3,24 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useCart } from '@/contexts/CartContext';
 import { getProduct } from '@/lib/api';
 import { Product } from '@/types';
+import { motion } from 'framer-motion';
 import {
   ArrowLeft,
   Check,
+  Heart,
   Loader2,
   Minus,
   Package,
   Plus,
+  Share2,
   ShoppingCart,
   Star,
-  Truck
+  Truck,
+  Zap,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -25,18 +30,24 @@ const ProductDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { addToCart } = useCart();
-  
+
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [addingToCart, setAddingToCart] = useState(false);
+  const [imageLoading, setImageLoading] = useState(true);
 
   useEffect(() => {
     if (id) {
       loadProduct(id);
     }
   }, [id]);
+
+  useEffect(() => {
+    // Reset image loading when product changes
+    setImageLoading(true);
+  }, [selectedImage]);
 
   const loadProduct = async (productId: string) => {
     setLoading(true);
@@ -61,78 +72,76 @@ const ProductDetail = () => {
       toast.success(`${quantity} x ${product.name} ajouté au panier ! 🛒`);
     } catch (error) {
       console.error('Error adding to cart:', error);
-      toast.error('Erreur lors de l\'ajout au panier');
+      toast.error("Erreur lors de l'ajout au panier");
     } finally {
       setAddingToCart(false);
     }
   };
 
-  // Loading state — Solution 2 (fade + pulse + structure identique)
-if (loading) {
-  return (
-    <div className="container mx-auto px-4 py-8 max-w-7xl opacity-40 animate-pulse pointer-events-none select-none">
-      {/* Bouton retour */}
-      <div className="w-24 h-8 bg-gray-200 rounded mb-6" />
+  const handleShare = async () => {
+    const url = window.location.href;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: product?.name,
+          text: product?.description,
+          url: url,
+        });
+        toast.success('Lien partagé !');
+      } catch (error) {
+        if ((error as Error).name !== 'AbortError') {
+          navigator.clipboard.writeText(url);
+          toast.success('Lien copié !');
+        }
+      }
+    } else {
+      navigator.clipboard.writeText(url);
+      toast.success('Lien copié dans le presse-papier !');
+    }
+  };
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        
-        {/* Skeleton images */}
-        <div className="space-y-3">
-          <div className="h-[400px] bg-gray-200 rounded-lg" />
-          <div className="flex gap-2">
-            {[1, 2, 3, 4].map((n) => (
-              <div key={n} className="w-16 h-16 bg-gray-200 rounded-md" />
-            ))}
+  const handleAddToWishlist = () => {
+    toast.info('Fonctionnalité en cours de développement 💝');
+  };
+
+  // Loading Skeleton
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-8 max-w-7xl">
+        <Skeleton className="w-24 h-10 rounded-lg mb-6" />
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Skeleton Images */}
+          <div className="space-y-4">
+            <Skeleton className="w-full h-[500px] rounded-xl" />
+            <div className="flex gap-2">
+              {[1, 2, 3, 4].map((n) => (
+                <Skeleton key={n} className="w-20 h-20 rounded-lg" />
+              ))}
+            </div>
+          </div>
+
+          {/* Skeleton Infos */}
+          <div className="space-y-6">
+            <div className="space-y-3">
+              <Skeleton className="w-2/3 h-6" />
+              <Skeleton className="w-full h-10" />
+              <Skeleton className="w-full h-20" />
+            </div>
+            <Separator />
+            <div className="space-y-2">
+              <Skeleton className="w-40 h-10" />
+              <Skeleton className="w-32 h-6" />
+            </div>
+            <Separator />
+            <Skeleton className="w-full h-12" />
+            <Skeleton className="w-full h-16" />
+            <Skeleton className="w-full h-20" />
           </div>
         </div>
-
-        {/* Skeleton infos */}
-        <div className="space-y-4">
-          <div className="space-y-3">
-            <div className="w-40 h-5 bg-gray-200 rounded" />
-            <div className="w-64 h-6 bg-gray-300 rounded" />
-            <div className="w-full h-4 bg-gray-200 rounded" />
-          </div>
-
-          <div className="w-full h-[1px] bg-gray-200" />
-
-          <div className="space-y-2">
-            <div className="w-32 h-8 bg-gray-300 rounded" />
-            <div className="w-24 h-4 bg-gray-200 rounded" />
-          </div>
-
-          <div className="w-full h-[1px] bg-gray-200" />
-
-          <div className="space-y-2">
-            <div className="w-48 h-5 bg-gray-200 rounded" />
-            <div className="w-28 h-4 bg-gray-200 rounded" />
-          </div>
-
-          <div className="w-full h-[1px] bg-gray-200" />
-
-          {/* Quantité */}
-          <div className="space-y-2">
-            <div className="w-32 h-5 bg-gray-200 rounded" />
-            <div className="w-40 h-10 bg-gray-300 rounded-lg" />
-          </div>
-
-          {/* Button */}
-          <div className="w-full h-12 bg-gray-300 rounded-lg" />
-
-          {/* Livraison */}
-          <div className="w-full h-16 bg-gray-200 rounded-lg" />
-        </div>
       </div>
-
-      {/* Description skeleton */}
-      <div className="mt-8 space-y-3">
-        <div className="w-40 h-6 bg-gray-300 rounded" />
-        <div className="w-full h-24 bg-gray-200 rounded-lg" />
-      </div>
-    </div>
-  );
-}
-
+    );
+  }
 
   if (!product) {
     return null;
@@ -143,61 +152,84 @@ if (loading) {
     : 0;
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-7xl">
-      {/* Bouton retour */}
-      <Button
-        variant="ghost"
-        onClick={() => navigate(-1)}
-        className="mb-4"
-        size="sm"
-      >
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Retour
-      </Button>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4 }}
+      className="container mx-auto px-4 py-8 max-w-7xl"
+    >
+      {/* Header avec boutons d'action */}
+      <div className="flex items-center justify-between mb-6">
+        <Button variant="ghost" onClick={() => navigate(-1)} size="sm">
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Retour
+        </Button>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Section Images - TAILLE RÉDUITE */}
-        <div className="space-y-3">
-          {/* Image principale - Hauteur réduite à 400px au lieu de aspect-square */}
-          <div className="relative h-[400px] rounded-lg overflow-hidden bg-gray-100">
+        <div className="flex gap-2">
+          <Button variant="outline" size="icon" onClick={handleAddToWishlist}>
+            <Heart className="h-4 w-4 text-red-500" />
+          </Button>
+          <Button variant="outline" size="icon" onClick={handleShare}>
+            <Share2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Section Images */}
+        <div className="space-y-4">
+          {/* Image principale */}
+          <div className="relative h-[500px] rounded-xl overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200 border-2">
+            {imageLoading && (
+              <Skeleton className="absolute inset-0 w-full h-full" />
+            )}
             <img
               src={product.images[selectedImage] || '/placeholder-product.png'}
               alt={product.name}
-              className="w-full h-full object-contain" // object-contain au lieu de object-cover
+              className={`w-full h-full object-contain transition-opacity duration-300 ${
+                imageLoading ? 'opacity-0' : 'opacity-100'
+              }`}
+              onLoad={() => setImageLoading(false)}
+              onError={(e) => {
+                e.currentTarget.src = '/placeholder-product.png';
+                setImageLoading(false);
+              }}
             />
-            
-            {/* Badges - Taille réduite */}
-            <div className="absolute top-3 left-3 flex flex-col gap-1.5">
+
+            {/* Badges */}
+            <div className="absolute top-4 left-4 flex flex-col gap-2">
               {discount > 0 && (
-                <Badge variant="destructive" className="px-2 py-0.5 text-sm">
+                <Badge variant="destructive" className="font-bold shadow-lg">
+                  <Zap className="h-3 w-3 mr-1" />
                   -{discount}%
                 </Badge>
               )}
               {!product.inStock && (
-                <Badge variant="secondary" className="px-2 py-0.5 text-sm">
+                <Badge variant="secondary" className="shadow-lg">
+                  <Package className="h-3 w-3 mr-1" />
                   Rupture
                 </Badge>
               )}
               {product.featured && (
-                <Badge className="bg-yellow-500 hover:bg-yellow-600 px-2 py-0.5 text-sm">
-                  <Star className="h-3 w-3 mr-1" />
+                <Badge className="bg-gradient-to-r from-yellow-500 to-orange-500 shadow-lg">
+                  <Star className="h-3 w-3 mr-1 fill-white" />
                   Vedette
                 </Badge>
               )}
             </div>
           </div>
 
-          {/* Miniatures - Plus petites */}
+          {/* Miniatures */}
           {product.images.length > 1 && (
-            <div className="flex gap-2 overflow-x-auto pb-2">
+            <div className="flex gap-3 overflow-x-auto pb-2">
               {product.images.map((image, index) => (
                 <button
                   key={index}
                   onClick={() => setSelectedImage(index)}
-                  className={`flex-shrink-0 w-16 h-16 rounded-md overflow-hidden border-2 transition-all ${
+                  className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-all hover:scale-105 ${
                     selectedImage === index
-                      ? 'border-primary scale-105'
-                      : 'border-transparent hover:border-gray-300'
+                      ? 'border-primary scale-105 shadow-lg'
+                      : 'border-gray-200 hover:border-gray-300'
                   }`}
                 >
                   <img
@@ -211,102 +243,130 @@ if (loading) {
           )}
         </div>
 
-        {/* Section Informations - Plus compacte */}
-        <div className="space-y-4">
+        {/* Section Informations */}
+        <div className="space-y-6">
           {/* En-tête */}
           <div>
             {(product.category || product.brand) && (
-              <div className="flex items-center gap-2 text-xs mb-2">
+              <div className="flex items-center gap-2 mb-3">
                 {product.category && (
-                  <Badge variant="outline" className="text-xs">{product.category}</Badge>
+                  <Badge variant="outline" className="text-xs">
+                    {product.category}
+                  </Badge>
                 )}
                 {product.brand && (
-                  <Badge variant="outline" className="text-xs">{product.brand}</Badge>
+                  <Badge
+                    variant="outline"
+                    className="text-xs font-semibold text-primary border-primary"
+                  >
+                    {product.brand}
+                  </Badge>
                 )}
               </div>
             )}
 
-            <h1 className="text-2xl font-bold mb-2">{product.name}</h1>
-            <p className="text-sm text-muted-foreground">{product.description}</p>
+            <h1 className="text-3xl font-bold mb-3 leading-tight">{product.name}</h1>
+            {product.description && (
+              <p className="text-muted-foreground leading-relaxed">
+                {product.description}
+              </p>
+            )}
           </div>
 
           <Separator />
 
-          {/* Prix - Plus compact */}
-          <div className="space-y-1">
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-bold text-primary">
-                {product.price.toFixed(2)} Fcfa
+          {/* Prix */}
+          <div className="space-y-2">
+            <div className="flex items-baseline gap-3">
+              <span className="text-4xl font-bold bg-gradient-to-r from-primary to-purple-500 bg-clip-text text-transparent">
+                {product.price.toLocaleString('fr-FR')} FCFA
               </span>
               {product.originalPrice && product.originalPrice !== product.price && (
-                <span className="text-lg text-muted-foreground line-through">
-                  {product.originalPrice.toFixed(2)} Fcfa
+                <span className="text-xl text-muted-foreground line-through">
+                  {product.originalPrice.toLocaleString('fr-FR')} FCFA
                 </span>
               )}
             </div>
             {discount > 0 && (
-              <p className="text-xs text-green-600 font-medium">
-                Économisez {(product.originalPrice! - product.price).toFixed(2)} Fcfa
-              </p>
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-green-500/10 rounded-full border border-green-500/20">
+                <Zap className="h-4 w-4 text-green-600" />
+                <span className="text-sm text-green-600 font-medium">
+                  Économisez{' '}
+                  {(product.originalPrice! - product.price).toLocaleString('fr-FR')} FCFA
+                </span>
+              </div>
             )}
           </div>
 
           <Separator />
 
-          {/* Disponibilité - Compact */}
-          <div className="space-y-1">
+          {/* Disponibilité */}
+          <div className="space-y-2">
             <div className="flex items-center gap-2">
               {product.inStock ? (
                 <>
-                  <Check className="h-4 w-4 text-green-600" />
-                  <span className="text-sm font-medium text-green-600">En stock</span>
+                  <div className="h-8 w-8 rounded-full bg-green-500/10 flex items-center justify-center">
+                    <Check className="h-4 w-4 text-green-600" />
+                  </div>
+                  <span className="font-medium text-green-600">En stock</span>
                 </>
               ) : (
                 <>
-                  <Package className="h-4 w-4 text-red-600" />
-                  <span className="text-sm font-medium text-red-600">Rupture de stock</span>
+                  <div className="h-8 w-8 rounded-full bg-red-500/10 flex items-center justify-center">
+                    <Package className="h-4 w-4 text-red-600" />
+                  </div>
+                  <span className="font-medium text-red-600">Rupture de stock</span>
                 </>
               )}
             </div>
+
             {product.inStock && (
-              <p className="text-xs text-muted-foreground">
+              <p className="text-sm text-muted-foreground ml-10">
                 {product.stockQuantity} article(s) disponible(s)
               </p>
             )}
+
             {product.inStock && product.stockQuantity <= 5 && (
-              <p className="text-xs text-orange-600 font-medium">
-                ⚠️ Plus que {product.stockQuantity} restant(s) !
-              </p>
+              <div className="ml-10 inline-flex items-center gap-2 px-3 py-1 bg-orange-500/10 rounded-md border border-orange-500/20">
+                <Zap className="h-4 w-4 text-orange-600" />
+                <span className="text-sm text-orange-600 font-medium">
+                  Plus que {product.stockQuantity} restant(s) !
+                </span>
+              </div>
             )}
           </div>
 
           <Separator />
 
-          {/* Sélecteur de quantité - Plus petit */}
-          <div className="space-y-2">
-            <Label className="text-sm font-semibold">Quantité:</Label>
-            <div className="flex items-center gap-3">
-              <div className="flex items-center border rounded-lg">
+          {/* Sélecteur de quantité */}
+          <div className="space-y-3">
+            <Label className="text-base font-semibold">Quantité:</Label>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center border-2 rounded-lg overflow-hidden">
                 <Button
                   variant="ghost"
                   size="sm"
+                  className="h-12 px-4"
                   onClick={() => setQuantity((q) => Math.max(1, q - 1))}
                   disabled={quantity <= 1 || !product.inStock}
                 >
-                  <Minus className="h-3 w-3" />
+                  <Minus className="h-4 w-4" />
                 </Button>
-                <span className="w-12 text-center font-semibold text-sm">{quantity}</span>
+                <span className="w-16 text-center font-bold text-lg">{quantity}</span>
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setQuantity((q) => Math.min(product.stockQuantity, q + 1))}
+                  className="h-12 px-4"
+                  onClick={() =>
+                    setQuantity((q) => Math.min(product.stockQuantity, q + 1))
+                  }
                   disabled={quantity >= product.stockQuantity || !product.inStock}
                 >
-                  <Plus className="h-3 w-3" />
+                  <Plus className="h-4 w-4" />
                 </Button>
               </div>
-              <span className="text-xs text-muted-foreground">
-                Max: {product.stockQuantity}
+              <span className="text-sm text-muted-foreground">
+                Maximum: <strong>{product.stockQuantity}</strong>
               </span>
             </div>
           </div>
@@ -314,31 +374,33 @@ if (loading) {
           {/* Bouton Ajouter au panier */}
           <Button
             size="lg"
-            className="w-full"
+            className="w-full h-14 text-lg group"
             onClick={handleAddToCart}
             disabled={!product.inStock || addingToCart}
           >
             {addingToCart ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Ajout...
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                Ajout en cours...
               </>
             ) : (
               <>
-                <ShoppingCart className="mr-2 h-4 w-4" />
+                <ShoppingCart className="mr-2 h-5 w-5 group-hover:scale-110 transition-transform" />
                 Ajouter au panier
               </>
             )}
           </Button>
 
-          {/* Informations de livraison - Card plus petite */}
-          <Card className="p-3 bg-blue-50 border-blue-200">
-            <div className="flex items-start gap-2">
-              <Truck className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+          {/* Informations de livraison */}
+          <Card className="p-4 bg-gradient-to-br from-blue-50 to-blue-100/50 border-blue-200">
+            <div className="flex items-start gap-3">
+              <div className="h-10 w-10 rounded-full bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+                <Truck className="h-5 w-5 text-blue-600" />
+              </div>
               <div>
-                <p className="text-sm font-medium text-blue-900">Livraison gratuite</p>
-                <p className="text-xs text-blue-700">
-                  Commandes plus de 25000 FCFA
+                <p className="font-semibold text-blue-900 mb-1">Livraison gratuite</p>
+                <p className="text-sm text-blue-700">
+                  Pour les commandes supérieures à 25 000 FCFA
                 </p>
               </div>
             </div>
@@ -346,38 +408,40 @@ if (loading) {
 
           <Separator />
 
-          {/* Caractéristiques - Plus compact */}
-          {Object.entries(product.specifications).length > 0 && (
-            <div className="space-y-2">
-              <h2 className="text-lg font-bold">Caractéristiques</h2>
-              <div className="grid grid-cols-1 gap-2">
-                {Object.entries(product.specifications).map(([key, value]) => (
-                  <div
-                    key={key}
-                    className="flex justify-between items-center py-1.5 border-b last:border-0 text-sm"
-                  >
-                    <span className="text-muted-foreground">{key}:</span>
-                    <span className="font-medium">{value}</span>
-                  </div>
-                ))}
-              </div>
+          {/* Caractéristiques */}
+          {product.specifications && Object.entries(product.specifications).length > 0 && (
+            <div className="space-y-3">
+              <h2 className="text-xl font-bold">Caractéristiques techniques</h2>
+              <Card className="p-4">
+                <div className="space-y-3">
+                  {Object.entries(product.specifications).map(([key, value]) => (
+                    <div
+                      key={key}
+                      className="flex justify-between items-center py-2 border-b last:border-0"
+                    >
+                      <span className="text-sm text-muted-foreground">{key}</span>
+                      <span className="font-medium text-sm">{value}</span>
+                    </div>
+                  ))}
+                </div>
+              </Card>
             </div>
           )}
         </div>
       </div>
 
-      {/* Section Description - Plus petite */}
+      {/* Section Description détaillée */}
       {product.description && (
-        <div className="mt-8">
-          <h2 className="text-xl font-bold mb-3">Description</h2>
-          <Card className="p-4">
-            <p className="text-sm text-muted-foreground leading-relaxed">
+        <div className="mt-12">
+          <h2 className="text-2xl font-bold mb-4">Description détaillée</h2>
+          <Card className="p-6">
+            <p className="text-muted-foreground leading-relaxed whitespace-pre-line">
               {product.description}
             </p>
           </Card>
         </div>
       )}
-    </div>
+    </motion.div>
   );
 };
 

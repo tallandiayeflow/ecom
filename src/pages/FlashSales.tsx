@@ -1,15 +1,42 @@
 import { FlashCard } from '@/components/FlashCard';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { getCategories, getFlashSales } from '@/lib/api';
 import { Category, FlashSale } from '@/types';
-import { Filter, Search } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Filter,
+  Flame,
+  Search,
+  SlidersHorizontal,
+  X,
+  Zap,
+} from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 const FlashSales = () => {
@@ -23,9 +50,12 @@ const FlashSales = () => {
   const [currentPage, setCurrentPage] = useState(1);
 
   const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
-  const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || 'all');
-  const [priceRange, setPriceRange] = useState<[number, number]>([0, 2000]);
+  const [selectedCategory, setSelectedCategory] = useState(
+    searchParams.get('category') || 'all'
+  );
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, 500000]);
   const [inStockOnly, setInStockOnly] = useState(false);
+  const [sortBy, setSortBy] = useState<string>('discountPrice');
 
   useEffect(() => {
     loadCategories();
@@ -40,7 +70,7 @@ const FlashSales = () => {
       const data = await getCategories();
       setCategories(data);
     } catch (error) {
-      setError('Erreur lors du chargement des catégories');
+      console.error('Error loading categories:', error);
     }
   };
 
@@ -52,7 +82,7 @@ const FlashSales = () => {
         search: searchParams.get('search') || undefined,
         category: selectedCategory === 'all' ? undefined : selectedCategory,
         minPrice: priceRange[0] > 0 ? priceRange[0] : undefined,
-        maxPrice: priceRange[1] < 2000 ? priceRange[1] : undefined,
+        maxPrice: priceRange[1] < 500000 ? priceRange[1] : undefined,
         inStock: inStockOnly || undefined,
         page: currentPage,
         limit: 12,
@@ -61,12 +91,35 @@ const FlashSales = () => {
       setTotal(response.total);
       setTotalPages(response.totalPages);
     } catch (error) {
+      console.error('Error loading flash sales:', error);
       setError('Erreur lors du chargement des ventes flash');
       setFlashSales([]);
     } finally {
       setLoading(false);
     }
   };
+
+  // Tri côté client
+  const sortedFlashSales = useMemo(() => {
+    const sorted = [...flashSales];
+
+    switch (sortBy) {
+      case 'discountPrice':
+        return sorted.sort((a, b) => b.discountPrice - a.discountPrice);
+      case 'price-asc':
+        return sorted.sort((a, b) => a.product.price - b.product.price);
+      case 'price-desc':
+        return sorted.sort((a, b) => b.product.price - a.product.price);
+      case 'ending-soon':
+        return sorted.sort((a, b) => {
+          const dateA = new Date(a.endDate).getTime();
+          const dateB = new Date(b.endDate).getTime();
+          return dateA - dateB;
+        });
+      default:
+        return sorted;
+    }
+  }, [flashSales, sortBy]);
 
   const handleSearch = () => {
     if (searchQuery.trim()) {
@@ -90,90 +143,160 @@ const FlashSales = () => {
   const resetFilters = () => {
     setSearchQuery('');
     setSelectedCategory('all');
-    setPriceRange([0, 2000]);
+    setPriceRange([0, 500000]);
     setInStockOnly(false);
+    setSortBy('discountPrice');
     setSearchParams({});
     setCurrentPage(1);
   };
 
+  const hasActiveFilters =
+    selectedCategory !== 'all' ||
+    priceRange[0] > 0 ||
+    priceRange[1] < 500000 ||
+    inStockOnly ||
+    searchQuery;
+
   const FilterContent = () => (
     <div className="space-y-6">
+      {/* Category Filter */}
       <div className="space-y-2">
-        <Label>Catégorie</Label>
+        <Label className="text-sm font-semibold">Catégorie</Label>
         <Select value={selectedCategory} onValueChange={handleCategoryChange}>
           <SelectTrigger>
             <SelectValue placeholder="Toutes les catégories" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Toutes les catégories</SelectItem>
-            {categories.map(cat => (
+            {categories.map((cat) => (
               <SelectItem key={cat.id} value={cat.slug}>
-                {cat.icon} {cat.name}
+                {cat.name}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
       </div>
 
-      <div className="space-y-2">
-        <Label>Prix: {priceRange[0]}Fcfa - {priceRange[1]}Fcfa</Label>
+      {/* Price Filter */}
+      <div className="space-y-3">
+        <Label className="text-sm font-semibold">
+          Prix: {priceRange[0].toLocaleString()} - {priceRange[1].toLocaleString()} FCFA
+        </Label>
         <Slider
           value={priceRange}
-          onValueChange={value => setPriceRange(value as [number, number])}
+          onValueChange={(value) => setPriceRange(value as [number, number])}
           min={0}
-          max={2000}
-          step={10}
+          max={500000}
+          step={1000}
           className="w-full"
         />
+        <div className="flex justify-between text-xs text-muted-foreground">
+          <span>0 FCFA</span>
+          <span>500 000 FCFA</span>
+        </div>
       </div>
 
-      <div className="flex items-center space-x-2">
+      {/* Stock Filter */}
+      <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
+        <Label htmlFor="in-stock" className="text-sm cursor-pointer">
+          En stock uniquement
+        </Label>
         <Switch id="in-stock" checked={inStockOnly} onCheckedChange={setInStockOnly} />
-        <Label htmlFor="in-stock">En stock uniquement</Label>
       </div>
 
-      <div className="flex gap-2">
-        <Button onClick={applyFilters} className="flex-1">Appliquer</Button>
-        <Button onClick={resetFilters} variant="outline" className="flex-1">Réinitialiser</Button>
+      {/* Action Buttons */}
+      <div className="flex gap-2 pt-2">
+        <Button onClick={applyFilters} className="flex-1">
+          <Filter className="h-4 w-4 mr-2" />
+          Appliquer
+        </Button>
+        <Button onClick={resetFilters} variant="outline" className="flex-1">
+          <X className="h-4 w-4 mr-2" />
+          Réinitialiser
+        </Button>
       </div>
     </div>
   );
-  
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold text-center">Ventes Flash</h1>
+      {/* Header avec animation */}
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="mb-8 text-center space-y-3"
+      >
+        <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500/10 to-red-500/10 border border-orange-500/20 rounded-full mb-2">
+          <Zap className="h-5 w-5 text-orange-500 animate-pulse" />
+          <span className="text-sm font-semibold text-orange-600">Offres limitées</span>
+        </div>
+        
+        <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-orange-500 via-red-500 to-pink-500 bg-clip-text text-transparent">
+          ⚡ Ventes Flash
+        </h1>
+        
         {total > 0 && (
-          <p className="text-center text-muted-foreground mt-2">
-            {total} vente{total > 1 ? 's' : ''} flash trouvée{total > 1 ? 's' : ''}
-          </p>
+          <div className="flex items-center justify-center gap-2">
+            <Flame className="h-5 w-5 text-orange-500" />
+            <p className="text-muted-foreground">
+              {total} offre{total > 1 ? 's' : ''} flash disponible{total > 1 ? 's' : ''}
+            </p>
+          </div>
         )}
-      </div>
+      </motion.div>
 
-      <div className="mb-6 flex gap-2">
+      {/* Search and Sort Bar */}
+      <div className="mb-6 flex flex-col md:flex-row gap-3">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Rechercher une vente flash..."
             value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleSearch()}
-            className="pl-10"
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+            className="pl-10 h-11"
           />
         </div>
-        <Button onClick={handleSearch}>Rechercher</Button>
 
+        <Button onClick={handleSearch} className="md:w-auto">
+          <Search className="h-4 w-4 mr-2" />
+          Rechercher
+        </Button>
+
+        {/* Sort Select */}
+        <Select value={sortBy} onValueChange={setSortBy}>
+          <SelectTrigger className="w-full md:w-[220px]">
+            <SlidersHorizontal className="h-4 w-4 mr-2" />
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="discountPrice">Meilleure réduction</SelectItem>
+            <SelectItem value="ending-soon">Fin bientôt</SelectItem>
+            <SelectItem value="price-asc">Prix croissant</SelectItem>
+            <SelectItem value="price-desc">Prix décroissant</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {/* Mobile Filter Button */}
         <Sheet>
           <SheetTrigger asChild>
-            <Button variant="outline" size="icon" className="md:hidden">
-              <Filter className="h-4 w-4" />
+            <Button variant="outline" className="md:hidden relative">
+              <Filter className="h-4 w-4 mr-2" />
+              Filtres
+              {hasActiveFilters && (
+                <Badge className="absolute -top-2 -right-2 h-5 w-5 p-0 flex items-center justify-center">
+                  !
+                </Badge>
+              )}
             </Button>
           </SheetTrigger>
-          <SheetContent>
+          <SheetContent side="left" className="w-[300px] sm:w-[400px]">
             <SheetHeader>
-              <SheetTitle>Filtres</SheetTitle>
-              <SheetDescription>Affinez votre recherche</SheetDescription>
+              <SheetTitle className="flex items-center gap-2">
+                <Filter className="h-5 w-5" />
+                Filtres
+              </SheetTitle>
+              <SheetDescription>Affinez votre recherche de ventes flash</SheetDescription>
             </SheetHeader>
             <div className="mt-6">
               <FilterContent />
@@ -182,90 +305,172 @@ const FlashSales = () => {
         </Sheet>
       </div>
 
+      {/* Active Filters Pills */}
+      {hasActiveFilters && (
+        <div className="mb-6 flex flex-wrap gap-2">
+          {selectedCategory !== 'all' && (
+            <Badge variant="secondary" className="gap-2">
+              Catégorie: {categories.find((c) => c.slug === selectedCategory)?.name}
+              <button onClick={() => handleCategoryChange('all')}>
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          )}
+          {(priceRange[0] > 0 || priceRange[1] < 500000) && (
+            <Badge variant="secondary" className="gap-2">
+              Prix: {priceRange[0].toLocaleString()} - {priceRange[1].toLocaleString()} FCFA
+              <button onClick={() => setPriceRange([0, 500000])}>
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          )}
+          {inStockOnly && (
+            <Badge variant="secondary" className="gap-2">
+              En stock
+              <button onClick={() => setInStockOnly(false)}>
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          )}
+          {searchQuery && (
+            <Badge variant="secondary" className="gap-2">
+              Recherche: "{searchQuery}"
+              <button
+                onClick={() => {
+                  setSearchQuery('');
+                  setSearchParams({});
+                }}
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          )}
+          <Button variant="ghost" size="sm" onClick={resetFilters} className="h-6">
+            Tout effacer
+          </Button>
+        </div>
+      )}
+
       <div className="flex gap-6">
-        <div className="hidden md:block w-64 shrink-0">
-          <div className="sticky top-4 border rounded-lg p-4">
-            <h2 className="font-semibold mb-4">Filtres</h2>
+        {/* Filters Sidebar - Desktop */}
+        <div className="hidden md:block w-72 shrink-0">
+          <Card className="sticky top-4 p-6 shadow-lg border-2 border-orange-500/20">
+            <div className="flex items-center gap-2 mb-6">
+              <Filter className="h-5 w-5 text-orange-500" />
+              <h2 className="font-semibold text-lg">Filtres</h2>
+            </div>
             <FilterContent />
-          </div>
+          </Card>
         </div>
 
+        {/* Flash Sales Grid */}
         <div className="flex-1">
           {error && (
-            <div className="bg-destructive/10 text-destructive rounded-lg p-4 mb-4">{error}</div>
+            <Card className="bg-destructive/10 border-destructive/20 p-4 mb-6">
+              <p className="text-destructive font-medium">{error}</p>
+            </Card>
           )}
 
           {loading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {[...Array(6)].map((_, i) => (
-                <div key={i} className="animate-pulse">
-                  <div className="bg-gray-200 h-64 rounded-lg mb-4" />
-                  <div className="bg-gray-200 h-4 rounded mb-2" />
-                  <div className="bg-gray-200 h-4 rounded w-2/3" />
-                </div>
+                <Card key={i} className="overflow-hidden">
+                  <Skeleton className="h-64 w-full" />
+                  <div className="p-4 space-y-3">
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-2/3" />
+                    <Skeleton className="h-6 w-1/3" />
+                  </div>
+                </Card>
               ))}
             </div>
-          ) : flashSales.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-xl text-muted-foreground">Aucune vente flash trouvée</p>
-              <Button onClick={resetFilters} variant="outline" className="mt-4">
-                Réinitialiser les filtres
-              </Button>
-            </div>
+          ) : sortedFlashSales.length === 0 ? (
+            <Card className="p-12 text-center">
+              <div className="flex flex-col items-center gap-4">
+                <div className="h-20 w-20 rounded-full bg-gradient-to-br from-orange-500/20 to-red-500/20 flex items-center justify-center">
+                  <Clock className="h-10 w-10 text-orange-500" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-semibold mb-2">Aucune vente flash trouvée</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Revenez plus tard ou modifiez vos critères de recherche
+                  </p>
+                  <Button onClick={resetFilters} variant="outline">
+                    <X className="h-4 w-4 mr-2" />
+                    Réinitialiser les filtres
+                  </Button>
+                </div>
+              </div>
+            </Card>
           ) : (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {flashSales.map(flashSale => (
-                  <FlashCard
-                    key={flashSale.id}
-                    flashSale={flashSale}
-                  />
+                {sortedFlashSales.map((flashSale, index) => (
+                  <FlashCard key={flashSale.id} flashSale={flashSale} index={index} />
                 ))}
               </div>
 
+              {/* Pagination */}
               {totalPages > 1 && (
-                <div className="flex justify-center items-center gap-2 mt-8">
-                  <Button
-                    variant="outline"
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
-                  >
-                    Précédent
-                  </Button>
+                <Card className="p-4 mt-8 border-2 border-orange-500/20">
+                  <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+                    <p className="text-sm text-muted-foreground">
+                      Page {currentPage} sur {totalPages}
+                    </p>
 
-                  <div className="flex gap-1">
-                    {[...Array(Math.min(totalPages, 5))].map((_, i) => {
-                      let pageNum;
-                      if (totalPages <= 5) {
-                        pageNum = i + 1;
-                      } else if (currentPage <= 3) {
-                        pageNum = i + 1;
-                      } else if (currentPage >= totalPages - 2) {
-                        pageNum = totalPages - 4 + i;
-                      } else {
-                        pageNum = currentPage - 2 + i;
-                      }
-                      return (
-                        <Button
-                          key={i}
-                          variant={currentPage === pageNum ? 'default' : 'outline'}
-                          size="icon"
-                          onClick={() => setCurrentPage(pageNum)}
-                        >
-                          {pageNum}
-                        </Button>
-                      );
-                    })}
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                        disabled={currentPage === 1 || loading}
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+
+                      <div className="flex gap-1">
+                        {[...Array(Math.min(totalPages, 5))].map((_, i) => {
+                          let pageNum;
+                          if (totalPages <= 5) {
+                            pageNum = i + 1;
+                          } else if (currentPage <= 3) {
+                            pageNum = i + 1;
+                          } else if (currentPage >= totalPages - 2) {
+                            pageNum = totalPages - 4 + i;
+                          } else {
+                            pageNum = currentPage - 2 + i;
+                          }
+
+                          return (
+                            <Button
+                              key={i}
+                              variant={currentPage === pageNum ? 'default' : 'outline'}
+                              size="icon"
+                              onClick={() => setCurrentPage(pageNum)}
+                              disabled={loading}
+                              className="w-10 h-10"
+                            >
+                              {pageNum}
+                            </Button>
+                          );
+                        })}
+                      </div>
+
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                        disabled={currentPage === totalPages || loading}
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+
+                    <p className="text-sm text-muted-foreground">
+                      {sortedFlashSales.length} offres affichées
+                    </p>
                   </div>
-
-                  <Button
-                    variant="outline"
-                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                    disabled={currentPage === totalPages}
-                  >
-                    Suivant
-                  </Button>
-                </div>
+                </Card>
               )}
             </>
           )}

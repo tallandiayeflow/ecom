@@ -7,6 +7,10 @@ interface Product {
   price: number;
   images: string[];
   stockQuantity: number;
+  originalPrice?: number;
+  brand: string;
+  category: string;
+  image_url?: string;
 }
 
 interface CartItem {

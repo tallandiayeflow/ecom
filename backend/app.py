@@ -10,7 +10,7 @@ cache.init_app(app)
 
 
 # CORSssss
-"""
+
 CORS(app, resources={
     r"/api/*": {
         "origins": Config.CORS_ORIGINS,
@@ -20,7 +20,6 @@ CORS(app, resources={
     }
 })
 
-Set up CORS with specific configuration for API routes."""
 
 #CORS(app)
 # Blueprints tests
