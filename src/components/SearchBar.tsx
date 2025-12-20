@@ -1,11 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Search, TrendingUp, X } from 'lucide-react';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { getProducts } from '@/lib/api';
 import type { Product } from '@/types';
+import { Search, TrendingUp, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 interface SearchBarProps {
   onClose?: () => void;
@@ -152,7 +152,7 @@ export const SearchBar = ({ onClose, className = '' }: SearchBarProps) => {
                   <div className="flex-1 text-left">
                     <p className="text-sm font-medium">{product.name}</p>
                     <p className="text-sm text-primary font-semibold">
-                      {product.price.toFixed(2)} €
+                      {product.price.toFixed(2)} Fcfa
                     </p>
                   </div>
                 </button>
