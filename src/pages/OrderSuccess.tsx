@@ -25,7 +25,7 @@ import {
   Sparkles,
   Tag,
   Truck,
-  User
+  User,
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import { useEffect, useState } from 'react';
@@ -43,7 +43,6 @@ const OrderSuccess = () => {
   const { orderId, total, loyaltyPoints } = location.state || {};
 
   useEffect(() => {
-    // Confetti animation
     const duration = 3000;
     const end = Date.now() + duration;
 
@@ -63,9 +62,7 @@ const OrderSuccess = () => {
         colors: ['#22c55e', '#16a34a', '#15803d'],
       });
 
-      if (Date.now() < end) {
-        requestAnimationFrame(frame);
-      }
+      if (Date.now() < end) requestAnimationFrame(frame);
     };
 
     frame();
@@ -84,18 +81,14 @@ const OrderSuccess = () => {
       const data = await getOrderPubic(orderId);
       setOrder(data);
 
-      // Générer QR Code
       try {
         const qr = await QRCode.toDataURL(
           `${window.location.origin}/orders/${orderId}`,
           {
             width: 256,
             margin: 2,
-            color: {
-              dark: '#000000',
-              light: '#ffffff',
-            },
-          }
+            color: { dark: '#000000', light: '#ffffff' },
+          },
         );
         setQrDataUrl(qr);
       } catch (e) {
@@ -103,7 +96,6 @@ const OrderSuccess = () => {
       }
     } catch (error) {
       console.error('Error loading order:', error);
-      // Fallback avec données du state
       setOrder({
         id: orderId,
         total,
@@ -125,208 +117,12 @@ const OrderSuccess = () => {
     }
   };
 
-  const downloadReceipt = async () => {
-    if (!order) return;
-    setDownloadingReceipt(true);
+  /* ================= MINI THERMAL RECEIPT (SEUL REÇU) ================= */
 
-    try {
-      const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
-      const margin = 40;
-      const pageWidth = 595;
-      let y = margin;
-
-      // Header avec logo
-      try {
-        const logo = await fetch('/logo.png')
-          .then((r) => r.blob())
-          .then((b) => URL.createObjectURL(b));
-        doc.addImage(logo, 'PNG', margin, 20, 70, 70);
-      } catch (e) {
-        // Si pas de logo, continuer sans
-      }
-
-      // Infos boutique
-      doc.setFontSize(18);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(0, 0, 0);
-      doc.text('BOUTIQUE APPLE PHONE', pageWidth - margin, 40, { align: 'right' });
-
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      doc.text('Guédiawaye, Dakar', pageWidth - margin, 60, { align: 'right' });
-      doc.text('Tél: 33 123 45 66 / 33 123 65 47', pageWidth - margin, 75, {
-        align: 'right',
-      });
-
-      y = 120;
-
-      // Titre
-      doc.setFontSize(20);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(34, 197, 94);
-      doc.text('REÇU DE COMMANDE', margin, y);
-      y += 30;
-
-      // Infos commande
-      doc.setFontSize(11);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(0, 0, 0);
-      doc.text(`N° de commande: ${order.id}`, margin, y);
-      y += 18;
-      doc.text(
-        `Date: ${new Date(order.createdAt || Date.now()).toLocaleDateString('fr-FR', {
-          day: '2-digit',
-          month: 'long',
-          year: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-        })}`,
-        margin,
-        y
-      );
-      y += 18;
-      doc.text(`Statut: ${getStatusLabel(order.status)}`, margin, y);
-      y += 30;
-
-      // Infos client
-      if (order.shippingAddress) {
-        doc.setFillColor(245, 245, 245);
-        doc.roundedRect(margin, y, pageWidth - 2 * margin, 90, 8, 8, 'F');
-
-        doc.setFontSize(12);
-        doc.setFont('helvetica', 'bold');
-        doc.text('INFORMATIONS CLIENT', margin + 10, y + 20);
-
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'normal');
-        doc.text(`Nom: ${order.shippingAddress.name}`, margin + 10, y + 40);
-        doc.text(`Téléphone: ${order.shippingAddress.phone}`, margin + 10, y + 55);
-        doc.text(
-          `Adresse: ${order.shippingAddress.address}, ${order.shippingAddress.city}`,
-          margin + 10,
-          y + 70
-        );
-        y += 110;
-      }
-
-      // Articles
-      if (order.items?.length > 0) {
-        doc.setFontSize(12);
-        doc.setFont('helvetica', 'bold');
-        doc.text('ARTICLES COMMANDÉS', margin, y);
-        y += 20;
-
-        // En-tête tableau
-        doc.setFillColor(34, 197, 94);
-        doc.rect(margin, y, pageWidth - 2 * margin, 25, 'F');
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(10);
-        doc.text('Article', margin + 10, y + 16);
-        doc.text('Qté', margin + 320, y + 16);
-        doc.text('Prix unitaire', margin + 380, y + 16);
-        doc.text('Total', pageWidth - margin - 10, y + 16, { align: 'right' });
-        y += 30;
-
-        // Lignes articles
-        doc.setTextColor(0, 0, 0);
-        order.items.forEach((item: any, index: number) => {
-          doc.setFillColor(index % 2 ? 255 : 250, 250, 250);
-          doc.rect(margin, y, pageWidth - 2 * margin, 25, 'F');
-
-          doc.setFont('helvetica', 'normal');
-          const maxWidth = 300;
-          const name =
-            doc.getTextWidth(item.productName) > maxWidth
-              ? item.productName.substring(0, 35) + '...'
-              : item.productName;
-
-          doc.text(name, margin + 10, y + 16);
-          doc.text(String(item.quantity), margin + 320, y + 16);
-          doc.text(`${item.price.toLocaleString('fr-FR')} FCFA`, margin + 380, y + 16);
-          doc.setFont('helvetica', 'bold');
-          doc.text(
-            `${(item.price * item.quantity).toLocaleString('fr-FR')} FCFA`,
-            pageWidth - margin - 10,
-            y + 16,
-            { align: 'right' }
-          );
-          y += 25;
-        });
-        y += 15;
-      }
-
-      // Totaux
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(11);
-      doc.text('Sous-total:', pageWidth - margin - 120, y);
-      doc.text(`${order.total?.toLocaleString('fr-FR')} FCFA`, pageWidth - margin - 10, y, {
-        align: 'right',
-      });
-      y += 20;
-
-      if (order.discount > 0) {
-        doc.setTextColor(34, 197, 94);
-        doc.text('Réduction:', pageWidth - margin - 120, y);
-        doc.text(
-          `-${order.discount.toLocaleString('fr-FR')} FCFA`,
-          pageWidth - margin - 10,
-          y,
-          { align: 'right' }
-        );
-        y += 20;
-        doc.setTextColor(0, 0, 0);
-      }
-
-      // Total final
-      doc.setFillColor(220, 252, 231);
-      doc.roundedRect(margin, y, pageWidth - 2 * margin, 40, 8, 8, 'F');
-      doc.setFontSize(14);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(34, 197, 94);
-      doc.text('TOTAL À PAYER:', margin + 10, y + 25);
-      doc.text(
-        `${order.finalTotal?.toLocaleString('fr-FR')} FCFA`,
-        pageWidth - margin - 10,
-        y + 25,
-        { align: 'right' }
-      );
-      y += 60;
-
-      // QR Code
-      if (qrDataUrl) {
-        const qrSize = 120;
-        doc.addImage(qrDataUrl, 'PNG', pageWidth - margin - qrSize, y, qrSize, qrSize);
-        doc.setFontSize(8);
-        doc.setTextColor(100, 100, 100);
-        doc.setFont('helvetica', 'normal');
-        doc.text('Scannez pour suivre', pageWidth - margin - qrSize / 2, y + qrSize + 15, {
-          align: 'center',
-        });
-      }
-
-      // Footer
-      y = 800;
-      doc.setDrawColor(200, 200, 200);
-      doc.line(margin, y, pageWidth - margin, y);
-      y += 15;
-      doc.setFontSize(9);
-      doc.setTextColor(100, 100, 100);
-      doc.text('Merci pour votre confiance !', pageWidth / 2, y, { align: 'center' });
-      doc.text(
-        'Pour toute question, contactez-nous au 33 123 45 66',
-        pageWidth / 2,
-        y + 15,
-        { align: 'center' }
-      );
-
-      doc.save(`commande-${order.id}.pdf`);
-      toast.success('Reçu téléchargé avec succès !');
-    } catch (error) {
-      console.error('Error generating PDF:', error);
-      toast.error('Erreur lors de la génération du reçu');
-    } finally {
-      setDownloadingReceipt(false);
-    }
+  const formatNumber = (num: number): string => {
+    return Math.round(num)
+      .toString()
+      .replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
   };
 
   const downloadMiniReceipt = async () => {
@@ -334,125 +130,118 @@ const OrderSuccess = () => {
     setDownloadingReceipt(true);
 
     try {
-      const widthPt = 227;
-      const heightPt = Math.max(450, 250 + (order.items?.length || 0) * 30);
-      const doc = new jsPDF({ unit: 'pt', format: [widthPt, heightPt] });
-
+      const widthPt = 227; // ~80mm
+      const lineHeight = 10;
       const margin = 10;
       let y = margin + 10;
 
-      // Header
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      doc.text('APPLE PHONE', widthPt / 2, y, { align: 'center' });
-      y += 15;
+      // hauteur dynamique
+      const itemsCount = order.items?.length || 0;
+      const baseHeight = 220 + itemsCount * 18;
+      const heightPt = Math.max(360, baseHeight);
 
-      doc.setFontSize(8);
+      const doc = new jsPDF({ unit: 'pt', format: [widthPt, heightPt] });
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.text('APPLE PHONE', widthPt / 2, y, { align: 'center' });
+      y += 14;
+
       doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
       doc.text('Guédiawaye - Tel: 33 123 45 66', widthPt / 2, y, { align: 'center' });
-      y += 18;
+      y += 16;
 
       doc.setLineWidth(0.5);
       doc.line(margin, y, widthPt - margin, y);
-      y += 12;
+      y += 8;
 
-      // Infos commande
-      doc.setFontSize(8);
-      doc.text(`N°: ${order.id.substring(0, 12)}...`, margin, y);
-      y += 12;
+      doc.text(`N°: ${String(order.id).slice(0, 16)}...`, margin, y);
+      y += lineHeight;
       doc.text(
         `Date: ${new Date(order.createdAt || Date.now()).toLocaleDateString('fr-FR')}`,
         margin,
-        y
+        y,
       );
-      y += 15;
+      y += lineHeight + 2;
 
-      // Client
       if (order.shippingAddress) {
         doc.setFontSize(7);
         doc.text(`Client: ${order.shippingAddress.name}`, margin, y);
-        y += 10;
+        y += lineHeight;
         doc.text(`Tel: ${order.shippingAddress.phone}`, margin, y);
-        y += 10;
-        doc.text(
-          `${order.shippingAddress.city || ''}`.substring(0, 30),
-          margin,
-          y
-        );
-        y += 15;
+        y += lineHeight;
+        const adr = `${order.shippingAddress.city || ''}`.trim();
+        if (adr) {
+          doc.text(adr, margin, y);
+          y += lineHeight;
+        }
+        y += 2;
       }
 
       doc.line(margin, y, widthPt - margin, y);
-      y += 10;
+      y += lineHeight;
 
       // Articles
-      doc.setFontSize(8);
       doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
       doc.text('ARTICLES', margin, y);
-      y += 12;
+      y += lineHeight;
 
       doc.setFont('helvetica', 'normal');
       (order.items || []).forEach((item: any) => {
         const name =
-          item.productName.length > 25
-            ? item.productName.substring(0, 25) + '...'
+          item.productName.length > 24
+            ? item.productName.slice(0, 24) + '…'
             : item.productName;
-        doc.text(`${name} x${item.quantity}`, margin, y);
-        doc.text(
-          `${(item.price * item.quantity).toLocaleString('fr-FR')}`,
-          widthPt - margin,
-          y,
-          { align: 'right' }
-        );
-        y += 12;
+        const line = `${name} x${item.quantity}`;
+        const total = formatNumber(item.price * item.quantity);
+
+        doc.text(line, margin, y);
+        doc.text(total, widthPt - margin, y, { align: 'right' });
+        y += lineHeight;
       });
 
-      y += 5;
+      y += 4;
       doc.line(margin, y, widthPt - margin, y);
-      y += 10;
+      y += lineHeight;
 
       // Totaux
-      doc.text(`Sous-total:`, margin, y);
-      doc.text(`${order.total?.toLocaleString('fr-FR')}`, widthPt - margin, y, {
-        align: 'right',
-      });
-      y += 12;
+      const totalText = formatNumber(order.total || 0);
+      doc.text('Sous-total:', margin, y);
+      doc.text(totalText, widthPt - margin, y, { align: 'right' });
+      y += lineHeight;
 
       if (order.discount > 0) {
-        doc.text(`Réduction:`, margin, y);
-        doc.text(`-${order.discount.toLocaleString('fr-FR')}`, widthPt - margin, y, {
-          align: 'right',
-        });
-        y += 12;
+        const discText = formatNumber(order.discount);
+        doc.text('Réduction:', margin, y);
+        doc.text(`-${discText}`, widthPt - margin, y, { align: 'right' });
+        y += lineHeight;
       }
 
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(10);
-      doc.text(`TOTAL:`, margin, y);
-      doc.text(
-        `${order.finalTotal?.toLocaleString('fr-FR')} FCFA`,
-        widthPt - margin,
-        y,
-        { align: 'right' }
-      );
-      y += 20;
+      doc.setFontSize(9);
+      const finalText = formatNumber(order.finalTotal || order.total || 0);
+      doc.text('TOTAL:', margin, y);
+      doc.text(`${finalText} FCFA`, widthPt - margin, y, { align: 'right' });
+      y += lineHeight + 4;
 
-      // QR Code
+      // QR
       if (qrDataUrl) {
-        const size = 100;
+        const size = 90;
         const x = (widthPt - size) / 2;
         doc.addImage(qrDataUrl, 'PNG', x, y, size, size);
-        y += size + 10;
+        y += size + 6;
       }
 
-      doc.setFontSize(7);
       doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7);
       doc.text('Merci pour votre achat !', widthPt / 2, y, { align: 'center' });
 
-      doc.save(`mini-commande-${order.id}.pdf`);
-      toast.success('Reçu compact téléchargé !');
+      doc.save(`commande-${order.id}.pdf`);
+      toast.success('Reçu téléchargé avec succès !');
     } catch (error) {
-      console.error('Error generating mini receipt:', error);
+      console.error('Error generating receipt:', error);
       toast.error('Erreur lors de la génération du reçu');
     } finally {
       setDownloadingReceipt(false);
@@ -481,7 +270,8 @@ const OrderSuccess = () => {
     return colors[status] || 'bg-gray-100 text-gray-800';
   };
 
-  // Loading State
+  /* ============== UI REACT ============== */
+
   if (loading) {
     return (
       <div className="max-w-3xl mx-auto p-4 space-y-6">
@@ -500,74 +290,77 @@ const OrderSuccess = () => {
   if (!order) return null;
 
   return (
-    <div className="min-h-screen  py-12">
+    <div className="min-h-screen py-10 bg-gradient-to-br from-green-50 via-emerald-50 to-white">
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 18 }}
         animate={{ opacity: 1, y: 0 }}
         className="max-w-4xl mx-auto px-4 space-y-6"
       >
-        {/* Success Card */}
+        {/* Success card */}
         <Card className="border-2 border-green-300 bg-gradient-to-br from-green-50 to-emerald-50 shadow-2xl">
-          <CardContent className="p-8 text-center space-y-6">
+          <CardContent className="p-6 sm:p-8 text-center space-y-5">
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ type: 'spring', duration: 0.6 }}
-              className="inline-flex h-24 w-24 items-center justify-center rounded-full bg-green-500 mx-auto"
+              className="inline-flex h-20 w-20 sm:h-24 sm:w-24 items-center justify-center rounded-full bg-green-500 mx-auto"
             >
-              <CheckCircle className="w-16 h-16 text-white" />
+              <CheckCircle className="w-12 h-12 sm:w-16 sm:h-16 text-white" />
             </motion.div>
 
             <div>
-              <h1 className="text-4xl font-bold text-green-800 mb-2">
+              <h1 className="text-2xl sm:text-3xl font-bold text-green-800 mb-1">
                 Commande confirmée ! 🎉
               </h1>
-              <p className="text-gray-600 text-lg">
+              <p className="text-gray-600 text-sm sm:text-base">
                 Merci pour votre confiance. Votre commande a été enregistrée avec succès.
               </p>
             </div>
 
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
               <div className="flex items-center gap-2">
-                <Package className="h-5 w-5 text-green-600" />
-                <span className="font-semibold text-gray-700">N° de commande:</span>
+                <Package className="h-4 w-4 text-green-600" />
+                <span className="font-semibold text-gray-700 text-sm">
+                  N° de commande :
+                </span>
               </div>
               <Badge
                 variant="outline"
-                className="text-lg px-4 py-2 bg-white border-green-300"
+                className="text-base px-3 py-1 bg-white border-green-300"
               >
-                {order.id.substring(0, 12)}...
+                {String(order.id).substring(0, 12)}…
               </Badge>
             </div>
 
             <div
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-full border-2 ${getStatusColor(
-                order.status
+              className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full border ${getStatusColor(
+                order.status,
               )}`}
             >
               <Clock className="h-4 w-4" />
-              <span className="font-semibold">{getStatusLabel(order.status)}</span>
+              <span className="font-semibold text-sm">
+                {getStatusLabel(order.status)}
+              </span>
             </div>
           </CardContent>
         </Card>
 
-        {/* QR Code */}
+        {/* QR */}
         {qrDataUrl && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
+            initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.2 }}
             className="text-center"
           >
             <Card className="inline-block">
-              <CardContent className="p-6">
+              <CardContent className="p-4 sm:p-6">
                 <img
                   src={qrDataUrl}
                   alt="QR Code commande"
-                  className="w-40 h-40 mx-auto rounded-lg"
+                  className="w-32 h-32 sm:w-40 sm:h-40 mx-auto rounded-lg bg-white p-1"
                 />
-                <p className="text-sm text-muted-foreground mt-3 flex items-center justify-center gap-2">
-                  <Sparkles className="h-4 w-4" />
+                <p className="text-xs sm:text-sm text-muted-foreground mt-2 sm:mt-3 flex items-center justify-center gap-1">
+                  <Sparkles className="h-3 w-3 sm:h-4 sm:w-4" />
                   Scannez pour suivre votre commande
                 </p>
               </CardContent>
@@ -575,11 +368,11 @@ const OrderSuccess = () => {
           </motion.div>
         )}
 
-        {/* Alert pour utilisateurs non connectés */}
+        {/* Alert invité */}
         {!user && (
           <Alert className="bg-gradient-to-r from-blue-50 to-cyan-50 border-2 border-blue-200">
             <Gift className="h-5 w-5 text-blue-600" />
-            <AlertDescription className="text-blue-900 flex items-center gap-2 flex-wrap">
+            <AlertDescription className="text-blue-900 flex items-center gap-2 flex-wrap text-sm">
               <strong>Créez un compte</strong> pour suivre vos commandes et gagner des points
               de fidélité !
               <Link
@@ -593,17 +386,17 @@ const OrderSuccess = () => {
           </Alert>
         )}
 
-        {/* Détails commande */}
+        {/* Détails */}
         <Card className="shadow-xl">
-          <CardContent className="p-6 space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold flex items-center gap-2">
-                <FileText className="h-6 w-6" />
+          <CardContent className="p-5 sm:p-6 space-y-6">
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
+                <FileText className="h-5 w-5 sm:h-6 sm:w-6" />
                 Détails de la commande
               </h2>
               {order.createdAt && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Calendar className="h-4 w-4" />
+                <div className="flex items-center gap-1.5 text-xs sm:text-sm text-muted-foreground">
+                  <Calendar className="h-3.5 w-3.5" />
                   {new Date(order.createdAt).toLocaleDateString('fr-FR', {
                     day: '2-digit',
                     month: 'long',
@@ -615,24 +408,24 @@ const OrderSuccess = () => {
 
             <Separator />
 
-            {/* Adresse de livraison */}
+            {/* Adresse */}
             {order.shippingAddress && (
               <div className="bg-muted/50 rounded-lg p-4 space-y-2">
-                <h3 className="font-semibold flex items-center gap-2">
-                  <Truck className="h-5 w-5 text-primary" />
+                <h3 className="font-semibold flex items-center gap-2 text-sm">
+                  <Truck className="h-4 w-4 text-primary" />
                   Adresse de livraison
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs sm:text-sm">
                   <div className="flex items-center gap-2">
-                    <User className="h-4 w-4 text-muted-foreground" />
+                    <User className="h-3.5 w-3.5 text-muted-foreground" />
                     <span>{order.shippingAddress.name}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Phone className="h-4 w-4 text-muted-foreground" />
+                    <Phone className="h-3.5 w-3.5 text-muted-foreground" />
                     <span>{order.shippingAddress.phone}</span>
                   </div>
                   <div className="flex items-center gap-2 md:col-span-2">
-                    <MapPin className="h-4 w-4 text-muted-foreground" />
+                    <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
                     <span>
                       {order.shippingAddress.address}, {order.shippingAddress.city}
                     </span>
@@ -644,19 +437,22 @@ const OrderSuccess = () => {
             {/* Articles */}
             {order.items && order.items.length > 0 && (
               <div className="space-y-3">
-                <h3 className="font-semibold text-lg">Articles commandés</h3>
+                <h3 className="font-semibold text-base sm:text-lg">Articles commandés</h3>
                 {order.items.map((item: any, i: number) => (
                   <div
                     key={i}
-                    className="flex items-center justify-between p-4 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
+                    className="flex items-center justify-between p-3 sm:p-4 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
                   >
                     <div className="flex-1">
-                      <p className="font-semibold">{item.productName}</p>
-                      <p className="text-sm text-muted-foreground">
-                        Quantité: {item.quantity} × {item.price.toLocaleString('fr-FR')} FCFA
+                      <p className="font-semibold text-sm sm:text-base">
+                        {item.productName}
+                      </p>
+                      <p className="text-xs sm:text-sm text-muted-foreground">
+                        Quantité : {item.quantity} ×{' '}
+                        {item.price.toLocaleString('fr-FR')} FCFA
                       </p>
                     </div>
-                    <p className="text-lg font-bold">
+                    <p className="text-sm sm:text-lg font-bold">
                       {(item.price * item.quantity).toLocaleString('fr-FR')} FCFA
                     </p>
                   </div>
@@ -668,7 +464,7 @@ const OrderSuccess = () => {
 
             {/* Totaux */}
             <div className="space-y-3">
-              <div className="flex justify-between text-lg">
+              <div className="flex justify-between text-sm sm:text-lg">
                 <span className="text-muted-foreground">Sous-total</span>
                 <span className="font-semibold">
                   {order.total?.toLocaleString('fr-FR')} FCFA
@@ -676,9 +472,9 @@ const OrderSuccess = () => {
               </div>
 
               {order.discount > 0 && (
-                <div className="flex justify-between text-lg text-green-600">
+                <div className="flex justify-between text-sm sm:text-lg text-green-600">
                   <span className="flex items-center gap-2">
-                    <Tag className="w-5 h-5" /> Réduction
+                    <Tag className="w-4 h-4 sm:w-5 sm:h-5" /> Réduction
                   </span>
                   <span className="font-bold">
                     -{order.discount.toLocaleString('fr-FR')} FCFA
@@ -689,21 +485,25 @@ const OrderSuccess = () => {
               <Separator />
 
               <div className="flex justify-between items-baseline">
-                <span className="text-2xl font-bold">Total</span>
-                <span className="text-3xl font-bold text-green-600">
+                <span className="text-lg sm:text-2xl font-bold">Total</span>
+                <span className="text-2xl sm:text-3xl font-bold text-green-600">
                   {order.finalTotal?.toLocaleString('fr-FR')} FCFA
                 </span>
               </div>
             </div>
 
-            {/* Points de fidélité */}
+            {/* Points fidélité */}
             {user && order.loyaltyPointsEarned > 0 && (
-              <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-200 p-4 rounded-xl">
+              <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-200 p-3 sm:p-4 rounded-xl">
                 <div className="flex items-center justify-center gap-3 text-orange-900">
-                  <Gift className="w-6 h-6" />
+                  <Gift className="w-5 h-5 sm:w-6 sm:h-6" />
                   <div>
-                    <p className="font-semibold">Points de fidélité gagnés</p>
-                    <p className="text-2xl font-bold">{order.loyaltyPointsEarned} points</p>
+                    <p className="font-semibold text-sm sm:text-base">
+                      Points de fidélité gagnés
+                    </p>
+                    <p className="text-xl sm:text-2xl font-bold">
+                      {order.loyaltyPointsEarned} points
+                    </p>
                   </div>
                 </div>
               </div>
@@ -712,13 +512,12 @@ const OrderSuccess = () => {
         </Card>
 
         {/* Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
           <Button
-            onClick={downloadReceipt}
-            variant="outline"
+            onClick={downloadMiniReceipt}
             size="lg"
             disabled={downloadingReceipt}
-            className="h-14"
+            className="h-12 sm:h-14 text-sm sm:text-base bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
           >
             {downloadingReceipt ? (
               <Loader2 className="w-5 h-5 mr-2 animate-spin" />
@@ -728,22 +527,11 @@ const OrderSuccess = () => {
             Télécharger le reçu
           </Button>
 
-          <Button
-            onClick={downloadMiniReceipt}
-            variant="outline"
-            size="lg"
-            disabled={downloadingReceipt}
-            className="h-14"
-          >
-            <Download className="w-5 h-5 mr-2" />
-            Reçu compact
-          </Button>
-
           {user && (
             <Button
               onClick={() => navigate('/orders')}
               size="lg"
-              className="h-14 md:col-span-2"
+              className="h-12 sm:h-14 md:col-span-2 text-sm sm:text-base"
             >
               Voir mes commandes
               <ArrowRight className="w-5 h-5 ml-2" />
@@ -755,7 +543,7 @@ const OrderSuccess = () => {
           onClick={() => navigate('/')}
           variant="ghost"
           size="lg"
-          className="w-full h-12"
+          className="w-full h-11 sm:h-12"
         >
           <Home className="w-5 h-5 mr-2" />
           Retour à l'accueil

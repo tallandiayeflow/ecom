@@ -120,7 +120,7 @@ const Checkout = () => {
     }
 
     if (formData.phone.length < 9) {
-      toast.error('Numéro de téléphone invalide (minimum 9 chiffres)');
+      toast.error('Numéro de téléphone invalide avec l\'indicatif"(minimum 9 chiffres)');
       return;
     }
 
@@ -243,7 +243,7 @@ const Checkout = () => {
 
                     <div>
                       <Label htmlFor="phone">
-                        Téléphone <span className="text-destructive">*</span>
+                        Téléphone (avec l'indicatif) <span className="text-destructive">*</span>
                       </Label>
                       <Input
                         id="phone"

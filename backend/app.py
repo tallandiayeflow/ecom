@@ -11,7 +11,7 @@ cache.init_app(app)
 
 # CORSssss
 
-CORS(app, resources={
+"""CORS(app, resources={
     r"/api/*": {
         "origins": Config.CORS_ORIGINS,
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
@@ -19,7 +19,7 @@ CORS(app, resources={
         "supports_credentials": True
     }
 })
-
+"""
 
 
 #CORS(app)
