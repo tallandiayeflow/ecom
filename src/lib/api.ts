@@ -54,7 +54,7 @@ import type {
   Order,
   Product,
   User,
-  VoucherData,
+  VoucherData
 } from '@/types';
 
 export interface LoginResponse {
@@ -1093,9 +1093,54 @@ export const factures = {
       responseType: 'blob',
     });
   },
+
 };
 
 
+ 
+
+// Book appointment
+export const bookAppointment = async (data: {
+  user_name: string
+  user_phone: string
+  service: string
+  appointment_date: string
+  appointment_time: string
+  notes?: string
+}) => {
+  const response = await api.post('/appointments/book', data)
+  return response.data
+}
+
+export const getPublicSlots = async (date: string) => {
+  const response = await api.get(`/appointments/public?date=${date}`)
+  return response.data
+}
+
+// Appointments Admin
+export const getAdminAppointments = async (params: {
+  page?: number
+  limit?: number
+  status?: string
+  date?: string
+  search?: string
+}) => {
+  const response = await api.get('/admin/appointments', { params })
+  return response.data
+}
+
+export const updateAppointmentStatus = async (
+  id: string,
+  data: { status: string; notes?: string }
+) => {
+  const response = await api.put(`/admin/appointments/${id}/status`, data)
+  return response.data
+}
+
+export const deleteAppointment = async (id: string) => {
+  const response = await api.delete(`/admin/appointments/${id}`)
+  return response.data
+}
 
 
 export default api;

@@ -207,3 +207,17 @@ export interface JobApplication {
   admin_notes?: string
   created_at: string
 }
+
+ // Appointments types
+export interface Appointment {
+  id: string
+  user_name: string
+  user_phone: string
+  service: string
+  service_name: string
+  appointment_date: string
+  appointment_time: string
+  status: 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'no_show'
+  notes?: string
+  created_at: string
+}

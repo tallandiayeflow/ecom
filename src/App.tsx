@@ -12,6 +12,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import InvoicePDF from "@/pages/admin/InvoicePdf";
 import AdminDashboard from "./pages/AdminDashboard";
 import Auth from "./pages/Auth";
+import BookAppointment from "./pages/BookAppointement";
 import Cart from "./pages/Cart";
 import Checkout from "./pages/Checkout";
 import FlashSales from "./pages/FlashSales";
@@ -30,6 +31,7 @@ import Profile from "./pages/Profile";
 import ResetPassword from "./pages/ResetPassword";
 import LoyaltyRewards from "./pages/Rewards";
 import Search from "./pages/Search";
+import AppointmentsManagement from "./pages/admin/AppointManagement";
 import BannersManagement from "./pages/admin/BannersManagement";
 import CategoriesManagement from "./pages/admin/CategoriesManagement";
 import FlashSalesManagement from "./pages/admin/FlashSalesManagement";
@@ -84,6 +86,8 @@ const App = () => (
                           <Route path="/payment-success" element={<PaymentSuccess />} />
                           <Route path="/payment-cancel" element={<PaymentCancel />} />
                           <Route path="/jobs-application" element={<JobApplicationForm />} />
+                          <Route path="/book-appointment" element={<BookAppointment />} />
+                          
                           
                         </Routes>
                       </main>
@@ -110,6 +114,7 @@ const App = () => (
                   <Route path="stock" element={<StockManagement />} />
                   <Route path="visits" element={<AdminVisits />} />
                   <Route path="jobs" element={<JobsManagement />} />
+                  <Route path="appointments" element={<AppointmentsManagement />} />
                  
 
                 </Route>

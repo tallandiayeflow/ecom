@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import {
+  Calendar,
   ChevronLeft,
   ChevronRight,
   FileText,
@@ -16,7 +17,7 @@ import {
   Smartphone,
   Ticket,
   Users,
-  Zap,
+  Zap
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
@@ -48,6 +49,7 @@ const AdminDashboard = () => {
     { icon: PackageSearch, label: 'Gestion Stock', path: '/admin/stock' },
     { icon: Smartphone, label: 'Visites', path: '/admin/visits' },
     { icon: Zap, label: 'Jobs', path: '/admin/jobs' },
+    { icon: Calendar, label: 'Rendez-vous', path: '/admin/appointments' },
   ];
 
   const handleLogout = () => {

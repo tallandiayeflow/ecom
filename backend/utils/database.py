@@ -15,13 +15,13 @@ def get_db_connection():
 
 def execute_query(query, params=None, fetch_one=False, fetch_all=False, commit=False):
     """
-    Execute a database query
+    Execute a database query - VERSION CORRIGÉE
     
     Args:
         query: SQL query string
         params: Query parameters (tuple or dict)
         fetch_one: Return single row
-        fetch_all: Return all rows
+        fetch_all: Return all rows  
         commit: Commit the transaction
     
     Returns:
@@ -32,6 +32,7 @@ def execute_query(query, params=None, fetch_one=False, fetch_all=False, commit=F
         with connection.cursor() as cursor:
             cursor.execute(query, params)
             
+            # ✅ LOGIQUE FLAGS CORRIGÉE
             if fetch_one:
                 result = cursor.fetchone()
             elif fetch_all:
@@ -40,11 +41,45 @@ def execute_query(query, params=None, fetch_one=False, fetch_all=False, commit=F
                 connection.commit()
                 result = cursor.lastrowid
             else:
-                result = None
-                
-        return result
+                # ✅ SELECT sans fetch → juste execute
+                result = True
+            
+            return result
+            
     except Exception as e:
-        connection.rollback()
+        if connection:
+            connection.rollback()
         raise e
     finally:
-        connection.close()
+        if connection:
+            connection.close()
+
+# ✅ FONCTIONS UTILITAIRES SUPPLÉMENTAIRES
+def execute_many(query, params_list):
+    """Execute multiple queries"""
+    connection = get_db_connection()
+    try:
+        with connection.cursor() as cursor:
+            cursor.executemany(query, params_list)
+            connection.commit()
+            return cursor.rowcount
+    except Exception as e:
+        if connection:
+            connection.rollback()
+        raise e
+    finally:
+        if connection:
+            connection.close()
+
+def get_scalar(query, params=None):
+    """Get single scalar value"""
+    result = execute_query(query, params, fetch_one=True)
+    return result[list(result.keys())[0]] if result else None
+
+def table_exists(table_name):
+    """Check if table exists"""
+    count = get_scalar(
+        "SELECT COUNT(*) as count FROM information_schema.tables WHERE table_name = %s", 
+        (table_name,)
+    )
+    return count > 0

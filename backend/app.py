@@ -2,7 +2,7 @@ from utils.cache import cache
 from flask import Flask, jsonify
 from flask_cors import CORS
 from config import Config
-from routes import auth, products, categories, cart, orders, flash_sales, banners, vouchers, admin, user, factures, stock,loyalty,visits,payments, jobs
+from routes import auth, appointements,products, categories, cart, orders, flash_sales, banners, vouchers, admin, user, factures, stock,loyalty,visits,payments, jobs
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -36,6 +36,7 @@ app.register_blueprint(loyalty.bp, url_prefix='/api/loyalty')
 app.register_blueprint(visits.bp, url_prefix='/api/visits')
 app.register_blueprint(payments.bp, url_prefix='/api/payments')
 app.register_blueprint(jobs.bp, url_prefix='/api/jobs')
+app.register_blueprint(appointements.bp, url_prefix='/api')
 
 
 # Health check
@@ -69,4 +70,41 @@ CREATE TABLE job_applications (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
+CREATE TABLE appointments (
+    id VARCHAR(36) PRIMARY KEY,
+    user_id VARCHAR(36),
+    user_name VARCHAR(255) NOT NULL,
+    user_phone VARCHAR(20) NOT NULL,
+    service ENUM('facial_care', 'pedicure', 'manicure', 'massage', 'other') NOT NULL,
+    service_name VARCHAR(100) NOT NULL,
+    appointment_date DATE NOT NULL,
+    appointment_time TIME NOT NULL,
+    status ENUM('pending', 'confirmed', 'completed', 'cancelled', 'no_show') DEFAULT 'pending',
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    UNIQUE KEY unique_appointment (appointment_date, appointment_time),
+    INDEX idx_date_time (appointment_date, appointment_time),
+    INDEX idx_user_phone (user_phone),
+    INDEX idx_status (status)
+);
+
+-- Services prédéfinis (optionnel)
+CREATE TABLE services (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    duration_minutes INT DEFAULT 60,
+    price DECIMAL(10,2),
+    is_active BOOLEAN DEFAULT TRUE
+);
+
+INSERT INTO services (name, description, duration_minutes, price) VALUES
+('Soins du visage', 'Nettoyage profond + masque hydratant', 45, 15000),
+('Pédicure', 'Soin complet des pieds + vernis', 60, 12000),
+('Manucure', 'Soin des mains + pose vernis', 45, 10000),
+('Massage relaxant', 'Massage corps complet 60min', 60, 25000),
+('Massage dos', 'Massage ciblé dos/cervicales', 30, 15000);
+
 """
