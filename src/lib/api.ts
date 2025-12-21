@@ -1028,7 +1028,15 @@ export const factures = {
     const { data } = await api.delete<{ message: string }>(`/factures/${invoiceId}`);
     return data;
   },
+
+  downloadIncvoicePdf: async (invoiceId: string): Promise<void> => {
+    const response = await api.get(`/factures/${invoiceId}/pdf`, {
+      responseType: 'blob',
+    });
+  },
 };
+
+
 
 
 export default api;

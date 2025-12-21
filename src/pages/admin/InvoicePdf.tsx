@@ -34,13 +34,13 @@ import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 
 const SHOP_INFO = {
-  name: "Teuss Phone Shop",
-  address: "Casablanca, Maroc",
-  phone: "+212 6XX XXX XXX",
-  email: "contact@teussphone.com",
+  name: "Didio Glow Skin",
+  address: "Dakar, Sénégal",
+  phone: "+221 77 777 7777",
+  email: "contact@didioglowskin.com",
   ice: "ICE000000000",
   logo: "/logo.png",
-  website: "www.teussphone.com",
+  website: "www.didioglowskin.com",
 };
 
 const statusConfig = {

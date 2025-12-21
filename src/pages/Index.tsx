@@ -1,13 +1,13 @@
-import { useEffect, useState } from 'react';
-import { Product } from '@/types';
-import { getProducts } from '@/lib/api';
 import { BannerSlider } from '@/components/BannerSlider';
 import { CategorySlider } from '@/components/CategorySlider';
 import { FlashSaleSection } from '@/components/FlashSaleSection';
 import { ProductCard } from '@/components/ProductCard';
 import { Button } from '@/components/ui/button';
-import { useNavigate } from 'react-router-dom';
+import { getProducts } from '@/lib/api';
+import { Product } from '@/types';
 import { ArrowRight } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const Index = () => {
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
@@ -19,7 +19,7 @@ const Index = () => {
 
   const loadFeaturedProducts = async () => {
     try {
-      const { products } = await getProducts({ limit: 4 });
+      const { products } = await getProducts({ limit: 10 });
       setFeaturedProducts(products);
     } catch (error) {
       console.error('Error loading products:', error);
