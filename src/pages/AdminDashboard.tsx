@@ -47,6 +47,7 @@ const AdminDashboard = () => {
     { icon: FileText, label: 'Factures', path: '/admin/invoices' },
     { icon: PackageSearch, label: 'Gestion Stock', path: '/admin/stock' },
     { icon: Smartphone, label: 'Visites', path: '/admin/visits' },
+    { icon: Zap, label: 'Jobs', path: '/admin/jobs' },
   ];
 
   const handleLogout = () => {

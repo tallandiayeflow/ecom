@@ -2,7 +2,7 @@ from utils.cache import cache
 from flask import Flask, jsonify
 from flask_cors import CORS
 from config import Config
-from routes import auth, products, categories, cart, orders, flash_sales, banners, vouchers, admin, user, factures, stock,loyalty,visits,payments
+from routes import auth, products, categories, cart, orders, flash_sales, banners, vouchers, admin, user, factures, stock,loyalty,visits,payments, jobs
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -10,8 +10,7 @@ cache.init_app(app)
 
 
 # CORSssss
-
-"""CORS(app, resources={
+CORS(app, resources={
     r"/api/*": {
         "origins": Config.CORS_ORIGINS,
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
@@ -19,9 +18,6 @@ cache.init_app(app)
         "supports_credentials": True
     }
 })
-"""
-
-
 #CORS(app)
 # Blueprints tests
 app.register_blueprint(auth.bp, url_prefix='/api/auth')
@@ -39,6 +35,7 @@ app.register_blueprint(stock.bp, url_prefix='/api/stock')
 app.register_blueprint(loyalty.bp, url_prefix='/api/loyalty')
 app.register_blueprint(visits.bp, url_prefix='/api/visits')
 app.register_blueprint(payments.bp, url_prefix='/api/payments')
+app.register_blueprint(jobs.bp, url_prefix='/api/jobs')
 
 
 # Health check
@@ -57,3 +54,19 @@ def internal_error(error):
 
 if __name__ == '__main__':
     app.run(host=Config.HOST, port=Config.PORT, debug=Config.DEBUG)
+"""
+
+CREATE TABLE job_applications (
+    id VARCHAR(36) PRIMARY KEY,
+    full_name VARCHAR(255) NOT NULL,
+    phone VARCHAR(20) NOT NULL UNIQUE,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    desired_position VARCHAR(255) NOT NULL,
+    cv_filename VARCHAR(255) NOT NULL,
+    cv_path VARCHAR(500) NOT NULL,
+    status ENUM('pending', 'accepted', 'rejected') DEFAULT 'pending',
+    admin_notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+"""

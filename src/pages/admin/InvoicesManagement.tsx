@@ -296,7 +296,7 @@ const InvoicesManagement = () => {
     setInvoiceStatus("pending");
     setPaymentMethod("cash_on_delivery");
     setSelectedItems(new Map());
-    setTaxRate("20");
+    setTaxRate("0");
     setDiscount("0");
     setInventorySearch("");
   };
@@ -1023,9 +1023,10 @@ const InvoicesManagement = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="cash_on_delivery">À la livraison</SelectItem>
-                    <SelectItem value="card">Carte bancaire</SelectItem>
-                    <SelectItem value="bank_transfer">Virement</SelectItem>
+                    <SelectItem value="espèces">Espèces</SelectItem>
+                    <SelectItem value="Mobile Money">Mobile Money</SelectItem>
                     <SelectItem value="other">Autre</SelectItem>
+
                   </SelectContent>
                 </Select>
               </div>

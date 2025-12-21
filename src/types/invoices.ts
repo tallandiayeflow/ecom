@@ -17,7 +17,7 @@ export interface CreateInvoiceData {
   customerCity?: string;
   items: InvoiceItem[];
   status: 'pending' | 'paid' | 'cancelled';
-  paymentMethod: 'cash_on_delivery' | 'card' | 'bank_transfer' | 'other';
+  paymentMethod: 'cash_on_delivery' | 'card' | 'bank_transfer' | 'other'|'espèces'|'Mobile Money';
   notes?: string;
   taxRate?: number;
   discount?: number;

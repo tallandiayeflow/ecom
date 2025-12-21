@@ -194,3 +194,16 @@ export interface UpdateOrderPayload {
   payment_status?: PaymentStatus;
   payment_reference?: string;
 }
+
+
+export interface JobApplication {
+  id: string
+  full_name: string
+  phone: string
+  email: string
+  desired_position: string
+  cv_filename: string
+  status: 'pending' | 'accepted' | 'rejected'
+  admin_notes?: string
+  created_at: string
+}

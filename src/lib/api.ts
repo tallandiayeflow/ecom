@@ -957,7 +957,7 @@ export const getVisitsStats = async (): Promise<VisitsStats> => {
 //=================== ENDPOINTS Paytech====================
 
 
-import type { PaytechPaymentRequest, PaytechPaymentResponse } from '@/types';
+import type { JobApplication, PaytechPaymentRequest, PaytechPaymentResponse } from '@/types';
 
 /**
  * Initialise la demande de paiement PayTech
@@ -986,6 +986,65 @@ export const getToken = (): string | null => {
 export const logout = (): void => {
   localStorage.removeItem('token');
   localStorage.removeItem('user');
+};
+
+export const submitJobApplication = async (formData: FormData) => {
+  const response = await api.post('/jobs/apply', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+  return response.data;
+};
+
+export const getAllJobs = async (params?: {
+  status?: string;
+  search?: string;
+  page?: number;
+  limit?: number;
+}): Promise<{
+  jobs: JobApplication[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}> => {
+  const searchParams = new URLSearchParams();
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined && value !== '') {
+      searchParams.append(key, value.toString());
+    }
+  });
+  const response = await api.get(`/jobs/admin/jobs?${searchParams.toString()}`);
+  return response.data;
+};
+
+export const downloadJobCV = async (jobId: string) => {
+  const response = await api.get(`/jobs/admin/jobs/${jobId}/download`, {
+    responseType: 'blob'
+  });
+  const blob = response.data;
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `CV_${jobId.slice(0, 8)}.pdf`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
+  return blob;
+};
+
+export const updateJobStatus = async (
+  jobId: string,
+  status: 'accepted' | 'rejected',
+  notes?: string
+): Promise<{ message: string }> => {
+  const response = await api.put(`/admin/jobs/${jobId}/status`, { status, admin_notes: notes });
+  return response.data;
+};
+
+export const deleteJob = async (jobId: string): Promise<{ message: string }> => {
+  const response = await api.delete(`/jobs/admin/jobs/${jobId}`);
+  return response.data;
 };
 
 

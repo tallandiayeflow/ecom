@@ -18,6 +18,7 @@ import FlashSales from "./pages/FlashSales";
 import FlashsDetails from "./pages/FlashsDetails";
 import ForgotPassword from "./pages/ForgotPassword";
 import Index from "./pages/Index";
+import JobApplicationForm from "./pages/JobsApplicationForm";
 import NotFound from "./pages/NotFound";
 import OrderSuccess from "./pages/OrderSuccess";
 import Orders from "./pages/Orders";
@@ -33,6 +34,7 @@ import BannersManagement from "./pages/admin/BannersManagement";
 import CategoriesManagement from "./pages/admin/CategoriesManagement";
 import FlashSalesManagement from "./pages/admin/FlashSalesManagement";
 import InvoicesManagement from "./pages/admin/InvoicesManagement";
+import JobsManagement from "./pages/admin/JobsManagement";
 import OrderDetailUpdate from "./pages/admin/OrderUpdate";
 import OrdersManagement from "./pages/admin/OrdersManagement";
 import Overview from "./pages/admin/Overview";
@@ -81,6 +83,7 @@ const App = () => (
                           <Route path="/forgot-password" element={<ForgotPassword />} />
                           <Route path="/payment-success" element={<PaymentSuccess />} />
                           <Route path="/payment-cancel" element={<PaymentCancel />} />
+                          <Route path="/jobs-application" element={<JobApplicationForm />} />
                           
                         </Routes>
                       </main>
@@ -106,6 +109,7 @@ const App = () => (
                   <Route path="invoices" element={<InvoicesManagement />} />
                   <Route path="stock" element={<StockManagement />} />
                   <Route path="visits" element={<AdminVisits />} />
+                  <Route path="jobs" element={<JobsManagement />} />
                  
 
                 </Route>
