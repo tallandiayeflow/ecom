@@ -4,12 +4,20 @@ from utils.database import get_db_connection
 import uuid
 from datetime import datetime, timedelta
 import io
+import os
+import tempfile
+
+# ReportLab
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import mm
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image as RLImage
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
+
+# QR Code
+import qrcode
+
 
 factures_bp = Blueprint('factures', __name__)
 
@@ -455,22 +463,26 @@ def delete_facture(current_user, invoice_id):
         conn.close()
 
 
-# ========== GÉNÉRATION PDF FACTURE ==========
+# ========== GÉNÉRATION PDF FACTURE AVEC QR CODE + LOGO ==========
+
+
 @factures_bp.route('/<invoice_id>/pdf', methods=['GET'])
 @token_required
 def download_facture_pdf(current_user, invoice_id):
-    """Télécharge facture PDF A4."""
+    """Télécharge facture PDF A4 compacte (1 page)."""
     conn = get_db_connection()
     user_id = get_user_id(current_user)
 
     try:
         with conn.cursor() as cursor:
+            # Vérification des permissions
             if current_user.get('role') != 'admin':
                 cursor.execute("SELECT COUNT(*) AS count FROM invoices WHERE id=%s AND user_id=%s",
                              (invoice_id, user_id))
                 if cursor.fetchone()['count'] == 0:
                     return jsonify({'error': 'Accès non autorisé'}), 403
 
+            # Récupérer la facture
             cursor.execute("""
                 SELECT i.*, u.name as user_name, u.email as user_email
                 FROM invoices i
@@ -482,24 +494,87 @@ def download_facture_pdf(current_user, invoice_id):
             if not invoice:
                 return jsonify({'error': 'Facture non trouvée'}), 404
 
+            # Récupérer les articles
             cursor.execute("SELECT * FROM invoice_items WHERE invoice_id=%s ORDER BY id", (invoice_id,))
             invoice['items'] = cursor.fetchall()
 
-            buffer = io.BytesIO()
-            doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=15*mm, leftMargin=15*mm, 
-                                  topMargin=15*mm, bottomMargin=15*mm)
+            # ========== GÉNÉRATION DU QR CODE ==========
+            frontend_url = os.environ.get('FRONTEND_URL', 'http://localhost:5173')
+            qr_url = f"{frontend_url}/invoices/{invoice_id}"
 
+            qr = qrcode.QRCode(
+                version=1,
+                error_correction=qrcode.constants.ERROR_CORRECT_L,
+                box_size=8,  # Réduit de 10 à 8
+                border=1,    # Réduit de 2 à 1
+            )
+            qr.add_data(qr_url)
+            qr.make(fit=True)
+
+            qr_img = qr.make_image(fill_color="black", back_color="white")
+
+            qr_buffer = io.BytesIO()
+            qr_img.save(qr_buffer, format='PNG')
+            qr_buffer.seek(0)
+
+            qr_temp = tempfile.NamedTemporaryFile(delete=False, suffix='.png')
+            qr_temp.write(qr_buffer.read())
+            qr_temp.close()
+
+            # ========== VÉRIFIER SI LE LOGO EXISTE ==========
+            logo_path = 'uploads/logo/logo.png'
+            if not os.path.exists(logo_path):
+                logo_path = 'uploads/logo/logo.jpg'
+            logo_exists = os.path.exists(logo_path)
+
+            # ========== CRÉATION DU PDF (MARGES RÉDUITES) ==========
+            buffer = io.BytesIO()
+            doc = SimpleDocTemplate(
+                buffer,
+                pagesize=A4,
+                rightMargin=12*mm,   # Réduit de 15 à 12mm
+                leftMargin=12*mm,    # Réduit de 15 à 12mm
+                topMargin=10*mm,     # Réduit de 15 à 10mm
+                bottomMargin=10*mm   # Réduit de 15 à 10mm
+            )
+
+            # ========== STYLES COMPACTS ==========
             styles = getSampleStyleSheet()
 
-            normal_style = ParagraphStyle('ModernNormal', parent=styles['Normal'], fontSize=10, 
-                                         textColor=colors.HexColor('#374151'), fontName='Helvetica')
+            # Texte normal plus petit
+            normal_style = ParagraphStyle(
+                'ModernNormal',
+                parent=styles['Normal'],
+                fontSize=8,          # Réduit de 10 à 8
+                textColor=colors.HexColor('#374151'),
+                fontName='Helvetica',
+                leading=10           # Espacement lignes
+            )
 
-            header_style = ParagraphStyle('SectionHeader', parent=styles['Heading2'], fontSize=14, 
-                                          spaceAfter=12, spaceBefore=15, 
-                                          textColor=colors.HexColor('#111827'), fontName='Helvetica-Bold')
+            # Headers plus petits
+            header_style = ParagraphStyle(
+                'SectionHeader',
+                parent=styles['Heading2'],
+                fontSize=11,         # Réduit de 14 à 11
+                spaceAfter=6,        # Réduit de 12 à 6
+                spaceBefore=8,       # Réduit de 15 à 8
+                textColor=colors.HexColor('#111827'),
+                fontName='Helvetica-Bold'
+            )
+
+            # Style QR text
+            qr_text_style = ParagraphStyle(
+                'QRText',
+                parent=normal_style,
+                fontSize=7,          # Réduit de 8 à 7
+                textColor=colors.HexColor('#6b7280'),
+                alignment=TA_CENTER,
+                leading=8
+            )
 
             story = []
 
+            # ========== INFORMATIONS BOUTIQUE ==========
             SHOP_INFO = {
                 'name': 'TEUSS PHONE SHOP',
                 'address': 'Casablanca, Maroc',
@@ -509,68 +584,93 @@ def download_facture_pdf(current_user, invoice_id):
                 'website': 'www.teussphone.com'
             }
 
-            # Header
-            header_data = [[
-                Paragraph(f"""<b><font size="16" color="#1f2937">{SHOP_INFO['name']}</font></b><br/>
-                    <font size="9" color="#6366f1">{SHOP_INFO['website']}</font><br/><br/>
-                    <font size="9" color="#6b7280">
-                    📍 {SHOP_INFO['address']}<br/>
-                    📞 {SHOP_INFO['phone']}<br/>
-                    ✉ {SHOP_INFO['email']}<br/>
-                    <font size="8">ICE: {SHOP_INFO['ice']}</font>
-                    </font>""", normal_style),
+            # ========== EN-TÊTE COMPACT AVEC LOGO ==========
+            left_content = []
 
-                Paragraph(f"""<para align="right">
-                    <b><font size="32" color="#1f2937">FACTURE</font></b><br/><br/>
-                    <font size="10" color="#6b7280">
-                    <b>N° {invoice['invoice_number']}</b><br/>
-                    📅 {invoice['created_at'].strftime('%d/%m/%Y')}<br/><br/>
-                    <font size="9" color="{'#22c55e' if invoice['status'] == 'paid' else '#f59e0b' if invoice['status'] == 'pending' else '#ef4444'}">
-                    ● {invoice['status'].upper()}
-                    </font>
-                    </font>
-                    </para>""", normal_style)
-            ]]
+            # Logo plus petit
+            if logo_exists:
+                try:
+                    logo_img = RLImage(logo_path, width=25*mm, height=25*mm, kind='proportional')  # Réduit de 40 à 25mm
+                    left_content.append(logo_img)
+                    left_content.append(Spacer(1, 2))  # Réduit de 5 à 2
+                except Exception as e:
+                    print(f"Erreur chargement logo: {e}")
 
-            header_table = Table(header_data, colWidths=[90*mm, 90*mm])
+            # Infos boutique compactes
+            shop_info_text = f"""<b><font size="12" color="#1f2937">{SHOP_INFO['name']}</font></b><br/>
+                <font size="7" color="#6366f1">{SHOP_INFO['website']}</font><br/>
+                <font size="7" color="#6b7280">
+                📍 {SHOP_INFO['address']}<br/>
+                📞 {SHOP_INFO['phone']}<br/>
+                ✉ {SHOP_INFO['email']}<br/>
+                <font size="6">ICE: {SHOP_INFO['ice']}</font>
+                </font>"""
+
+            left_content.append(Paragraph(shop_info_text, normal_style))
+
+            left_table = Table([[item] for item in left_content], colWidths=[85*mm])
+            left_table.setStyle(TableStyle([
+                ('VALIGN', (0,0), (-1,-1), 'TOP'),
+                ('LEFTPADDING', (0,0), (-1,-1), 0),
+                ('RIGHTPADDING', (0,0), (-1,-1), 0),
+            ]))
+
+            # Colonne droite : Info facture compacte
+            status_color = '#22c55e' if invoice['status'] == 'paid' else '#f59e0b' if invoice['status'] == 'pending' else '#ef4444'
+
+            right_text = Paragraph(f"""<para align="right">
+                <b><font size="24" color="#1f2937">FACTURE</font></b><br/>
+                <font size="8" color="#6b7280">
+                <b>N° {invoice['invoice_number']}</b><br/>
+                📅 {invoice['created_at'].strftime('%d/%m/%Y')}<br/>
+                <font size="8" color="{status_color}">
+                ● {invoice['status'].upper()}
+                </font>
+                </font>
+                </para>""", normal_style)
+
+            header_table = Table([[left_table, right_text]], colWidths=[85*mm, 101*mm])
             header_table.setStyle(TableStyle([('VALIGN', (0,0), (-1,-1), 'TOP')]))
             story.append(header_table)
-            story.append(Spacer(1, 15))
+            story.append(Spacer(1, 8))  # Réduit de 15 à 8
 
-            story.append(Table([['']], colWidths=[180*mm], rowHeights=[2]))
-            story[-1].setStyle(TableStyle([('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#e5e7eb'))]))
-            story.append(Spacer(1, 20))
+            # Ligne de séparation fine
+            separator_line = Table([['']], colWidths=[186*mm], rowHeights=[1])
+            separator_line.setStyle(TableStyle([
+                ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#e5e7eb'))
+            ]))
+            story.append(separator_line)
+            story.append(Spacer(1, 8))  # Réduit de 20 à 8
 
-            # Client
+            # ========== SECTION CLIENT COMPACTE ==========
             story.append(Paragraph('<b>FACTURÉ À</b>', header_style))
 
-            client_content = f"""<b><font size="12" color="#1f2937">{invoice['customer_name']}</font></b><br/>
-                <font size="9" color="#6b7280">"""
+            client_content = f"""<b><font size="9" color="#1f2937">{invoice['customer_name']}</font></b><br/>
+                <font size="7" color="#6b7280">"""
 
             if invoice.get('customer_email'):
-                client_content += f"✉ {invoice['customer_email']}<br/>"
+                client_content += f"✉ {invoice['customer_email']} "
             if invoice.get('customer_phone'):
-                client_content += f"📞 {invoice['customer_phone']}<br/>"
+                client_content += f"• 📞 {invoice['customer_phone']}"
             if invoice.get('customer_address'):
-                client_content += f"📍 {invoice['customer_address']}"
+                client_content += f"<br/>📍 {invoice['customer_address']}"
             if invoice.get('customer_city'):
                 client_content += f" - {invoice['customer_city']}"
 
             client_content += "</font>"
 
-            client_data = [[Paragraph(client_content, normal_style)]]
-            client_table = Table(client_data, colWidths=[180*mm])
+            client_table = Table([[Paragraph(client_content, normal_style)]], colWidths=[186*mm])
             client_table.setStyle(TableStyle([
                 ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#f3f4f6')),
                 ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#e5e7eb')),
-                ('LEFTPADDING', (0,0), (-1,-1), 15),
-                ('TOPPADDING', (0,0), (-1,-1), 12),
-                ('BOTTOMPADDING', (0,0), (-1,-1), 12),
+                ('LEFTPADDING', (0,0), (-1,-1), 10),  # Réduit de 15 à 10
+                ('TOPPADDING', (0,0), (-1,-1), 6),    # Réduit de 12 à 6
+                ('BOTTOMPADDING', (0,0), (-1,-1), 6), # Réduit de 12 à 6
             ]))
             story.append(client_table)
-            story.append(Spacer(1, 25))
+            story.append(Spacer(1, 10))  # Réduit de 25 à 10
 
-            # Articles
+            # ========== SECTION ARTICLES COMPACTE ==========
             story.append(Paragraph('<b>ARTICLES</b>', header_style))
 
             items_data = [[
@@ -582,99 +682,136 @@ def download_facture_pdf(current_user, invoice_id):
 
             for item in invoice['items']:
                 items_data.append([
-                    Paragraph(f"<b>{item['product_name'][:50]}</b>", normal_style),
-                    Paragraph(f"{float(item['unit_price']):,.0f} FCFA", normal_style),
-                    Paragraph(f"<b>{item['quantity']}</b>", normal_style),
-                    Paragraph(f"<b>{float(item['total']):,.0f} FCFA</b>", normal_style)
+                    Paragraph(f"{item['product_name'][:40]}", normal_style),  # Réduit de 50 à 40 chars
+                    Paragraph(f"{float(item['unit_price']):,.0f}", normal_style),
+                    Paragraph(f"{item['quantity']}", normal_style),
+                    Paragraph(f"{float(item['total']):,.0f}", normal_style)
                 ])
 
-            items_table = Table(items_data, colWidths=[90*mm, 30*mm, 20*mm, 40*mm])
+            items_table = Table(items_data, colWidths=[100*mm, 28*mm, 18*mm, 40*mm])
             items_table.setStyle(TableStyle([
                 ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#1f2937')),
                 ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+                ('FONTSIZE', (0,0), (-1,0), 8),
                 ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
                 ('ALIGN', (0,0), (0,-1), 'LEFT'),
                 ('ALIGN', (1,0), (-1,-1), 'RIGHT'),
                 ('ALIGN', (2,0), (2,-1), 'CENTER'),
+                ('FONTSIZE', (0,1), (-1,-1), 8),
                 ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.white, colors.HexColor('#f9fafb')]),
                 ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#e5e7eb')),
                 ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#d1d5db')),
-                ('LEFTPADDING', (0,0), (-1,-1), 10),
-                ('TOPPADDING', (0,0), (-1,-1), 8),
-                ('BOTTOMPADDING', (0,0), (-1,-1), 8),
+                ('LEFTPADDING', (0,0), (-1,-1), 6),   # Réduit de 10 à 6
+                ('RIGHTPADDING', (0,0), (-1,-1), 6),  # Réduit de 10 à 6
+                ('TOPPADDING', (0,0), (-1,-1), 4),    # Réduit de 8 à 4
+                ('BOTTOMPADDING', (0,0), (-1,-1), 4), # Réduit de 8 à 4
             ]))
             story.append(items_table)
-            story.append(Spacer(1, 30))
+            story.append(Spacer(1, 10))  # Réduit de 30 à 10
 
-            # Totaux
+            # ========== SECTION TOTAUX COMPACTE ==========
             totals_data = [
-                [Paragraph('<font color="#6b7280">Sous-total HT:</font>', normal_style),
-                 Paragraph(f'<b>{float(invoice["amount"]):,.0f} FCFA</b>', normal_style)]
+                [Paragraph('<font size="7" color="#6b7280">Sous-total HT:</font>', normal_style),
+                 Paragraph(f'<font size="8"><b>{float(invoice["amount"]):,.0f} FCFA</b></font>', normal_style)]
             ]
 
             if invoice.get('discount') and float(invoice['discount']) > 0:
                 totals_data.append([
-                    Paragraph('<font color="#ef4444">Remise:</font>', normal_style),
-                    Paragraph(f'<font color="#ef4444"><b>-{float(invoice["discount"]):,.0f} FCFA</b></font>', normal_style)
+                    Paragraph('<font size="7" color="#ef4444">Remise:</font>', normal_style),
+                    Paragraph(f'<font size="8" color="#ef4444"><b>-{float(invoice["discount"]):,.0f} FCFA</b></font>', normal_style)
                 ])
 
             totals_data.append([
-                Paragraph(f'<font color="#6b7280">TVA ({invoice["tax_rate"]:.0f}%):</font>', normal_style),
-                Paragraph(f'<b>{float(invoice["tax"]):,.0f} FCFA</b>', normal_style)
+                Paragraph(f'<font size="7" color="#6b7280">TVA ({invoice["tax_rate"]:.0f}%):</font>', normal_style),
+                Paragraph(f'<font size="8"><b>{float(invoice["tax"]):,.0f} FCFA</b></font>', normal_style)
             ])
 
             totals_data.append([
-                Paragraph('<font size="12" color="white"><b>TOTAL TTC</b></font>', normal_style),
-                Paragraph(f'<font size="14" color="white"><b>{float(invoice["total"]):,.0f} FCFA</b></font>', normal_style)
+                Paragraph('<font size="10" color="white"><b>TOTAL TTC</b></font>', normal_style),
+                Paragraph(f'<font size="11" color="white"><b>{float(invoice["total"]):,.0f} FCFA</b></font>', normal_style)
             ])
 
-            totals_table = Table(totals_data, colWidths=[50*mm, 40*mm])
+            totals_table = Table(totals_data, colWidths=[45*mm, 35*mm])  # Réduit largeurs
             totals_table.setStyle(TableStyle([
                 ('ALIGN', (0,0), (0,-2), 'LEFT'),
                 ('ALIGN', (1,0), (1,-1), 'RIGHT'),
                 ('BACKGROUND', (0,-1), (-1,-1), colors.HexColor('#6366f1')),
                 ('TEXTCOLOR', (0,-1), (-1,-1), colors.white),
                 ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#d1d5db')),
-                ('LEFTPADDING', (0,0), (-1,-1), 12),
-                ('TOPPADDING', (0,0), (-1,-1), 8),
-                ('BOTTOMPADDING', (0,0), (-1,-1), 8),
-                ('TOPPADDING', (0,-1), (-1,-1), 12),
-                ('BOTTOMPADDING', (0,-1), (-1,-1), 12),
+                ('LEFTPADDING', (0,0), (-1,-1), 8),   # Réduit de 12 à 8
+                ('RIGHTPADDING', (0,0), (-1,-1), 8),  # Réduit de 12 à 8
+                ('TOPPADDING', (0,0), (-1,-1), 4),    # Réduit de 8 à 4
+                ('BOTTOMPADDING', (0,0), (-1,-1), 4), # Réduit de 8 à 4
+                ('TOPPADDING', (0,-1), (-1,-1), 6),   # Réduit de 12 à 6
+                ('BOTTOMPADDING', (0,-1), (-1,-1), 6),# Réduit de 12 à 6
             ]))
 
-            totals_wrapper = Table([[None, totals_table]], colWidths=[90*mm, 90*mm])
+            totals_wrapper = Table([[None, totals_table]], colWidths=[106*mm, 80*mm])
             totals_wrapper.setStyle(TableStyle([('VALIGN', (0,0), (-1,-1), 'TOP')]))
             story.append(totals_wrapper)
-            story.append(Spacer(1, 30))
+            story.append(Spacer(1, 10))  # Réduit de 30 à 10
 
-            # Footer
-            story.append(Table([['']], colWidths=[180*mm], rowHeights=[1]))
-            story[-1].setStyle(TableStyle([('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#e5e7eb'))]))
-            story.append(Spacer(1, 15))
+            # ========== FOOTER COMPACT AVEC QR CODE ==========
+            separator_line = Table([['']], colWidths=[186*mm], rowHeights=[1])
+            separator_line.setStyle(TableStyle([
+                ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#e5e7eb'))
+            ]))
+            story.append(separator_line)
+            story.append(Spacer(1, 6))  # Réduit de 15 à 6
 
-            footer_content = f"""<font size="9" color="#6b7280">
-                <b>Conditions générales:</b><br/>
-                • Garantie de 3 mois sur tous les produits<br/>
-                • Conservez ce reçu pour toute réclamation<br/>
-                • Échange possible sous 7 jours<br/><br/>
-                <b>Merci pour votre confiance !</b><br/>
-                <font size="8">Document généré le {datetime.now().strftime('%d/%m/%Y à %H:%M')}</font>
+            # QR Code plus petit
+            qr_image = RLImage(qr_temp.name, width=20*mm, height=20*mm)  # Réduit de 30 à 20mm
+
+            qr_section = Table([
+                [qr_image],
+                [Paragraph('Scannez', qr_text_style)]  # Texte raccourci
+            ], colWidths=[25*mm])
+
+            qr_section.setStyle(TableStyle([
+                ('VALIGN', (0,0), (-1,-1), 'TOP'),
+                ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+                ('LEFTPADDING', (0,0), (-1,-1), 0),
+                ('RIGHTPADDING', (0,0), (-1,-1), 0),
+            ]))
+
+            # Footer texte compact
+            footer_content = f"""<font size="7" color="#6b7280">
+                <b>Conditions:</b> Garantie 3 mois • Conservez ce reçu • Échange sous 7j<br/>
+                <b>Merci !</b> • <font size="6">Généré le {datetime.now().strftime('%d/%m/%Y')}</font>
                 </font>"""
 
-            story.append(Paragraph(footer_content, normal_style))
+            footer_table = Table([[qr_section, Paragraph(footer_content, normal_style)]], 
+                                colWidths=[30*mm, 156*mm])
+            footer_table.setStyle(TableStyle([
+                ('VALIGN', (0,0), (-1,-1), 'TOP'),
+                ('LEFTPADDING', (0,0), (-1,-1), 0),
+            ]))
 
+            story.append(footer_table)
+
+            # ========== GÉNÉRATION DU PDF ==========
             doc.build(story)
             buffer.seek(0)
 
-            return send_file(buffer, as_attachment=True, 
-                           download_name=f"Facture_{invoice['invoice_number']}.pdf",
-                           mimetype='application/pdf')
+            # Nettoyer le fichier temporaire du QR code
+            try:
+                os.unlink(qr_temp.name)
+            except Exception as e:
+                print(f"Erreur suppression QR temp: {e}")
+
+            return send_file(
+                buffer,
+                as_attachment=True,
+                download_name=f"Facture_{invoice['invoice_number']}.pdf",
+                mimetype='application/pdf'
+            )
 
     except Exception as e:
-        print(f"Erreur PDF: {e}")
+        print(f"Erreur génération PDF: {e}")
         import traceback
         traceback.print_exc()
-        return jsonify({'error': f'Erreur: {str(e)}'}), 500
+        return jsonify({'error': f'Erreur lors de la génération du PDF: {str(e)}'}), 500
+
     finally:
         if conn:
             conn.close()
