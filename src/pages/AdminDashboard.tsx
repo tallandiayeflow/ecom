@@ -50,6 +50,7 @@ const AdminDashboard = () => {
     { icon: Smartphone, label: 'Visites', path: '/admin/visits' },
     { icon: Zap, label: 'Jobs', path: '/admin/jobs' },
     { icon: Calendar, label: 'Rendez-vous', path: '/admin/appointments' },
+    { icon: FolderTree, label: 'Rapports de ventes', path: '/admin/sales-reports' },
   ];
 
   const handleLogout = () => {

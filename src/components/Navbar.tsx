@@ -63,6 +63,8 @@ export const Navbar = () => {
     { icon: PackageSearch, label: 'Stock', path: '/admin/stock' },
     { icon: Smartphone, label: 'Visites', path: '/admin/visits' },
     { icon: Zap, label: 'Jobs', path: '/admin/jobs' },
+    { icon: Users, label: 'Rendez-vous', path: '/admin/appointments' },
+    { icon: FolderTree, label: 'Rapports de ventes', path: '/admin/sales-reports' },
   ];
 
   const userMenuItems = [

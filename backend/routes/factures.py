@@ -2,24 +2,84 @@ from flask import Blueprint, request, jsonify, send_file
 from utils.auth import token_required, admin_required
 from utils.database import get_db_connection
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 import io
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import mm
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
-import qrcode
-from PIL import Image as PILImage
-import base64
 
 factures_bp = Blueprint('factures', __name__)
 
+
+# ========== HELPER FUNCTIONS ==========
+def get_user_id(current_user):
+    """Extrait l'ID utilisateur."""
+    if isinstance(current_user, dict):
+        return current_user.get('id') or current_user.get('user_id') or current_user.get('sub')
+    elif isinstance(current_user, str):
+        return current_user
+    elif hasattr(current_user, 'id'):
+        return current_user.id
+    return None
+
+
+def update_stock_for_invoice(cursor, items, invoice_number, user_id, operation='out'):
+    """Met à jour stock + log mouvements."""
+    for item in items:
+        product_id = item.get('productId') or item.get('product_id')
+        quantity = int(item.get('quantity') or 1)
+
+        if not product_id:
+            continue
+
+        cursor.execute("SELECT stock, name FROM products WHERE id = %s", (product_id,))
+        product = cursor.fetchone()
+
+        if not product:
+            continue
+
+        previous_stock = product['stock']
+
+        if operation == 'out':
+            new_stock = max(0, previous_stock - quantity)
+            movement_type = 'out'
+            reason = f'Facture #{invoice_number}'
+        else:
+            new_stock = previous_stock + quantity
+            movement_type = 'return'
+            reason = f'Remboursement #{invoice_number}'
+
+        cursor.execute("UPDATE products SET stock = %s WHERE id = %s", (new_stock, product_id))
+
+        movement_id = str(uuid.uuid4())
+        cursor.execute("""
+            INSERT INTO stock_movements (id, product_id, movement_type, quantity, 
+            previous_stock, new_stock, reason, user_id, created_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW())
+        """, (movement_id, product_id, movement_type, quantity, 
+              previous_stock, new_stock, reason, user_id))
+
+
+def invalidate_stock_cache():
+    """Invalide caches stock."""
+    try:
+        from utils.cache import cache
+        cache.delete_memoized('get_stock_stats')
+        cache.delete_memoized('get_stock_alerts')
+        cache.delete_memoized('get_inventory')
+        cache.delete_memoized('get_stock_movements')
+    except:
+        pass
+
+
+# ========== ROUTES CRUD ==========
 @factures_bp.route('', methods=['GET'])
 @admin_required
 def get_factures(current_user):
-    """Récupère toutes les factures."""
+    """Liste toutes les factures."""
     conn = get_db_connection()
     try:
         with conn.cursor() as cursor:
@@ -31,13 +91,11 @@ def get_factures(current_user):
             """)
             factures = cursor.fetchall()
 
-            # Récupérer les articles pour chaque facture
             for facture in factures:
                 cursor.execute("""
                     SELECT id, product_id, product_name, product_image,
-                           unit_price, quantity, total
-                    FROM invoice_items
-                    WHERE invoice_id = %s
+                    unit_price, quantity, total
+                    FROM invoice_items WHERE invoice_id = %s
                 """, (facture['id'],))
                 facture['items'] = cursor.fetchall()
 
@@ -48,16 +106,19 @@ def get_factures(current_user):
     finally:
         conn.close()
 
+
 @factures_bp.route('/<invoice_id>', methods=['GET'])
 @token_required
 def get_facture(current_user, invoice_id):
-    """Récupère une facture par ID."""
+    """Détails d'une facture."""
     conn = get_db_connection()
+    user_id = get_user_id(current_user)
+
     try:
         with conn.cursor() as cursor:
-            if current_user['role'] != 'admin':
+            if current_user.get('role') != 'admin':
                 cursor.execute("SELECT COUNT(*) AS count FROM invoices WHERE id=%s AND user_id=%s",
-                              (invoice_id, current_user['id']))
+                             (invoice_id, user_id))
                 if cursor.fetchone()['count'] == 0:
                     return jsonify({'error': 'Accès non autorisé'}), 403
 
@@ -68,6 +129,7 @@ def get_facture(current_user, invoice_id):
                 WHERE i.id=%s
             """, (invoice_id,))
             facture = cursor.fetchone()
+
             if not facture:
                 return jsonify({'error': 'Facture non trouvée'}), 404
 
@@ -81,13 +143,14 @@ def get_facture(current_user, invoice_id):
     finally:
         conn.close()
 
+
 @factures_bp.route('', methods=['POST'])
 @admin_required
 def create_facture(current_user):
-    """Crée une facture avec ses articles, accepte camelCase et snake_case."""
+    """Créer facture + MAJ stock auto."""
     data = request.json or {}
+    user_id = get_user_id(current_user)
 
-    # Supporte camelCase et snake_case
     customer_name = data.get('customerName') or data.get('customer_name')
     customer_email = data.get('customerEmail') or data.get('customer_email')
     customer_phone = data.get('customerPhone') or data.get('customer_phone')
@@ -95,23 +158,20 @@ def create_facture(current_user):
     customer_city = data.get('customerCity') or data.get('customer_city')
     items = data.get('items') or []
 
-    # Validation
     if not customer_name or not customer_email:
-        return jsonify({'error': 'Champs manquants : customerName / customerEmail requis'}), 400
-    if not isinstance(items, list) or len(items) == 0:
-        return jsonify({'error': 'Au moins un article est requis'}), 400
+        return jsonify({'error': 'customerName et customerEmail requis'}), 400
 
-    # Prépare la facture
+    if not isinstance(items, list) or len(items) == 0:
+        return jsonify({'error': 'Au moins un article requis'}), 400
+
     conn = get_db_connection()
     try:
         with conn.cursor() as cursor:
             invoice_id = str(uuid.uuid4())
             invoice_number = data.get('invoiceNumber') or f"INV-{uuid.uuid4().hex[:8].upper()}"
 
-            # Calcul des totaux
             subtotal = 0
             for item in items:
-                # Support camelCase et snake_case
                 unit_price = item.get('unitPrice') or item.get('unit_price')
                 quantity = item.get('quantity') or 1
                 if unit_price is None:
@@ -123,38 +183,27 @@ def create_facture(current_user):
             discount = float(data.get('discount', 0.0))
             total = subtotal + tax - discount
 
-            # Insert facture
             cursor.execute("""
                 INSERT INTO invoices (
                     id, invoice_number, order_id, user_id,
                     customer_name, customer_email, customer_phone,
                     customer_address, customer_city,
                     amount, tax, tax_rate, discount, total,
-                    status, payment_method, payment_date, notes,
-                    created_at
+                    status, payment_method, payment_date, notes, created_at
                 ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
             """, (
-                invoice_id,
-                invoice_number,
+                invoice_id, invoice_number,
                 data.get('orderId') or data.get('order_id'),
                 data.get('userId') or data.get('user_id'),
-                customer_name,
-                customer_email,
-                customer_phone,
-                customer_address,
-                customer_city,
-                subtotal,
-                tax,
-                tax_rate,
-                discount,
-                total,
+                customer_name, customer_email, customer_phone,
+                customer_address, customer_city,
+                subtotal, tax, tax_rate, discount, total,
                 data.get('status', 'pending'),
                 data.get('paymentMethod') or data.get('payment_method', 'cash_on_delivery'),
                 datetime.now() if data.get('status') == 'paid' else None,
-                data.get('notes', None)
+                data.get('notes')
             ))
 
-            # Insert articles
             for item in items:
                 item_id = str(uuid.uuid4())
                 product_id = item.get('productId') or item.get('product_id')
@@ -169,24 +218,19 @@ def create_facture(current_user):
                         id, invoice_id, product_id, product_name, product_image,
                         unit_price, quantity, total
                     ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                """, (
-                    item_id,
-                    invoice_id,
-                    product_id,
-                    product_name,
-                    product_image,
-                    unit_price,
-                    quantity,
-                    total_item
-                ))
+                """, (item_id, invoice_id, product_id, product_name, 
+                      product_image, unit_price, quantity, total_item))
+
+            update_stock_for_invoice(cursor, items, invoice_number, user_id, operation='out')
 
             conn.commit()
+            invalidate_stock_cache()
 
-            # Retourne la facture complète
             cursor.execute("SELECT * FROM invoices WHERE id=%s", (invoice_id,))
             facture = cursor.fetchone()
             cursor.execute("SELECT * FROM invoice_items WHERE invoice_id=%s", (invoice_id,))
             facture['items'] = cursor.fetchall()
+
             return jsonify(facture), 201
 
     except Exception as e:
@@ -196,20 +240,31 @@ def create_facture(current_user):
     finally:
         conn.close()
 
+
 @factures_bp.route('/<invoice_id>', methods=['PUT'])
 @admin_required
 def update_facture(current_user, invoice_id):
-    """Met à jour une facture."""
+    """Modifier statut/paiement."""
     data = request.json
+    user_id = get_user_id(current_user)
     conn = get_db_connection()
+
     try:
         with conn.cursor() as cursor:
             cursor.execute("SELECT * FROM invoices WHERE id=%s", (invoice_id,))
-            if not cursor.fetchone():
+            old_invoice = cursor.fetchone()
+
+            if not old_invoice:
                 return jsonify({'error': 'Facture non trouvée'}), 404
 
             fields = []
             params = []
+
+            if 'status' in data and data['status'] == 'cancelled' and old_invoice['status'] != 'cancelled':
+                cursor.execute("SELECT * FROM invoice_items WHERE invoice_id=%s", (invoice_id,))
+                items = cursor.fetchall()
+                update_stock_for_invoice(cursor, items, old_invoice['invoice_number'], 
+                                       user_id, operation='return')
 
             if 'status' in data:
                 fields.append("status=%s")
@@ -235,10 +290,13 @@ def update_facture(current_user, invoice_id):
             cursor.execute(query, tuple(params))
             conn.commit()
 
+            invalidate_stock_cache()
+
             cursor.execute("SELECT * FROM invoices WHERE id=%s", (invoice_id,))
             facture = cursor.fetchone()
             cursor.execute("SELECT * FROM invoice_items WHERE invoice_id=%s", (invoice_id,))
             facture['items'] = cursor.fetchall()
+
             return jsonify(facture), 200
 
     except Exception as e:
@@ -248,10 +306,135 @@ def update_facture(current_user, invoice_id):
     finally:
         conn.close()
 
+
+@factures_bp.route('/<invoice_id>/complete', methods=['PUT'])
+@admin_required
+def update_facture_complete(current_user, invoice_id):
+    """Modifier TOUT (client + items)."""
+    data = request.json or {}
+    user_id = get_user_id(current_user)
+    conn = get_db_connection()
+
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT * FROM invoices WHERE id=%s", (invoice_id,))
+            old_invoice = cursor.fetchone()
+
+            if not old_invoice:
+                return jsonify({'error': 'Facture non trouvée'}), 404
+
+            if 'items' in data:
+                cursor.execute("SELECT * FROM invoice_items WHERE invoice_id=%s", (invoice_id,))
+                old_items = cursor.fetchall()
+                update_stock_for_invoice(cursor, old_items, old_invoice['invoice_number'], 
+                                       user_id, operation='return')
+
+            update_fields = []
+            params = []
+
+            if 'customerName' in data or 'customer_name' in data:
+                update_fields.append("customer_name=%s")
+                params.append(data.get('customerName') or data.get('customer_name'))
+
+            if 'customerEmail' in data or 'customer_email' in data:
+                update_fields.append("customer_email=%s")
+                params.append(data.get('customerEmail') or data.get('customer_email'))
+
+            if 'customerPhone' in data or 'customer_phone' in data:
+                update_fields.append("customer_phone=%s")
+                params.append(data.get('customerPhone') or data.get('customer_phone'))
+
+            if 'customerAddress' in data or 'customer_address' in data:
+                update_fields.append("customer_address=%s")
+                params.append(data.get('customerAddress') or data.get('customer_address'))
+
+            if 'customerCity' in data or 'customer_city' in data:
+                update_fields.append("customer_city=%s")
+                params.append(data.get('customerCity') or data.get('customer_city'))
+
+            if 'status' in data:
+                update_fields.append("status=%s")
+                params.append(data['status'])
+                if data['status'] == 'paid':
+                    update_fields.append("payment_date=NOW()")
+
+            if 'paymentMethod' in data or 'payment_method' in data:
+                update_fields.append("payment_method=%s")
+                params.append(data.get('paymentMethod') or data.get('payment_method'))
+
+            if 'notes' in data:
+                update_fields.append("notes=%s")
+                params.append(data['notes'])
+
+            if 'items' in data:
+                items = data['items']
+
+                cursor.execute("DELETE FROM invoice_items WHERE invoice_id=%s", (invoice_id,))
+
+                subtotal = 0
+                for item in items:
+                    unit_price = item.get('unitPrice') or item.get('unit_price')
+                    quantity = item.get('quantity') or 1
+                    if unit_price is None:
+                        return jsonify({'error': 'Chaque article doit avoir unitPrice'}), 400
+                    subtotal += float(unit_price) * int(quantity)
+
+                tax_rate = float(data.get('taxRate', old_invoice['tax_rate']))
+                tax = subtotal * tax_rate / 100
+                discount = float(data.get('discount', old_invoice['discount']))
+                total = subtotal + tax - discount
+
+                update_fields.extend(["amount=%s", "tax=%s", "tax_rate=%s", "discount=%s", "total=%s"])
+                params.extend([subtotal, tax, tax_rate, discount, total])
+
+                for item in items:
+                    item_id = str(uuid.uuid4())
+                    product_id = item.get('productId') or item.get('product_id')
+                    product_name = item.get('name') or item.get('product_name')
+                    product_image = item.get('productImage') or item.get('product_image')
+                    unit_price = float(item.get('unitPrice') or item.get('unit_price'))
+                    quantity = int(item.get('quantity') or 1)
+                    total_item = unit_price * quantity
+
+                    cursor.execute("""
+                        INSERT INTO invoice_items (
+                            id, invoice_id, product_id, product_name, product_image,
+                            unit_price, quantity, total
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    """, (item_id, invoice_id, product_id, product_name, 
+                          product_image, unit_price, quantity, total_item))
+
+                update_stock_for_invoice(cursor, items, old_invoice['invoice_number'], 
+                                       user_id, operation='out')
+
+            if update_fields:
+                update_fields.append("updated_at=NOW()")
+                params.append(invoice_id)
+                query = f"UPDATE invoices SET {', '.join(update_fields)} WHERE id=%s"
+                cursor.execute(query, tuple(params))
+
+            conn.commit()
+            invalidate_stock_cache()
+
+            cursor.execute("SELECT * FROM invoices WHERE id=%s", (invoice_id,))
+            facture = cursor.fetchone()
+            cursor.execute("SELECT * FROM invoice_items WHERE invoice_id=%s", (invoice_id,))
+            facture['items'] = cursor.fetchall()
+
+            return jsonify(facture), 200
+
+    except Exception as e:
+        conn.rollback()
+        print(f"Erreur update_facture_complete: {e}")
+        return jsonify({'error': str(e)}), 500
+    finally:
+        conn.close()
+
+
 @factures_bp.route('/<invoice_id>', methods=['DELETE'])
 @admin_required
 def delete_facture(current_user, invoice_id):
-    """Supprime une facture."""
+    """Supprimer facture."""
     conn = get_db_connection()
     try:
         with conn.cursor() as cursor:
@@ -262,32 +445,32 @@ def delete_facture(current_user, invoice_id):
             cursor.execute("DELETE FROM invoice_items WHERE invoice_id=%s", (invoice_id,))
             cursor.execute("DELETE FROM invoices WHERE id=%s", (invoice_id,))
             conn.commit()
-            return jsonify({'message': 'Facture supprimée avec succès'}), 200
 
+            return jsonify({'message': 'Facture supprimée avec succès'}), 200
     except Exception as e:
         conn.rollback()
         print(f"Erreur delete_facture: {e}")
         return jsonify({'error': str(e)}), 500
-    finally: 
+    finally:
         conn.close()
 
-# ✅ NOUVELLE ROUTE : TÉLÉCHARGEMENT PDF
+
+# ========== GÉNÉRATION PDF FACTURE ==========
 @factures_bp.route('/<invoice_id>/pdf', methods=['GET'])
 @token_required
 def download_facture_pdf(current_user, invoice_id):
-    """Télécharge une facture en PDF format A4 professionnel."""
+    """Télécharge facture PDF A4."""
     conn = get_db_connection()
-    
+    user_id = get_user_id(current_user)
+
     try:
         with conn.cursor() as cursor:
-            # Vérification autorisation
-            if current_user['role'] != 'admin':
+            if current_user.get('role') != 'admin':
                 cursor.execute("SELECT COUNT(*) AS count FROM invoices WHERE id=%s AND user_id=%s",
-                              (invoice_id, current_user['id']))
+                             (invoice_id, user_id))
                 if cursor.fetchone()['count'] == 0:
                     return jsonify({'error': 'Accès non autorisé'}), 403
 
-            # Récupérer facture complète
             cursor.execute("""
                 SELECT i.*, u.name as user_name, u.email as user_email
                 FROM invoices i
@@ -295,219 +478,508 @@ def download_facture_pdf(current_user, invoice_id):
                 WHERE i.id=%s
             """, (invoice_id,))
             invoice = cursor.fetchone()
-            
+
             if not invoice:
                 return jsonify({'error': 'Facture non trouvée'}), 404
 
             cursor.execute("SELECT * FROM invoice_items WHERE invoice_id=%s ORDER BY id", (invoice_id,))
             invoice['items'] = cursor.fetchall()
 
-        # Créer PDF en mémoire
-        buffer = io.BytesIO()
-        doc = SimpleDocTemplate(
-            buffer,
-            pagesize=A4,
-            rightMargin=15*mm,
-            leftMargin=15*mm,
-            topMargin=20*mm,
-            bottomMargin=20*mm
-        )
+            buffer = io.BytesIO()
+            doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=15*mm, leftMargin=15*mm, 
+                                  topMargin=15*mm, bottomMargin=15*mm)
 
-        # Styles personnalisés
-        styles = getSampleStyleSheet()
-        title_style = ParagraphStyle(
-            'InvoiceTitle',
-            parent=styles['Title'],
-            fontSize=32,
-            spaceAfter=20,
-            alignment=TA_CENTER,
-            textColor=colors.HexColor('#1E40AF'),
-            fontName='Helvetica-Bold',
-            leading=36
-        )
-        
-        header_style = ParagraphStyle(
-            'Header',
-            parent=styles['Heading2'],
-            fontSize=18,
-            spaceAfter=12,
-            textColor=colors.black,
-            fontName='Helvetica-Bold'
-        )
+            styles = getSampleStyleSheet()
 
-        story = []
+            normal_style = ParagraphStyle('ModernNormal', parent=styles['Normal'], fontSize=10, 
+                                         textColor=colors.HexColor('#374151'), fontName='Helvetica')
 
-        # INFORMATIONS MAGASIN
-        SHOP_INFO = {
-            'name': 'TEUSS PHONE SHOP',
-            'address': 'Casablanca, Maroc',
-            'phone': '+212 6XX XXX XXX',
-            'email': 'contact@teussphone.com',
-            'ice': 'ICE000000000',
-            'website': 'www.teussphone.com'
-        }
+            header_style = ParagraphStyle('SectionHeader', parent=styles['Heading2'], fontSize=14, 
+                                          spaceAfter=12, spaceBefore=15, 
+                                          textColor=colors.HexColor('#111827'), fontName='Helvetica-Bold')
 
-        # 1. EN-TÊTE
-        story.append(Paragraph("FACTURE COMMERCIALE", title_style))
-        story.append(Spacer(1, 12))
-        
-        # Tableau en-tête (Numéro, Date, Statut)
-        header_data = [
-            ['NUMÉRO DE FACTURE', invoice['invoice_number']],
-            ['DATE DE FACTURATION', invoice['created_at'].strftime('%d/%m/%Y à %H:%M')],
-            ['STATUT', invoice['status'].upper()]
-        ]
-        
-        header_table = Table(header_data, colWidths=[85*mm, 85*mm])
-        header_table.setStyle(TableStyle([
-            ('ALIGN', (0,0), (-1,-1), 'LEFT'),
-            ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-            ('FONTNAME', (0,1), (-1,-1), 'Helvetica'),
-            ('FONTSIZE', (0,0), (-1,-1), 11),
-            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#1E40AF')),
-            ('TEXTCOLOR', (0,0), (-1,0), colors.white),
-            ('GRID', (0,0), (-1,-1), 1, colors.black),
-            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-            ('LEFTPADDING', (0,0), (-1,-1), 12),
-            ('RIGHTPADDING', (0,0), (-1,-1), 12)
-        ]))
-        story.append(header_table)
-        story.append(Spacer(1, 20))
+            story = []
 
-        # 2. INFORMATIONS SOCIÉTÉ
-        story.append(Paragraph("INFORMATIONS SOCIÉTÉ", header_style))
-        shop_data = [
-            [f"<b>{SHOP_INFO['name']}</b>"],
-            [SHOP_INFO['address']],
-            [f"Tél: <b>{SHOP_INFO['phone']}</b>"],
-            [f"Email: <b>{SHOP_INFO['email']}</b>"],
-            [f"ICE: <b>{SHOP_INFO['ice']}</b>"]
-        ]
-        shop_table = Table(shop_data, colWidths=[160*mm])
-        shop_table.setStyle(TableStyle([
-            ('ALIGN', (0,0), (-1,-1), 'LEFT'),
-            ('FONTNAME', (0,0), (-1,-1), 'Helvetica'),
-            ('FONTSIZE', (0,0), (-1,-1), 11),
-            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#EFF6FF')),
-            ('GRID', (0,0), (-1,-1), 1, colors.HexColor('#3B82F6')),
-            ('LEFTPADDING', (0,0), (-1,-1), 20),
-            ('RIGHTPADDING', (0,0), (-1,-1), 20),
-            ('VALIGN', (0,0), (-1,-1), 'MIDDLE')
-        ]))
-        story.append(shop_table)
-        story.append(Spacer(1, 20))
+            SHOP_INFO = {
+                'name': 'TEUSS PHONE SHOP',
+                'address': 'Casablanca, Maroc',
+                'phone': '+212 6XX XXX XXX',
+                'email': 'contact@teussphone.com',
+                'ice': 'ICE000000000',
+                'website': 'www.teussphone.com'
+            }
 
-        # 3. CLIENT
-        story.append(Paragraph("FACTURÉ À", header_style))
-        client_data = [
-            [f"<b>{invoice['customer_name']}</b>"],
-            [f"Tél: {invoice.get('customer_phone', 'Non renseigné')}"],
-            [invoice.get('customer_email', 'Non renseigné')],
-            [f"{invoice.get('customer_address', '')} {invoice.get('customer_city', '')}".strip()]
-        ]
-        client_table = Table(client_data, colWidths=[160*mm])
-        client_table.setStyle(TableStyle([
-            ('ALIGN', (0,0), (-1,-1), 'LEFT'),
-            ('FONTNAME', (0,0), (-1,-1), 'Helvetica'),
-            ('FONTSIZE', (0,0), (-1,-1), 11),
-            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F0F9FF')),
-            ('GRID', (0,0), (-1,-1), 1, colors.HexColor('#0EA5E9')),
-            ('LEFTPADDING', (0,0), (-1,-1), 20),
-            ('RIGHTPADDING', (0,0), (-1,-1), 20),
-            ('VALIGN', (0,0), (-1,-1), 'MIDDLE')
-        ]))
-        story.append(client_table)
-        story.append(Spacer(1, 25))
+            # Header
+            header_data = [[
+                Paragraph(f"""<b><font size="16" color="#1f2937">{SHOP_INFO['name']}</font></b><br/>
+                    <font size="9" color="#6366f1">{SHOP_INFO['website']}</font><br/><br/>
+                    <font size="9" color="#6b7280">
+                    📍 {SHOP_INFO['address']}<br/>
+                    📞 {SHOP_INFO['phone']}<br/>
+                    ✉ {SHOP_INFO['email']}<br/>
+                    <font size="8">ICE: {SHOP_INFO['ice']}</font>
+                    </font>""", normal_style),
 
-        # 4. TABLEAU ARTICLES
-        story.append(Paragraph("DÉTAIL DES ARTICLES", header_style))
-        
-        # En-têtes
-        items_data = [['DESCRIPTION', 'PRIX U.', 'QTÉ', 'TOTAL']]
-        
-        # Articles
-        for item in invoice['items']:
-            items_data.append([
-                item['product_name'][:60] + ('...' if len(item['product_name']) > 60 else ''),
-                f"{float(item['unit_price']):,.0f} DH",
-                str(item['quantity']),
-                f"{float(item['total']):,.0f} DH"
+                Paragraph(f"""<para align="right">
+                    <b><font size="32" color="#1f2937">FACTURE</font></b><br/><br/>
+                    <font size="10" color="#6b7280">
+                    <b>N° {invoice['invoice_number']}</b><br/>
+                    📅 {invoice['created_at'].strftime('%d/%m/%Y')}<br/><br/>
+                    <font size="9" color="{'#22c55e' if invoice['status'] == 'paid' else '#f59e0b' if invoice['status'] == 'pending' else '#ef4444'}">
+                    ● {invoice['status'].upper()}
+                    </font>
+                    </font>
+                    </para>""", normal_style)
+            ]]
+
+            header_table = Table(header_data, colWidths=[90*mm, 90*mm])
+            header_table.setStyle(TableStyle([('VALIGN', (0,0), (-1,-1), 'TOP')]))
+            story.append(header_table)
+            story.append(Spacer(1, 15))
+
+            story.append(Table([['']], colWidths=[180*mm], rowHeights=[2]))
+            story[-1].setStyle(TableStyle([('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#e5e7eb'))]))
+            story.append(Spacer(1, 20))
+
+            # Client
+            story.append(Paragraph('<b>FACTURÉ À</b>', header_style))
+
+            client_content = f"""<b><font size="12" color="#1f2937">{invoice['customer_name']}</font></b><br/>
+                <font size="9" color="#6b7280">"""
+
+            if invoice.get('customer_email'):
+                client_content += f"✉ {invoice['customer_email']}<br/>"
+            if invoice.get('customer_phone'):
+                client_content += f"📞 {invoice['customer_phone']}<br/>"
+            if invoice.get('customer_address'):
+                client_content += f"📍 {invoice['customer_address']}"
+            if invoice.get('customer_city'):
+                client_content += f" - {invoice['customer_city']}"
+
+            client_content += "</font>"
+
+            client_data = [[Paragraph(client_content, normal_style)]]
+            client_table = Table(client_data, colWidths=[180*mm])
+            client_table.setStyle(TableStyle([
+                ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#f3f4f6')),
+                ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#e5e7eb')),
+                ('LEFTPADDING', (0,0), (-1,-1), 15),
+                ('TOPPADDING', (0,0), (-1,-1), 12),
+                ('BOTTOMPADDING', (0,0), (-1,-1), 12),
+            ]))
+            story.append(client_table)
+            story.append(Spacer(1, 25))
+
+            # Articles
+            story.append(Paragraph('<b>ARTICLES</b>', header_style))
+
+            items_data = [[
+                Paragraph('<b>Description</b>', normal_style),
+                Paragraph('<b>Prix U.</b>', normal_style),
+                Paragraph('<b>Qté</b>', normal_style),
+                Paragraph('<b>Total</b>', normal_style)
+            ]]
+
+            for item in invoice['items']:
+                items_data.append([
+                    Paragraph(f"<b>{item['product_name'][:50]}</b>", normal_style),
+                    Paragraph(f"{float(item['unit_price']):,.0f} FCFA", normal_style),
+                    Paragraph(f"<b>{item['quantity']}</b>", normal_style),
+                    Paragraph(f"<b>{float(item['total']):,.0f} FCFA</b>", normal_style)
+                ])
+
+            items_table = Table(items_data, colWidths=[90*mm, 30*mm, 20*mm, 40*mm])
+            items_table.setStyle(TableStyle([
+                ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#1f2937')),
+                ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+                ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+                ('ALIGN', (0,0), (0,-1), 'LEFT'),
+                ('ALIGN', (1,0), (-1,-1), 'RIGHT'),
+                ('ALIGN', (2,0), (2,-1), 'CENTER'),
+                ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.white, colors.HexColor('#f9fafb')]),
+                ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#e5e7eb')),
+                ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#d1d5db')),
+                ('LEFTPADDING', (0,0), (-1,-1), 10),
+                ('TOPPADDING', (0,0), (-1,-1), 8),
+                ('BOTTOMPADDING', (0,0), (-1,-1), 8),
+            ]))
+            story.append(items_table)
+            story.append(Spacer(1, 30))
+
+            # Totaux
+            totals_data = [
+                [Paragraph('<font color="#6b7280">Sous-total HT:</font>', normal_style),
+                 Paragraph(f'<b>{float(invoice["amount"]):,.0f} FCFA</b>', normal_style)]
+            ]
+
+            if invoice.get('discount') and float(invoice['discount']) > 0:
+                totals_data.append([
+                    Paragraph('<font color="#ef4444">Remise:</font>', normal_style),
+                    Paragraph(f'<font color="#ef4444"><b>-{float(invoice["discount"]):,.0f} FCFA</b></font>', normal_style)
+                ])
+
+            totals_data.append([
+                Paragraph(f'<font color="#6b7280">TVA ({invoice["tax_rate"]:.0f}%):</font>', normal_style),
+                Paragraph(f'<b>{float(invoice["tax"]):,.0f} FCFA</b>', normal_style)
             ])
 
-        items_table = Table(items_data, colWidths=[100*mm, 30*mm, 20*mm, 30*mm])
-        items_table.setStyle(TableStyle([
-            ('ALIGN', (0,0), (0,-1), 'LEFT'),
-            ('ALIGN', (1,0), (-1,-1), 'RIGHT'),
-            ('ALIGN', (2,0), (2,-1), 'CENTER'),
-            ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0,0), (-1,0), 11),
-            ('FONTSIZE', (0,1), (-1,-1), 10),
-            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#1E40AF')),
-            ('TEXTCOLOR', (0,0), (-1,0), colors.white),
-            ('GRID', (0,0), (-1,-1), 1, colors.black),
-            ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.white, colors.HexColor('#F8FAFC')]),
-            ('LEFTPADDING', (0,0), (-1,-1), 12),
-            ('RIGHTPADDING', (0,0), (-1,-1), 12)
-        ]))
-        story.append(items_table)
-        story.append(Spacer(1, 25))
+            totals_data.append([
+                Paragraph('<font size="12" color="white"><b>TOTAL TTC</b></font>', normal_style),
+                Paragraph(f'<font size="14" color="white"><b>{float(invoice["total"]):,.0f} FCFA</b></font>', normal_style)
+            ])
 
-        # 5. TOTAUX
-        story.append(Paragraph("RÉCAPITULATIF", header_style))
-        totals_data = [
-            ['Sous-total HT', f"{float(invoice['amount']):,.0f} DH"],
-            [f"TVA ({invoice['tax_rate']:.0f}%)", f"{float(invoice['tax']):,.0f} DH"],
-        ]
-        
-        if invoice['discount'] and float(invoice['discount']) > 0:
-            totals_data.append(['Remise', f"-{float(invoice['discount']):,.0f} DH"])
-        
-        totals_data.append(['TOTAL TTC', f"{float(invoice['total']):,.0f} DH"])
+            totals_table = Table(totals_data, colWidths=[50*mm, 40*mm])
+            totals_table.setStyle(TableStyle([
+                ('ALIGN', (0,0), (0,-2), 'LEFT'),
+                ('ALIGN', (1,0), (1,-1), 'RIGHT'),
+                ('BACKGROUND', (0,-1), (-1,-1), colors.HexColor('#6366f1')),
+                ('TEXTCOLOR', (0,-1), (-1,-1), colors.white),
+                ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#d1d5db')),
+                ('LEFTPADDING', (0,0), (-1,-1), 12),
+                ('TOPPADDING', (0,0), (-1,-1), 8),
+                ('BOTTOMPADDING', (0,0), (-1,-1), 8),
+                ('TOPPADDING', (0,-1), (-1,-1), 12),
+                ('BOTTOMPADDING', (0,-1), (-1,-1), 12),
+            ]))
 
-        totals_table = Table(totals_data, colWidths=[120*mm, 40*mm])
-        totals_table.setStyle(TableStyle([
-            ('ALIGN', (0,0), (0,-1), 'LEFT'),
-            ('ALIGN', (1,0), (-1,-1), 'RIGHT'),
-            ('FONTNAME', (0,0), (-1,-1), 'Helvetica'),
-            ('FONTSIZE', (0,0), (-1,-1), 12),
-            ('FONTWEIGHT', (0,-1), (0,-1), 'BOLD'),
-            ('FONTWEIGHT', (1,-1), (1,-1), 'BOLD'),
-            ('BACKGROUND', (0,-1), (-1,-1), colors.HexColor('#1E40AF')),
-            ('TEXTCOLOR', (0,-1), (-1,-1), colors.white),
-            ('GRID', (0,0), (-1,-1), 1, colors.HexColor('#374151')),
-            ('LEFTPADDING', (0,0), (-1,-1), 15),
-            ('RIGHTPADDING', (0,0), (-1,-1), 15)
-        ]))
-        story.append(totals_table)
-        story.append(Spacer(1, 30))
+            totals_wrapper = Table([[None, totals_table]], colWidths=[90*mm, 90*mm])
+            totals_wrapper.setStyle(TableStyle([('VALIGN', (0,0), (-1,-1), 'TOP')]))
+            story.append(totals_wrapper)
+            story.append(Spacer(1, 30))
 
-        # 6. PIED DE PAGE
-        footer_text = f"""
-        <b>CONDITIONS GÉNÉRALES:</b><br/><br/>
-        • Garantie commerciale: 3 mois sur tous les produits<br/>
-        • Conservez ce document pour toute réclamation<br/>
-        • Retour/échange possible sous 7 jours (pièces neuves)<br/>
-        • Aucun remboursement en espèces après paiement<br/><br/>
-        <b>Teuss Phone Shop - Casablanca, Maroc</b><br/>
-        Document généré le {datetime.now().strftime('%d/%m/%Y à %H:%M')}
-        """
-        story.append(Paragraph(footer_text, styles['Normal']))
+            # Footer
+            story.append(Table([['']], colWidths=[180*mm], rowHeights=[1]))
+            story[-1].setStyle(TableStyle([('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#e5e7eb'))]))
+            story.append(Spacer(1, 15))
 
-        # Construire le PDF
-        doc.build(story)
-        buffer.seek(0)
+            footer_content = f"""<font size="9" color="#6b7280">
+                <b>Conditions générales:</b><br/>
+                • Garantie de 3 mois sur tous les produits<br/>
+                • Conservez ce reçu pour toute réclamation<br/>
+                • Échange possible sous 7 jours<br/><br/>
+                <b>Merci pour votre confiance !</b><br/>
+                <font size="8">Document généré le {datetime.now().strftime('%d/%m/%Y à %H:%M')}</font>
+                </font>"""
 
-        # ✅ CORRECTION : Suppression de cache_timeout
-        return send_file(
-            buffer,
-            as_attachment=True,
-            download_name=f"Facture_{invoice['invoice_number']}.pdf",
-            mimetype='application/pdf'
-        )
+            story.append(Paragraph(footer_content, normal_style))
+
+            doc.build(story)
+            buffer.seek(0)
+
+            return send_file(buffer, as_attachment=True, 
+                           download_name=f"Facture_{invoice['invoice_number']}.pdf",
+                           mimetype='application/pdf')
 
     except Exception as e:
-        print(f"Erreur génération PDF facture {invoice_id}: {e}")
-        return jsonify({'error': f'Erreur génération PDF: {str(e)}'}), 500
+        print(f"Erreur PDF: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': f'Erreur: {str(e)}'}), 500
+    finally:
+        if conn:
+            conn.close()
+
+
+# ========== RAPPORTS DE VENTES ==========
+@factures_bp.route('/reports/sales', methods=['GET'])
+@admin_required
+def get_sales_report(current_user):
+    """Rapport ventes JSON."""
+    period = request.args.get('period', 'month')
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+
+    conn = get_db_connection()
+
+    try:
+        with conn.cursor() as cursor:
+            if not start_date or not end_date:
+                if period == 'day':
+                    start_date = datetime.now().strftime('%Y-%m-%d')
+                    end_date = start_date
+                elif period == 'week':
+                    start_date = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
+                    end_date = datetime.now().strftime('%Y-%m-%d')
+                else:
+                    start_date = datetime.now().replace(day=1).strftime('%Y-%m-%d')
+                    end_date = datetime.now().strftime('%Y-%m-%d')
+
+            cursor.execute("""
+                SELECT 
+                    COUNT(*) as total_invoices,
+                    COALESCE(SUM(total), 0) as total_revenue,
+                    COALESCE(SUM(amount), 0) as total_ht,
+                    COALESCE(SUM(tax), 0) as total_tax,
+                    COALESCE(SUM(discount), 0) as total_discounts,
+                    COALESCE(AVG(total), 0) as average_invoice
+                FROM invoices
+                WHERE DATE(created_at) BETWEEN %s AND %s
+                AND status != 'cancelled'
+            """, (start_date, end_date))
+            stats = cursor.fetchone()
+
+            cursor.execute("""
+                SELECT DATE(created_at) as date, COUNT(*) as invoices_count,
+                    COALESCE(SUM(total), 0) as daily_revenue
+                FROM invoices
+                WHERE DATE(created_at) BETWEEN %s AND %s AND status != 'cancelled'
+                GROUP BY DATE(created_at) ORDER BY date DESC
+            """, (start_date, end_date))
+            daily_sales = cursor.fetchall()
+
+            cursor.execute("""
+                SELECT ii.product_name, SUM(ii.quantity) as total_quantity,
+                    COALESCE(SUM(ii.total), 0) as total_revenue
+                FROM invoice_items ii
+                JOIN invoices i ON ii.invoice_id = i.id
+                WHERE DATE(i.created_at) BETWEEN %s AND %s AND i.status != 'cancelled'
+                GROUP BY ii.product_id, ii.product_name
+                ORDER BY total_revenue DESC LIMIT 10
+            """, (start_date, end_date))
+            top_products = cursor.fetchall()
+
+            return jsonify({
+                'period': period,
+                'start_date': start_date,
+                'end_date': end_date,
+                'statistics': {
+                    'total_invoices': stats['total_invoices'],
+                    'total_revenue': float(stats['total_revenue']),
+                    'total_ht': float(stats['total_ht']),
+                    'total_tax': float(stats['total_tax']),
+                    'total_discounts': float(stats['total_discounts']),
+                    'average_invoice': float(stats['average_invoice'])
+                },
+                'daily_sales': [
+                    {
+                        'date': d['date'].strftime('%Y-%m-%d') if hasattr(d['date'], 'strftime') else str(d['date']),
+                        'invoices_count': d['invoices_count'],
+                        'revenue': float(d['daily_revenue'])
+                    } for d in daily_sales
+                ],
+                'top_products': [
+                    {
+                        'product_name': p['product_name'],
+                        'quantity_sold': p['total_quantity'],
+                        'revenue': float(p['total_revenue'])
+                    } for p in top_products
+                ]
+            }), 200
+
+    except Exception as e:
+        print(f"Erreur sales_report: {e}")
+        return jsonify({'error': str(e)}), 500
+    finally:
+        conn.close()
+
+
+# ========== RAPPORT PDF ==========
+@factures_bp.route('/reports/sales/pdf', methods=['GET'])
+@admin_required
+def export_sales_report_pdf(current_user):
+    """Télécharge rapport ventes PDF."""
+    period = request.args.get('period', 'month')
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    
+    conn = get_db_connection()
+    
+    try:
+        with conn.cursor() as cursor:
+            if not start_date or not end_date:
+                if period == 'day':
+                    start_date = datetime.now().strftime('%Y-%m-%d')
+                    end_date = start_date
+                    period_label = f"Journée du {datetime.now().strftime('%d/%m/%Y')}"
+                elif period == 'week':
+                    start_date = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
+                    end_date = datetime.now().strftime('%Y-%m-%d')
+                    period_label = f"Semaine du {datetime.strptime(start_date, '%Y-%m-%d').strftime('%d/%m/%Y')} au {datetime.now().strftime('%d/%m/%Y')}"
+                else:
+                    start_date = datetime.now().replace(day=1).strftime('%Y-%m-%d')
+                    end_date = datetime.now().strftime('%Y-%m-%d')
+                    period_label = f"{datetime.now().strftime('%B %Y').capitalize()}"
+            else:
+                period_label = f"Période du {datetime.strptime(start_date, '%Y-%m-%d').strftime('%d/%m/%Y')} au {datetime.strptime(end_date, '%Y-%m-%d').strftime('%d/%m/%Y')}"
+            
+            # Stats
+            cursor.execute("""
+                SELECT COUNT(*) as total_invoices, COALESCE(SUM(total), 0) as total_revenue,
+                    COALESCE(SUM(amount), 0) as total_ht, COALESCE(SUM(tax), 0) as total_tax,
+                    COALESCE(SUM(discount), 0) as total_discounts, COALESCE(AVG(total), 0) as average_invoice
+                FROM invoices WHERE DATE(created_at) BETWEEN %s AND %s AND status != 'cancelled'
+            """, (start_date, end_date))
+            stats = cursor.fetchone()
+            
+            cursor.execute("""
+                SELECT DATE(created_at) as date, COUNT(*) as invoices_count, COALESCE(SUM(total), 0) as daily_revenue
+                FROM invoices WHERE DATE(created_at) BETWEEN %s AND %s AND status != 'cancelled'
+                GROUP BY DATE(created_at) ORDER BY date DESC LIMIT 15
+            """, (start_date, end_date))
+            daily_sales = cursor.fetchall()
+            
+            cursor.execute("""
+                SELECT ii.product_name, SUM(ii.quantity) as total_quantity, COALESCE(SUM(ii.total), 0) as total_revenue
+                FROM invoice_items ii JOIN invoices i ON ii.invoice_id = i.id
+                WHERE DATE(i.created_at) BETWEEN %s AND %s AND i.status != 'cancelled'
+                GROUP BY ii.product_id, ii.product_name ORDER BY total_revenue DESC LIMIT 10
+            """, (start_date, end_date))
+            top_products = cursor.fetchall()
+            
+            # PDF
+            buffer = io.BytesIO()
+            doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=15*mm, leftMargin=15*mm, topMargin=15*mm, bottomMargin=15*mm)
+            styles = getSampleStyleSheet()
+            
+            title_style = ParagraphStyle('ReportTitle', parent=styles['Title'], fontSize=28, alignment=TA_CENTER, 
+                                        textColor=colors.HexColor('#1f2937'), fontName='Helvetica-Bold')
+            subtitle_style = ParagraphStyle('Subtitle', parent=styles['Normal'], fontSize=14, spaceAfter=20, alignment=TA_CENTER, 
+                                           textColor=colors.HexColor('#6b7280'), fontName='Helvetica')
+            section_header = ParagraphStyle('SectionHeader', parent=styles['Heading2'], fontSize=16, spaceAfter=12, spaceBefore=20, 
+                                          textColor=colors.HexColor('#1f2937'), fontName='Helvetica-Bold')
+            normal_style = ParagraphStyle('ModernNormal', parent=styles['Normal'], fontSize=10, 
+                                         textColor=colors.HexColor('#374151'), fontName='Helvetica')
+            
+            story = []
+            SHOP_INFO = {'name': 'TEUSS PHONE SHOP', 'address': 'Casablanca, Maroc', 'phone': '+212 6XX XXX XXX', 
+                        'email': 'contact@teussphone.com', 'website': 'www.teussphone.com'}
+            
+            story.append(Paragraph(f"<b>{SHOP_INFO['name']}</b>", title_style))
+            story.append(Paragraph("RAPPORT DE VENTES", title_style))
+            story.append(Paragraph(period_label, subtitle_style))
+            story.append(Spacer(1, 10))
+            
+            story.append(Table([['']], colWidths=[180*mm], rowHeights=[2]))
+            story[-1].setStyle(TableStyle([('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#6366f1'))]))
+            story.append(Spacer(1, 20))
+            
+            # KPI Cards
+            story.append(Paragraph("📊 VUE D'ENSEMBLE", section_header))
+            stats_data = [[
+                Paragraph(f"""<para align="center"><font size="12" color="#6366f1"><b>{stats['total_invoices']}</b></font><br/>
+                    <font size="9" color="#6b7280">Factures</font></para>""", normal_style),
+                Paragraph(f"""<para align="center"><font size="12" color="#22c55e"><b>{float(stats['total_revenue']):,.0f} FCFA</b></font><br/>
+                    <font size="9" color="#6b7280">CA TTC</font></para>""", normal_style),
+                Paragraph(f"""<para align="center"><font size="12" color="#f59e0b"><b>{float(stats['average_invoice']):,.0f} FCFA</b></font><br/>
+                    <font size="9" color="#6b7280">Panier moyen</font></para>""", normal_style),
+                Paragraph(f"""<para align="center"><font size="12" color="#ef4444"><b>{float(stats['total_discounts']):,.0f} FCFA</b></font><br/>
+                    <font size="9" color="#6b7280">Remises</font></para>""", normal_style)
+            ]]
+            
+            stats_table = Table(stats_data, colWidths=[45*mm]*4)
+            stats_table.setStyle(TableStyle([
+                ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#f9fafb')),
+                ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#e5e7eb')),
+                ('INNERGRID', (0,0), (-1,-1), 1, colors.HexColor('#e5e7eb')),
+                ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+                ('TOPPADDING', (0,0), (-1,-1), 15),
+                ('BOTTOMPADDING', (0,0), (-1,-1), 15),
+            ]))
+            story.append(stats_table)
+            story.append(Spacer(1, 25))
+            
+            # Détails financiers
+            story.append(Paragraph("💰 DÉTAILS FINANCIERS", section_header))
+            financial_data = [
+                ['Montant HT', f"{float(stats['total_ht']):,.0f} FCFA"],
+                ['TVA collectée', f"{float(stats['total_tax']):,.0f} FCFA"],
+                ['Remises accordées', f"-{float(stats['total_discounts']):,.0f} FCFA"],
+                ['TOTAL TTC', f"{float(stats['total_revenue']):,.0f} FCFA"]
+            ]
+            
+            financial_table = Table(financial_data, colWidths=[90*mm, 90*mm])
+            financial_table.setStyle(TableStyle([
+                ('ALIGN', (0,0), (0,-1), 'LEFT'),
+                ('ALIGN', (1,0), (1,-1), 'RIGHT'),
+                ('FONTNAME', (0,0), (-1,-2), 'Helvetica'),
+                ('FONTSIZE', (0,0), (-1,-2), 11),
+                ('BACKGROUND', (0,-1), (-1,-1), colors.HexColor('#6366f1')),
+                ('TEXTCOLOR', (0,-1), (-1,-1), colors.white),
+                ('FONTNAME', (0,-1), (-1,-1), 'Helvetica-Bold'),
+                ('FONTSIZE', (0,-1), (-1,-1), 13),
+                ('GRID', (0,0), (-1,-1), 1, colors.HexColor('#e5e7eb')),
+                ('LEFTPADDING', (0,0), (-1,-1), 15),
+                ('TOPPADDING', (0,0), (-1,-1), 10),
+                ('BOTTOMPADDING', (0,0), (-1,-1), 10),
+            ]))
+            story.append(financial_table)
+            story.append(Spacer(1, 25))
+            
+            # Ventes quotidiennes
+            if daily_sales:
+                story.append(Paragraph("📅 VENTES QUOTIDIENNES", section_header))
+                daily_data = [['Date', 'Factures', 'CA']]
+                for day in daily_sales:
+                    date_str = day['date'].strftime('%d/%m/%Y') if hasattr(day['date'], 'strftime') else str(day['date'])
+                    daily_data.append([date_str, str(day['invoices_count']), f"{float(day['daily_revenue']):,.0f} FCFA"])
+                
+                daily_table = Table(daily_data, colWidths=[60*mm, 60*mm, 60*mm])
+                daily_table.setStyle(TableStyle([
+                    ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#1f2937')),
+                    ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+                    ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+                    ('ALIGN', (1,0), (-1,-1), 'CENTER'),
+                    ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.white, colors.HexColor('#f9fafb')]),
+                    ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#e5e7eb')),
+                    ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#d1d5db')),
+                    ('LEFTPADDING', (0,0), (-1,-1), 10),
+                    ('TOPPADDING', (0,0), (-1,-1), 8),
+                    ('BOTTOMPADDING', (0,0), (-1,-1), 8),
+                ]))
+                story.append(daily_table)
+                story.append(Spacer(1, 25))
+            
+            # Top produits
+            if top_products:
+                story.append(Paragraph("🏆 TOP 10 PRODUITS", section_header))
+                products_data = [['Produit', 'Qté', 'Revenus']]
+                for idx, product in enumerate(top_products, 1):
+                    products_data.append([
+                        f"{idx}. {product['product_name'][:40]}",
+                        str(product['total_quantity']),
+                        f"{float(product['total_revenue']):,.0f} FCFA"
+                    ])
+                
+                products_table = Table(products_data, colWidths=[100*mm, 30*mm, 50*mm])
+                products_table.setStyle(TableStyle([
+                    ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#22c55e')),
+                    ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+                    ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+                    ('ALIGN', (1,0), (-1,-1), 'CENTER'),
+                    ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.white, colors.HexColor('#f0fdf4')]),
+                    ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#bbf7d0')),
+                    ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#86efac')),
+                    ('LEFTPADDING', (0,0), (-1,-1), 10),
+                    ('TOPPADDING', (0,0), (-1,-1), 8),
+                    ('BOTTOMPADDING', (0,0), (-1,-1), 8),
+                ]))
+                story.append(products_table)
+                story.append(Spacer(1, 30))
+            
+            # Footer
+            story.append(Table([['']], colWidths=[180*mm], rowHeights=[1]))
+            story[-1].setStyle(TableStyle([('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#e5e7eb'))]))
+            story.append(Spacer(1, 15))
+            
+            footer_content = f"""<font size="9" color="#6b7280">
+                <b>{SHOP_INFO['name']}</b> - {SHOP_INFO['address']}<br/>
+                Tel: {SHOP_INFO['phone']} | Email: {SHOP_INFO['email']}<br/><br/>
+                <font size="8">Rapport généré le {datetime.now().strftime('%d/%m/%Y à %H:%M')}</font>
+                </font>"""
+            
+            story.append(Paragraph(footer_content, normal_style))
+            
+            doc.build(story)
+            buffer.seek(0)
+            
+            filename = f"Rapport_Ventes_{period}_{start_date}_{end_date}.pdf"
+            return send_file(buffer, as_attachment=True, download_name=filename, mimetype='application/pdf')
+            
+    except Exception as e:
+        print(f"Erreur rapport PDF: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': f'Erreur: {str(e)}'}), 500
     finally:
         if conn:
             conn.close()

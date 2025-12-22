@@ -41,6 +41,7 @@ import OrderDetailUpdate from "./pages/admin/OrderUpdate";
 import OrdersManagement from "./pages/admin/OrdersManagement";
 import Overview from "./pages/admin/Overview";
 import ProductsManagement from "./pages/admin/ProductsManagement";
+import SalesReports from "./pages/admin/SalesRapports";
 import StockManagement from "./pages/admin/StockManagement";
 import UsersManagement from "./pages/admin/UsersManagement";
 import AdminVisits from "./pages/admin/VisitManagements";
@@ -115,6 +116,7 @@ const App = () => (
                   <Route path="visits" element={<AdminVisits />} />
                   <Route path="jobs" element={<JobsManagement />} />
                   <Route path="appointments" element={<AppointmentsManagement />} />
+                  <Route path="sales-reports" element={<SalesReports />} />
                  
 
                 </Route>

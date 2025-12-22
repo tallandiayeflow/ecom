@@ -7,10 +7,8 @@ import {
   CardContent
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { factures } from "@/lib/api";
-import type { Invoice } from "@/types/invoices";
-import html2canvas from "html2canvas";
-import { jsPDF } from "jspdf";
+import { facturesAPI } from "@/lib/api";
+import type { Invoice } from "@/types/invoices.ts";
 import {
   AlertCircle,
   ArrowLeft,
@@ -28,8 +26,7 @@ import {
   User,
   XCircle,
 } from "lucide-react";
-import QRCode from "qrcode";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -61,33 +58,21 @@ const statusConfig = {
   },
 };
 
-const InvoicePDF = () => {
+const InvoiceDetails = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [loading, setLoading] = useState(true);
-  const [qr, setQr] = useState("");
   const [downloading, setDownloading] = useState(false);
-  const [printing, setPrinting] = useState(false);
-  const printRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (id) loadInvoice(id);
   }, [id]);
 
-  useEffect(() => {
-    if (invoice) {
-      const url = `${window.location.origin}/invoices/${invoice.id}`;
-      QRCode.toDataURL(url, { width: 150, margin: 1 })
-        .then(setQr)
-        .catch(() => toast.error("Erreur lors de la génération du QR code"));
-    }
-  }, [invoice]);
-
   const loadInvoice = async (invoiceId: string) => {
     setLoading(true);
     try {
-      const data = await factures.getInvoice(invoiceId);
+      const data = await facturesAPI.getById(invoiceId);
       setInvoice(data);
     } catch (error) {
       console.error(error);
@@ -98,267 +83,64 @@ const InvoicePDF = () => {
     }
   };
 
-  // Impression thermique optimisée (format ticket 80mm)
-  const handlePrintThermal = () => {
-    if (!invoice) return;
-    setPrinting(true);
-
-    const win = window.open("", "_blank", "width=300,height=600");
-    if (!win) {
-      toast.error("Impossible d'ouvrir la fenêtre d'impression");
-      setPrinting(false);
-      return;
-    }
-
-    const thermalContent = `
-      <html>
-      <head>
-        <meta charset="UTF-8">
-        <title>Reçu ${invoice.invoice_number}</title>
-        <style>
-          @page { 
-            size: 80mm auto; 
-            margin: 0; 
-          }
-          * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-          }
-          body {
-            font-family: 'Courier New', Courier, monospace;
-            font-size: 11px;
-            line-height: 1.4;
-            padding: 8px;
-            width: 80mm;
-            max-width: 80mm;
-            background: #fff;
-            color: #000;
-          }
-          .header {
-            text-align: center;
-            margin-bottom: 12px;
-            padding-bottom: 8px;
-            border-bottom: 2px dashed #000;
-          }
-          .shop-name {
-            font-weight: bold;
-            font-size: 16px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 4px;
-          }
-          .shop-info {
-            font-size: 10px;
-            line-height: 1.3;
-          }
-          .receipt-title {
-            font-size: 18px;
-            font-weight: bold;
-            text-transform: uppercase;
-            text-align: center;
-            margin: 12px 0;
-            letter-spacing: 1px;
-          }
-          .section {
-            margin-bottom: 10px;
-            font-size: 10px;
-          }
-          .line {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 3px;
-          }
-          .items {
-            border-top: 1px dashed #000;
-            border-bottom: 1px dashed #000;
-            padding: 8px 0;
-            margin: 10px 0;
-          }
-          .item-row {
-            margin-bottom: 8px;
-          }
-          .item-name {
-            font-weight: bold;
-            margin-bottom: 2px;
-          }
-          .totals {
-            margin-top: 8px;
-          }
-          .total-line {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 4px;
-            font-size: 11px;
-          }
-          .total-final {
-            font-size: 14px;
-            font-weight: bold;
-            border-top: 2px solid #000;
-            padding-top: 6px;
-            margin-top: 6px;
-          }
-          .footer {
-            text-align: center;
-            margin-top: 12px;
-            padding-top: 8px;
-            border-top: 1px dashed #000;
-            font-size: 10px;
-          }
-          .qr-container {
-            text-align: center;
-            margin: 12px 0;
-          }
-          .bold { font-weight: bold; }
-          @media print {
-            body {
-              margin: 0;
-              padding: 8px;
-            }
-          }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <div class="shop-name">${SHOP_INFO.name}</div>
-          <div class="shop-info">
-            ${SHOP_INFO.address}<br/>
-            Tel: ${SHOP_INFO.phone}<br/>
-            ${SHOP_INFO.email}<br/>
-            ICE: ${SHOP_INFO.ice}
-          </div>
-        </div>
-
-        <div class="receipt-title">REÇU DE VENTE</div>
-
-        <div class="section">
-          <div class="line">
-            <span>N° Facture:</span>
-            <span class="bold">${invoice.invoice_number}</span>
-          </div>
-          <div class="line">
-            <span>Date:</span>
-            <span>${new Date(invoice.created_at).toLocaleString("fr-FR", {
-              year: "numeric",
-              month: "2-digit",
-              day: "2-digit",
-              hour: "2-digit",
-              minute: "2-digit",
-            })}</span>
-          </div>
-          <div class="line">
-            <span>Client:</span>
-            <span class="bold">${invoice.customer_name}</span>
-          </div>
-          ${
-            invoice.customer_phone
-              ? `<div class="line"><span>Tel:</span><span>${invoice.customer_phone}</span></div>`
-              : ""
-          }
-          ${
-            invoice.customer_address
-              ? `<div class="line"><span>Adresse:</span><span>${invoice.customer_address}</span></div>`
-              : ""
-          }
-        </div>
-
-        <div class="items">
-          ${invoice.items
-            ?.map(
-              (item) => `
-            <div class="item-row">
-              <div class="item-name">${item.product_name}</div>
-              <div class="line">
-                <span>${item.quantity} x ${Number(item.unit_price || 0).toFixed(2)} FCFA</span>
-                <span class="bold">${Number(item.total || 0).toFixed(2)} FCFA</span>
-              </div>
-            </div>
-          `
-            )
-            .join("")}
-        </div>
-
-        <div class="totals">
-          <div class="total-line">
-            <span>Sous-total HT:</span>
-            <span>${Number(invoice.amount || 0).toFixed(2)} FCFA</span>
-          </div>
-          ${
-            invoice.discount && invoice.discount > 0
-              ? `<div class="total-line">
-            <span>Remise:</span>
-            <span>-${Number(invoice.discount).toFixed(2)} FCFA</span>
-          </div>`
-              : ""
-          }
-          <div class="total-line">
-            <span>TVA (${invoice.tax_rate || 0}%):</span>
-            <span>${Number(invoice.tax || 0).toFixed(2)} FCFA</span>
-          </div>
-          <div class="total-line total-final">
-            <span>TOTAL TTC:</span>
-            <span>${Number(invoice.total || 0).toFixed(2)} FCFA</span>
-          </div>
-        </div>
-
-        <div class="footer">
-          <div style="margin-bottom: 8px;">
-            <strong>Merci pour votre achat!</strong>
-          </div>
-          <div>
-            Garantie: 3 mois<br/>
-            Conservez ce reçu
-          </div>
-        </div>
-
-        ${
-          qr
-            ? `<div class="qr-container">
-          <img src="${qr}" alt="QR Code" width="100" height="100" style="display: block; margin: 0 auto;" />
-        </div>`
-            : ""
-        }
-      </body>
-      </html>
-    `;
-
-    win.document.write(thermalContent);
-    win.document.close();
-
-    win.onload = () => {
-      setTimeout(() => {
-        win.print();
-        setPrinting(false);
-      }, 250);
-    };
-  };
-
-  // Téléchargement PDF A4
+  // Téléchargement du PDF depuis le backend
   const handleDownloadPDF = async () => {
-    if (!printRef.current || !invoice) return;
+    if (!invoice) return;
 
     setDownloading(true);
     try {
-      const canvas = await html2canvas(printRef.current, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: "#ffffff",
-      });
-
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF("p", "mm", "a4");
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-
-      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`Facture_${invoice.invoice_number}.pdf`);
-      toast.success("PDF téléchargé avec succès ! 📄");
-    } catch (error) {
+      toast.loading("Génération du PDF...", { id: "pdf-download" });
+      await facturesAPI.downloadPdf(invoice.id);
+      toast.success("PDF téléchargé avec succès ! 📄", { id: "pdf-download" });
+    } catch (error: any) {
       console.error(error);
-      toast.error("Erreur lors de la création du PDF");
+      const errorMsg = error.response?.data?.error || "Erreur lors du téléchargement du PDF";
+      toast.error(errorMsg, { id: "pdf-download" });
     } finally {
       setDownloading(false);
+    }
+  };
+
+  // Impression (ouvre le PDF dans un nouvel onglet pour impression)
+  const handlePrint = async () => {
+    if (!invoice) return;
+
+    try {
+      toast.loading("Préparation de l'impression...", { id: "pdf-print" });
+
+      // Créer une URL temporaire pour le PDF
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/factures/${invoice.id}/pdf`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+
+      if (!response.ok) throw new Error("Erreur lors de la récupération du PDF");
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+
+      // Ouvrir dans un nouvel onglet pour impression
+      const printWindow = window.open(url, '_blank');
+
+      if (printWindow) {
+        printWindow.onload = () => {
+          setTimeout(() => {
+            printWindow.print();
+            toast.success("Fenêtre d'impression ouverte", { id: "pdf-print" });
+          }, 250);
+        };
+      } else {
+        toast.error("Impossible d'ouvrir la fenêtre d'impression", { id: "pdf-print" });
+      }
+
+      // Libérer la mémoire après 1 minute
+      setTimeout(() => window.URL.revokeObjectURL(url), 60000);
+
+    } catch (error: any) {
+      console.error(error);
+      toast.error("Erreur lors de l'impression", { id: "pdf-print" });
     }
   };
 
@@ -413,9 +195,9 @@ const InvoicePDF = () => {
   const StatusIcon = statusInfo.icon;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 md:p-8 print:bg-white print:p-0">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 md:p-8">
       {/* Barre d'actions */}
-      <div className="max-w-5xl mx-auto mb-6 print:hidden">
+      <div className="max-w-5xl mx-auto mb-6">
         <Card className="shadow-lg">
           <CardContent className="p-4">
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
@@ -431,24 +213,14 @@ const InvoicePDF = () => {
               <div className="flex flex-wrap gap-2 w-full md:w-auto">
                 <Button
                   variant="outline"
-                  onClick={handlePrintThermal}
-                  disabled={printing}
+                  onClick={handlePrint}
+                  disabled={downloading}
                   className="flex-1 md:flex-none"
                 >
-                  {printing ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Impression...
-                    </>
-                  ) : (
-                    <>
-                      <Printer className="mr-2 h-4 w-4" />
-                      Reçu 80mm
-                    </>
-                  )}
+                  <Printer className="mr-2 h-4 w-4" />
+                  Imprimer
                 </Button>
                 <Button
-                  variant="outline"
                   onClick={handleDownloadPDF}
                   disabled={downloading}
                   className="flex-1 md:flex-none"
@@ -461,7 +233,7 @@ const InvoicePDF = () => {
                   ) : (
                     <>
                       <Download className="mr-2 h-4 w-4" />
-                      PDF A4
+                      Télécharger PDF
                     </>
                   )}
                 </Button>
@@ -477,10 +249,7 @@ const InvoicePDF = () => {
 
       {/* Contenu facture */}
       <div className="max-w-5xl mx-auto">
-        <Card
-          ref={printRef}
-          className="shadow-2xl print:shadow-none print:border-none bg-white"
-        >
+        <Card className="shadow-2xl bg-white">
           <CardContent className="p-8 md:p-12">
             {/* En-tête */}
             <div className="flex flex-col md:flex-row justify-between items-start gap-8 mb-8 pb-8 border-b-2">
@@ -491,6 +260,9 @@ const InvoicePDF = () => {
                       src={SHOP_INFO.logo}
                       alt={SHOP_INFO.name}
                       className="h-16 w-16 object-contain"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                      }}
                     />
                   )}
                   <div>
@@ -610,6 +382,9 @@ const InvoicePDF = () => {
                                 src={item.product_image}
                                 alt={item.product_name}
                                 className="h-12 w-12 object-cover rounded"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                }}
                               />
                             )}
                             <span className="font-medium">{item.product_name}</span>
@@ -634,18 +409,30 @@ const InvoicePDF = () => {
             {/* Totaux */}
             <div className="flex flex-col md:flex-row justify-between items-start gap-8 mb-8">
               <div className="flex-1">
-                {qr && (
-                  <div className="text-center md:text-left">
-                    <p className="text-sm text-muted-foreground mb-3">
-                      Scannez pour voir la facture en ligne
-                    </p>
-                    <img
-                      src={qr}
-                      alt="QR Code"
-                      className="w-32 h-32 border-2 border-gray-200 rounded-lg inline-block"
-                    />
+                <div className="bg-muted/30 p-6 rounded-lg">
+                  <p className="text-sm font-semibold mb-2 text-gray-800">
+                    Informations de paiement
+                  </p>
+                  <div className="space-y-1 text-sm text-gray-600">
+                    <div className="flex justify-between">
+                      <span>Méthode:</span>
+                      <span className="font-medium">
+                        {invoice.payment_method === 'cash_on_delivery' && 'Espèces'}
+                        {invoice.payment_method === 'card' && 'Carte bancaire'}
+                        {invoice.payment_method === 'bank_transfer' && 'Virement'}
+                        {invoice.payment_method === 'other' && 'Autre'}
+                      </span>
+                    </div>
+                    {invoice.payment_date && (
+                      <div className="flex justify-between">
+                        <span>Payé le:</span>
+                        <span className="font-medium">
+                          {new Date(invoice.payment_date).toLocaleDateString("fr-FR")}
+                        </span>
+                      </div>
+                    )}
                   </div>
-                )}
+                </div>
               </div>
 
               <div className="w-full md:w-96">
@@ -703,6 +490,13 @@ const InvoicePDF = () => {
                 </p>
               </div>
             </div>
+
+            {invoice.notes && (
+              <div className="mt-8 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p className="text-sm font-semibold text-yellow-800 mb-1">Notes:</p>
+                <p className="text-sm text-yellow-700">{invoice.notes}</p>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -710,4 +504,4 @@ const InvoicePDF = () => {
   );
 };
 
-export default InvoicePDF;
+export default InvoiceDetails;

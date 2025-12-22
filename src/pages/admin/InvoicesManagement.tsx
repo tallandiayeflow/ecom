@@ -47,8 +47,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { InventoryItem } from "@/lib/api";
-import { factures, stock } from "@/lib/api";
-import type { Invoice, InvoiceItem } from "@/types/invoices";
+import { facturesAPI, stock } from "@/lib/api";
+import type { CreateInvoiceItem, Invoice } from "@/types/invoices.ts";
 import { motion } from "framer-motion";
 import {
   AlertCircle,
@@ -57,6 +57,7 @@ import {
   CheckCircle,
   CreditCard,
   DollarSign,
+  Download,
   Eye,
   FileText,
   Loader2,
@@ -108,7 +109,7 @@ const statusConfig = {
 };
 
 const paymentMethodConfig = {
-  cash_on_delivery: { label: "À la livraison", icon: Package },
+  cash_on_delivery: { label: "Espèces", icon: Package },
   card: { label: "Carte bancaire", icon: CreditCard },
   bank_transfer: { label: "Virement", icon: DollarSign },
   other: { label: "Autre", icon: Receipt },
@@ -142,7 +143,7 @@ const InvoicesManagement = () => {
   const [paymentMethod, setPaymentMethod] = useState<
     "cash_on_delivery" | "card" | "bank_transfer" | "other"
   >("cash_on_delivery");
-  const [selectedItems, setSelectedItems] = useState<Map<string, InvoiceItem>>(new Map());
+  const [selectedItems, setSelectedItems] = useState<Map<string, CreateInvoiceItem>>(new Map());
   const [taxRate, setTaxRate] = useState("20");
   const [discount, setDiscount] = useState("0");
 
@@ -162,7 +163,7 @@ const InvoicesManagement = () => {
   const loadInvoices = async () => {
     setLoading(true);
     try {
-      const data = await factures.getAllInvoices();
+      const data = await facturesAPI.getAll();
       setInvoices(data);
     } catch (error) {
       console.error(error);
@@ -191,7 +192,6 @@ const InvoicesManagement = () => {
       const item = newMap.get(product.id)!;
       if (item.quantity < product.stock) {
         item.quantity += 1;
-        item.total = item.unitPrice * item.quantity;
         newMap.set(product.id, item);
       } else {
         toast.error(`Stock maximum atteint (${product.stock})`);
@@ -199,13 +199,11 @@ const InvoicesManagement = () => {
       }
     } else {
       newMap.set(product.id, {
-        id: product.id,
+        productId: product.id,
         name: product.name,
+        productImage: product.imageUrl,
         unitPrice: product.price,
         quantity: 1,
-        productId: product.id,
-        productImage: product.imageUrl,
-        total: product.price,
       });
     }
     setSelectedItems(newMap);
@@ -229,7 +227,6 @@ const InvoicesManagement = () => {
       newMap.delete(productId);
     } else if (quantity <= product.stock) {
       item.quantity = quantity;
-      item.total = item.unitPrice * quantity;
       newMap.set(productId, item);
     } else {
       toast.error(`Stock insuffisant. Disponible: ${product.stock}`);
@@ -241,7 +238,7 @@ const InvoicesManagement = () => {
 
   const calculateTotals = () => {
     let amount = 0;
-    selectedItems.forEach((item) => (amount += Number(item.total || 0)));
+    selectedItems.forEach((item) => (amount += item.unitPrice * item.quantity));
     const discountAmount = parseFloat(discount) || 0;
     const amountAfterDiscount = Math.max(0, amount - discountAmount);
     const tax = amountAfterDiscount * ((parseFloat(taxRate) || 0) / 100);
@@ -259,10 +256,10 @@ const InvoicesManagement = () => {
 
     try {
       setSubmitting(true);
-      const items: InvoiceItem[] = Array.from(selectedItems.values());
-      const totals = calculateTotals();
-      await factures.createInvoice({
-        invoice_number: generateInvoiceNumber(),
+      const items: CreateInvoiceItem[] = Array.from(selectedItems.values());
+
+      await facturesAPI.create({
+        invoiceNumber: generateInvoiceNumber(),
         customerName: customerName.trim(),
         customerEmail: customerEmail.trim(),
         customerPhone: customerPhone.trim() || undefined,
@@ -272,8 +269,9 @@ const InvoicesManagement = () => {
         status: invoiceStatus,
         paymentMethod,
         taxRate: parseFloat(taxRate) || 0,
-        discount: totals.discountAmount,
+        discount: parseFloat(discount) || 0,
       });
+
       toast.success("Facture créée avec succès ! 🎉");
       setIsDialogOpen(false);
       resetForm();
@@ -296,7 +294,7 @@ const InvoicesManagement = () => {
     setInvoiceStatus("pending");
     setPaymentMethod("cash_on_delivery");
     setSelectedItems(new Map());
-    setTaxRate("0");
+    setTaxRate("20");
     setDiscount("0");
     setInventorySearch("");
   };
@@ -310,7 +308,7 @@ const InvoicesManagement = () => {
     if (!invoiceToDelete) return;
     try {
       setSubmitting(true);
-      await factures.deleteInvoice(invoiceToDelete.id);
+      await facturesAPI.delete(invoiceToDelete.id);
       setInvoices((prev) => prev.filter((i) => i.id !== invoiceToDelete.id));
       toast.success("Facture supprimée ! 🗑️");
       setDeleteDialogOpen(false);
@@ -321,6 +319,18 @@ const InvoicesManagement = () => {
       toast.error(errorMessage);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleDownloadPdf = async (invoiceId: string) => {
+    try {
+      toast.loading("Génération du PDF...");
+      await facturesAPI.downloadPdf(invoiceId);
+      toast.dismiss();
+      toast.success("PDF téléchargé !");
+    } catch (error) {
+      toast.dismiss();
+      toast.error("Erreur lors du téléchargement");
     }
   };
 
@@ -529,9 +539,9 @@ const InvoicesManagement = () => {
                         const statusInfo = statusConfig[invoice.status];
                         const StatusIcon = statusInfo.icon;
                         const paymentInfo = paymentMethodConfig[invoice.payment_method] || {
-    label: "Autre",
-    icon: Receipt
-  };
+                          label: "Autre",
+                          icon: Receipt
+                        };
 
                         return (
                           <motion.tr
@@ -593,8 +603,8 @@ const InvoicesManagement = () => {
                               </div>
                             </TableCell>
                             <TableCell>
-                              <Badge variant="outline">
-                                <paymentInfo.icon className="h-3 w-3 mr-1" />
+                              <Badge variant="outline" className="gap-1">
+                                <paymentInfo.icon className="h-3 w-3" />
                                 {paymentInfo.label}
                               </Badge>
                             </TableCell>
@@ -614,11 +624,20 @@ const InvoicesManagement = () => {
                                 <Button
                                   size="icon"
                                   variant="ghost"
-                                  onClick={() => navigate(`/invoices/${invoice.id}`)}
+                                  onClick={() => navigate(`/admin/invoices/${invoice.id}`)}
                                   className="h-9 w-9 hover:bg-blue-500/10 hover:text-blue-500"
                                   title="Voir"
                                 >
                                   <Eye className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={() => handleDownloadPdf(invoice.id)}
+                                  className="h-9 w-9 hover:bg-green-500/10 hover:text-green-500"
+                                  title="Télécharger PDF"
+                                >
+                                  <Download className="h-4 w-4" />
                                 </Button>
                                 <Button
                                   size="icon"
@@ -642,10 +661,11 @@ const InvoicesManagement = () => {
                 <div className="lg:hidden p-4 space-y-4">
                   {filteredInvoices.map((invoice, index) => {
                     const statusInfo = statusConfig[invoice.status];
+                    const StatusIcon = statusInfo.icon;
                     const paymentInfo = paymentMethodConfig[invoice.payment_method] || {
-    label: "Autre",
-    icon: Receipt
-  };
+                      label: "Autre",
+                      icon: Receipt
+                    };
 
                     return (
                       <motion.div
@@ -664,6 +684,7 @@ const InvoicesManagement = () => {
                                 </p>
                               </div>
                               <Badge variant={statusInfo.variant} className={statusInfo.className}>
+                                <StatusIcon className="h-3 w-3 mr-1" />
                                 {statusInfo.label}
                               </Badge>
                             </div>
@@ -701,11 +722,20 @@ const InvoicesManagement = () => {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => navigate(`/invoices/${invoice.id}`)}
+                                onClick={() => navigate(`/admin/invoices/${invoice.id}`)}
                                 className="flex-1"
                               >
                                 <Eye className="h-4 w-4 mr-2" />
                                 Voir
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleDownloadPdf(invoice.id)}
+                                className="flex-1"
+                              >
+                                <Download className="h-4 w-4 mr-2" />
+                                PDF
                               </Button>
                               <Button
                                 size="sm"
@@ -729,8 +759,11 @@ const InvoicesManagement = () => {
         </CardContent>
       </Card>
 
-      {/* Dialog Nouvelle Facture */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+      {/* Dialog Nouvelle Facture - SUITE */}
+      <Dialog open={isDialogOpen} onOpenChange={(open) => {
+        setIsDialogOpen(open);
+        if (!open) resetForm();
+      }}>
         <DialogContent className="max-w-6xl max-h-[95vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-2xl flex items-center gap-2">
@@ -829,72 +862,75 @@ const InvoicesManagement = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {Array.from(selectedItems.values()).map((item) => (
-                        <TableRow key={item.id}>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              {item.productImage && (
-                                <img
-                                  src={item.productImage}
-                                  alt={item.name}
-                                  className="w-10 h-10 rounded object-cover"
+                      {Array.from(selectedItems.values()).map((item) => {
+                        const itemTotal = item.unitPrice * item.quantity;
+                        return (
+                          <TableRow key={item.productId}>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                {item.productImage && (
+                                  <img
+                                    src={item.productImage}
+                                    alt={item.name}
+                                    className="w-10 h-10 rounded object-cover"
+                                  />
+                                )}
+                                <span className="font-medium">{item.name}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell>{item.unitPrice.toLocaleString()} FCFA</TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  size="icon"
+                                  variant="outline"
+                                  onClick={() =>
+                                    updateProductQuantity(item.productId, item.quantity - 1)
+                                  }
+                                  className="h-8 w-8"
+                                >
+                                  <Minus className="h-3 w-3" />
+                                </Button>
+                                <Input
+                                  type="number"
+                                  value={item.quantity}
+                                  onChange={(e) =>
+                                    updateProductQuantity(
+                                      item.productId,
+                                      parseInt(e.target.value) || 1
+                                    )
+                                  }
+                                  className="w-16 text-center h-8"
+                                  min="1"
                                 />
-                              )}
-                              <span className="font-medium">{item.name}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell>{item.unitPrice.toLocaleString()} FCFA</TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-1">
+                                <Button
+                                  size="icon"
+                                  variant="outline"
+                                  onClick={() =>
+                                    updateProductQuantity(item.productId, item.quantity + 1)
+                                  }
+                                  className="h-8 w-8"
+                                >
+                                  <Plus className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                            <TableCell className="font-bold">
+                              {itemTotal.toLocaleString()} FCFA
+                            </TableCell>
+                            <TableCell>
                               <Button
                                 size="icon"
-                                variant="outline"
-                                onClick={() =>
-                                  updateProductQuantity(item.id, item.quantity - 1)
-                                }
-                                className="h-8 w-8"
+                                variant="ghost"
+                                onClick={() => removeProductFromInvoice(item.productId)}
+                                className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive"
                               >
-                                <Minus className="h-3 w-3" />
+                                <X className="h-4 w-4" />
                               </Button>
-                              <Input
-                                type="number"
-                                value={item.quantity}
-                                onChange={(e) =>
-                                  updateProductQuantity(
-                                    item.id,
-                                    parseInt(e.target.value) || 1
-                                  )
-                                }
-                                className="w-16 text-center h-8"
-                                min="1"
-                              />
-                              <Button
-                                size="icon"
-                                variant="outline"
-                                onClick={() =>
-                                  updateProductQuantity(item.id, item.quantity + 1)
-                                }
-                                className="h-8 w-8"
-                              >
-                                <Plus className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                          <TableCell className="font-bold">
-                            {item.total.toLocaleString()} FCFA
-                          </TableCell>
-                          <TableCell>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => removeProductFromInvoice(item.id)}
-                              className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive"
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </ScrollArea>
@@ -1022,11 +1058,10 @@ const InvoicesManagement = () => {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="cash_on_delivery">À la livraison</SelectItem>
-                    <SelectItem value="espèces">Espèces</SelectItem>
-                    <SelectItem value="Mobile Money">Mobile Money</SelectItem>
+                    <SelectItem value="cash_on_delivery">Espèces</SelectItem>
+                    <SelectItem value="card">Carte bancaire</SelectItem>
+                    <SelectItem value="bank_transfer">Virement</SelectItem>
                     <SelectItem value="other">Autre</SelectItem>
-
                   </SelectContent>
                 </Select>
               </div>

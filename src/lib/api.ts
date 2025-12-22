@@ -56,6 +56,14 @@ import type {
   User,
   VoucherData
 } from '@/types';
+import type {
+  CreateInvoiceData,
+  Invoice,
+  SalesReport,
+  UpdateInvoiceCompleteData,
+  UpdateInvoiceData
+} from '@/types/invoices.ts';
+
 
 export interface LoginResponse {
   user: User;
@@ -575,11 +583,6 @@ export const getAdminStats = async (): Promise<AdminStats> => {
 };
 
 // ==================== FACTURES (Invoices) ====================
-import type {
-  CreateInvoiceData,
-  Invoice,
-  UpdateInvoiceData,
-} from '@/types/invoices';
 
 /**
  * Récupère la liste des factures avec filtres optionnels
@@ -1049,52 +1052,153 @@ export const deleteJob = async (jobId: string): Promise<{ message: string }> => 
 
 
 
-// Endpoints factures
-export const factures = {
-  // GET /api/factures - Liste toutes les factures
-  getAllInvoices: async (): Promise<Invoice[]> => {
-    const { data } = await api.get<Invoice[]>('/factures');
-    return data;
-  },
+// ==================== FACTURES ENDPOINTS ====================
 
-  // GET /api/factures/:id - Détails d'une facture
-  getInvoice: async (invoiceId: string): Promise<Invoice> => {
-    const { data } = await api.get<Invoice>(`/factures/${invoiceId}`);
-    return data;
-  },
-
-  // POST /api/factures - Créer une facture
-  createInvoice: async (invoiceData: CreateInvoiceData): Promise<Invoice> => {
-    const { data } = await api.post<Invoice>('/factures', invoiceData);
-    return data;
-  },
-
-  // PUT /api/factures/:id - Mettre à jour une facture
-  updateInvoice: async (
-    invoiceId: string,
-    updates: {
-      status?: 'paid' | 'pending' | 'cancelled';
-      paymentMethod?: 'cash_on_delivery' | 'card' | 'bank_transfer' | 'other';
-      notes?: string;
-    }
-  ): Promise<Invoice> => {
-    const { data } = await api.put<Invoice>(`/factures/${invoiceId}`, updates);
-    return data;
-  },
-
-  // DELETE /api/factures/:id - Supprimer une facture
-  deleteInvoice: async (invoiceId: string): Promise<{ message: string }> => {
-    const { data } = await api.delete<{ message: string }>(`/factures/${invoiceId}`);
-    return data;
-  },
-
-  downloadIncvoicePdf: async (invoiceId: string): Promise<void> => {
-    const response = await api.get(`/factures/${invoiceId}/pdf`, {
-      responseType: 'blob',
-    });
-  },
-
+/**
+ * Récupère toutes les factures (Admin)
+ */
+export const getAllInvoices = async (): Promise<Invoice[]> => {
+  const response = await api.get('/factures');
+  return response.data;
 };
+
+/**
+ * Récupère une facture par son ID
+ */
+export const getInvoiceById = async (invoiceId: string): Promise<Invoice> => {
+  const response = await api.get(`/factures/${invoiceId}`);
+  return response.data;
+};
+
+/**
+ * Crée une nouvelle facture avec mise à jour automatique du stock
+ */
+export const createNewInvoice = async (data: CreateInvoiceData): Promise<Invoice> => {
+  const response = await api.post('/factures', data);
+  return response.data;
+};
+
+/**
+ * Met à jour le statut/paiement d'une facture
+ */
+export const updateInvoiceStatus = async (
+  invoiceId: string,
+  data: UpdateInvoiceData
+): Promise<Invoice> => {
+  const response = await api.put(`/factures/${invoiceId}`, data);
+  return response.data;
+};
+
+/**
+ * Met à jour complètement une facture (client + items)
+ */
+export const updateInvoiceComplete = async (
+  invoiceId: string,
+  data: UpdateInvoiceCompleteData
+): Promise<Invoice> => {
+  const response = await api.put(`/factures/${invoiceId}/complete`, data);
+  return response.data;
+};
+
+/**
+ * Supprime une facture par son ID
+ */
+export const deleteInvoiceById = async (invoiceId: string): Promise<{ message: string }> => {
+  const response = await api.delete(`/factures/${invoiceId}`);
+  return response.data;
+};
+
+/**
+ * Télécharge le PDF d'une facture
+ */
+export const downloadInvoicePdf = async (invoiceId: string): Promise<void> => {
+  const response = await api.get(`/factures/${invoiceId}/pdf`, {
+    responseType: 'blob',
+  });
+
+  const blob = new Blob([response.data], { type: 'application/pdf' });
+  const url = window.URL.createObjectURL(blob);
+
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `Facture_${invoiceId}.pdf`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
+};
+
+/**
+ * Récupère le rapport de ventes (JSON)
+ */
+export const getSalesReport = async (params?: {
+  period?: 'day' | 'week' | 'month';
+  start_date?: string;
+  end_date?: string;
+}): Promise<SalesReport> => {
+  const searchParams = new URLSearchParams();
+  if (params?.period) searchParams.append('period', params.period);
+  if (params?.start_date) searchParams.append('start_date', params.start_date);
+  if (params?.end_date) searchParams.append('end_date', params.end_date);
+
+  const response = await api.get(`/factures/reports/sales?${searchParams.toString()}`);
+  return response.data;
+};
+
+/**
+ * Télécharge le rapport de ventes en PDF
+ */
+export const downloadSalesReportPdf = async (params?: {
+  period?: 'day' | 'week' | 'month';
+  start_date?: string;
+  end_date?: string;
+}): Promise<void> => {
+  const searchParams = new URLSearchParams();
+  if (params?.period) searchParams.append('period', params.period);
+  if (params?.start_date) searchParams.append('start_date', params.start_date);
+  if (params?.end_date) searchParams.append('end_date', params.end_date);
+
+  const response = await api.get(
+    `/factures/reports/sales/pdf?${searchParams.toString()}`,
+    { responseType: 'blob' }
+  );
+
+  const blob = new Blob([response.data], { type: 'application/pdf' });
+  const url = window.URL.createObjectURL(blob);
+
+  const filename = `Rapport_Ventes_${params?.period || 'custom'}_${new Date().toISOString().split('T')[0]}.pdf`;
+  
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
+};
+
+// ==================== OBJET FACTURES (Alternative groupée) ====================
+
+/**
+ * Objet contenant toutes les méthodes factures
+ * Utilisation : facturesAPI.getAll(), facturesAPI.create(), etc.
+ */
+export const facturesAPI = {
+  getAll: getAllInvoices,
+  getById: getInvoiceById,
+  create: createNewInvoice,
+  updateStatus: updateInvoiceStatus,
+  updateComplete: updateInvoiceComplete,
+  delete: deleteInvoiceById,
+  downloadPdf: downloadInvoicePdf,
+  getSalesReport: getSalesReport,
+  downloadReportPdf: downloadSalesReportPdf,
+};
+
+
+
+
+// ==================== APPOINTMENTS ====================
 
 
  
