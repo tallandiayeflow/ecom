@@ -141,28 +141,53 @@ const Index = () => {
       </section>
 
       {/* Newsletter Section */}
-      <section className="bg-gradient-to-r from-primary/90 to-primary py-16">
-        <div className="container mx-auto px-4">
-          <div className="max-w-3xl mx-auto text-center animate-fade-in">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-primary-foreground">
-              Restez Informé
-            </h2>
-            <p className="text-primary-foreground/90 text-lg mb-8">
-              Inscrivez-vous à notre newsletter pour recevoir nos offres exclusives et nouveautés
-            </p>
-            <div className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
-              <input
-                type="email"
-                placeholder="Votre adresse email"
-                className="flex-1 px-4 py-3 rounded-lg border-0 focus:ring-2 focus:ring-white/50 outline-none"
-              />
-              <Button size="lg" variant="secondary" className="whitespace-nowrap">
-                S'inscrire
-              </Button>
-            </div>
-          </div>
-        </div>
-      </section>
+      <section className="bg-gradient-to-r from-primary/90 to-primary py-20">
+  <div className="container mx-auto px-4">
+    <div className="max-w-4xl mx-auto text-center animate-fade-in">
+
+      <h2 className="text-3xl md:text-4xl font-bold mb-4 text-primary-foreground">
+        Et maintenant ?
+      </h2>
+
+      <p className="text-primary-foreground/90 text-lg mb-12">
+        Vous souhaitez rejoindre notre équipe ou prendre rendez-vous dans notre institut ?
+      </p>
+
+      <div className="grid sm:grid-cols-2 gap-6 max-w-2xl mx-auto">
+        
+        {/* Candidature */}
+        <a
+          href="/jobs-application"
+          className="group rounded-2xl bg-white/10 backdrop-blur-md p-8 text-left hover:bg-white/20 transition shadow-lg"
+        >
+          <div className="text-4xl mb-4">📝</div>
+          <h3 className="text-xl font-bold text-primary-foreground mb-2 group-hover:underline">
+            Déposer une candidature
+          </h3>
+          <p className="text-primary-foreground/80">
+            Envoyez votre CV et rejoignez notre équipe professionnelle
+          </p>
+        </a>
+
+        {/* Rendez-vous */}
+        <a
+          href="/book-appointment"
+          className="group rounded-2xl bg-white/10 backdrop-blur-md p-8 text-left hover:bg-white/20 transition shadow-lg"
+        >
+          <div className="text-4xl mb-4">📅</div>
+          <h3 className="text-xl font-bold text-primary-foreground mb-2 group-hover:underline">
+            Prendre un rendez-vous
+          </h3>
+          <p className="text-primary-foreground/80">
+            Réservez facilement un créneau dans notre institut
+          </p>
+        </a>
+
+      </div>
+    </div>
+  </div>
+</section>
+
     </div>
   );
 };
