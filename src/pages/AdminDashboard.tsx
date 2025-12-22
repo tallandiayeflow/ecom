@@ -38,12 +38,11 @@ const AdminDashboard = () => {
 
   const menuItems = [
     { icon: LayoutDashboard, label: 'Tableau de bord', path: '/admin' },
-    { icon: Package, label: 'Produits', path: '/admin/products' },
+    { icon: Package, label: 'Gestion des Produits', path: '/admin/products' },
     { icon: FolderTree, label: 'Catégories', path: '/admin/categories' },
-    { icon: ShoppingBag, label: 'Commandes', path: '/admin/orders' },
+    { icon: ShoppingBag, label: 'Gestion des Commandes', path: '/admin/orders' },
     { icon: Zap, label: 'Ventes Flash', path: '/admin/flash-sales' },
     { icon: Image, label: 'Bannières', path: '/admin/banners' },
-    { icon: Users, label: 'Utilisateurs', path: '/admin/users' },
     { icon: Ticket, label: 'Bons d\'achat', path: '/admin/vouchers' },
     { icon: FileText, label: 'Factures', path: '/admin/invoices' },
     { icon: PackageSearch, label: 'Gestion Stock', path: '/admin/stock' },
@@ -51,6 +50,7 @@ const AdminDashboard = () => {
     { icon: Zap, label: 'Jobs', path: '/admin/jobs' },
     { icon: Calendar, label: 'Rendez-vous', path: '/admin/appointments' },
     { icon: FolderTree, label: 'Rapports de ventes', path: '/admin/sales-reports' },
+    { icon: Users, label: 'Gestion Utilisateurs', path: '/admin/users' },
   ];
 
   const handleLogout = () => {
@@ -60,20 +60,22 @@ const AdminDashboard = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      {/* Navbar - Toujours visible */}
+      {/* Navbar fixe en haut */}
       <TopNavbar />
 
-      <div className="flex flex-1 relative">
-        {/* Sidebar Desktop - Synchronisé avec le navbar */}
+      {/* Container principal avec sidebar + content */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Sidebar Desktop - Position fixe avec scroll indépendant */}
         <aside
           className={cn(
             'hidden lg:flex flex-col bg-card border-r transition-all duration-300 ease-in-out',
+            'fixed top-16 left-0 bottom-0 z-40',
             isCollapsed ? 'w-16' : 'w-64'
           )}
         >
-          {/* Header - Même hauteur que les éléments du navbar */}
+          {/* Header Sidebar */}
           <div className={cn(
-            'relative border-b transition-all duration-300',
+            'relative border-b transition-all duration-300 flex-shrink-0',
             isCollapsed ? 'p-3' : 'p-6'
           )}>
             {!isCollapsed ? (
@@ -93,7 +95,7 @@ const AdminDashboard = () => {
               </div>
             )}
 
-            {/* Toggle Button - Style amélioré */}
+            {/* Toggle Button */}
             <Button
               variant="ghost"
               size="icon"
@@ -111,8 +113,8 @@ const AdminDashboard = () => {
             </Button>
           </div>
 
-          {/* Navigation - Scrollable avec style uniforme */}
-          <nav className="flex-1 p-3 space-y-1 overflow-y-auto scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
+          {/* Navigation - Zone scrollable */}
+          <nav className="flex-1 p-3 space-y-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/40">
             {menuItems.map((item, index) => {
               const Icon = item.icon;
               const isActive = location.pathname === item.path;
@@ -122,7 +124,7 @@ const AdminDashboard = () => {
                   key={item.path}
                   to={item.path}
                   style={{ animationDelay: `${index * 20}ms` }}
-                  className="block"
+                  className="block animate-in fade-in slide-in-from-left duration-200"
                 >
                   <Button
                     variant={isActive ? 'default' : 'ghost'}
@@ -142,7 +144,7 @@ const AdminDashboard = () => {
                       )}
                     />
                     {!isCollapsed && (
-                      <span className="text-sm font-medium animate-in fade-in slide-in-from-left duration-200">
+                      <span className="text-sm font-medium truncate">
                         {item.label}
                       </span>
                     )}
@@ -160,8 +162,8 @@ const AdminDashboard = () => {
             })}
           </nav>
 
-          {/* Footer - Déconnexion alignée */}
-          <div className="p-3 border-t">
+          {/* Footer - Déconnexion (fixe en bas) */}
+          <div className="p-3 border-t flex-shrink-0 bg-card">
             <Button
               variant="ghost"
               className={cn(
@@ -178,7 +180,7 @@ const AdminDashboard = () => {
                 )}
               />
               {!isCollapsed && (
-                <span className="text-sm font-medium animate-in fade-in slide-in-from-left duration-200">
+                <span className="text-sm font-medium">
                   Déconnexion
                 </span>
               )}
@@ -186,8 +188,13 @@ const AdminDashboard = () => {
           </div>
         </aside>
 
-        {/* Main Content - Padding et design harmonisé */}
-        <main className="flex-1 overflow-auto">
+        {/* Main Content - Décalé selon la largeur de la sidebar */}
+        <main
+          className={cn(
+            'flex-1 overflow-y-auto transition-all duration-300',
+            isCollapsed ? 'lg:ml-16' : 'lg:ml-64'
+          )}
+        >
           <div className="container mx-auto p-6 lg:p-8 animate-in fade-in slide-in-from-right duration-300">
             <Outlet />
           </div>

@@ -52,12 +52,11 @@ export const Navbar = () => {
 
   const adminMenuItems = [
     { icon: LayoutDashboard, label: 'Tableau de bord', path: '/admin' },
-    { icon: Package, label: 'Produits', path: '/admin/products' },
+    { icon: Package, label: 'Gestion des Produits', path: '/admin/products' },
     { icon: FolderTree, label: 'Catégories', path: '/admin/categories' },
-    { icon: ShoppingBag, label: 'Commandes', path: '/admin/orders' },
+    { icon: ShoppingBag, label: 'Gestion des Commandes', path: '/admin/orders' },
     { icon: Zap, label: 'Ventes Flash', path: '/admin/flash-sales' },
     { icon: Image, label: 'Bannières', path: '/admin/banners' },
-    { icon: Users, label: 'Utilisateurs', path: '/admin/users' },
     { icon: Ticket, label: "Bons d'achat", path: '/admin/vouchers' },
     { icon: FileText, label: 'Factures', path: '/admin/invoices' },
     { icon: PackageSearch, label: 'Stock', path: '/admin/stock' },
@@ -65,6 +64,7 @@ export const Navbar = () => {
     { icon: Zap, label: 'Jobs', path: '/admin/jobs' },
     { icon: Users, label: 'Rendez-vous', path: '/admin/appointments' },
     { icon: FolderTree, label: 'Rapports de ventes', path: '/admin/sales-reports' },
+    { icon: Users, label: 'Gestion Utilisateurs', path: '/admin/users' },
   ];
 
   const userMenuItems = [
@@ -326,7 +326,7 @@ export const Navbar = () => {
               <nav className="flex-1 space-y-1 mb-8">
                 {isAuthenticated ? (
                   <>
-                    {(user?.role === 'admin' ? adminMenuItems.slice(0, 8) : userMenuItems).map((item) => {
+                    {(user?.role === 'admin' ? adminMenuItems: userMenuItems).map((item) => {
                       const Icon = item.icon;
                       return (
                         <Link
