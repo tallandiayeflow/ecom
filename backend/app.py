@@ -10,14 +10,14 @@ cache.init_app(app)
 
 
 # CORSssss
-CORS(app, resources={
+"""CORS(app, resources={
     r"/api/*": {
         "origins": Config.CORS_ORIGINS,
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization"],
         "supports_credentials": True
     }
-})
+})"""
 #CORS(app)
 # Blueprints tests
 app.register_blueprint(auth.bp, url_prefix='/api/auth')
@@ -36,7 +36,7 @@ app.register_blueprint(loyalty.bp, url_prefix='/api/loyalty')
 app.register_blueprint(visits.bp, url_prefix='/api/visits')
 app.register_blueprint(payments.bp, url_prefix='/api/payments')
 app.register_blueprint(jobs.bp, url_prefix='/api/jobs')
-app.register_blueprint(appointements.bp, url_prefix='/api/appointments')
+app.register_blueprint(appointements.bp, url_prefix='/api')
 
 
 # Health check
