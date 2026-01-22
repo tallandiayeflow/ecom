@@ -688,3 +688,16 @@ sudo certbot renew --dry-run
 ### Ce guide couvre tout, du VPS à HTTPS via DuckDNS.  
 Je peux vous fournir tous les fichiers exemples complets ou vous accompagner pas à pas pour chaque étape.  
 Souhaitez-vous que je vous assiste pour une étape particulière ?
+
+
+
+
+
+
+
+
+
+
+
+
+[ { icon: Users, label: 'Utilisateurs', path: '/admin/users' },](https://talla-ndiaye.imgbb.com/)

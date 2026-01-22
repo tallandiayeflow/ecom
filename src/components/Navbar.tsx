@@ -15,6 +15,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import {
+  BaggageClaim,
   Calendar,
   FileText,
   FolderTree,
@@ -27,6 +28,7 @@ import {
   Package,
   PackageSearch,
   ShoppingBag,
+  ShoppingBagIcon,
   ShoppingCart,
   Smartphone,
   Sun,
@@ -60,14 +62,15 @@ export const Navbar = () => {
     { icon: ShoppingBag, label: 'Commandes', path: '/admin/orders' },
     { icon: Zap, label: 'Ventes Flash', path: '/admin/flash-sales' },
     { icon: Image, label: 'Bannières', path: '/admin/banners' },
-    { icon: Users, label: 'Utilisateurs', path: '/admin/users' },
+   
     { icon: Ticket, label: "Bons d'achat", path: '/admin/vouchers' },
     { icon: FileText, label: 'Factures', path: '/admin/invoices' },
     { icon: PackageSearch, label: 'Gestion Stock', path: '/admin/stock' },
-    { icon: Smartphone, label: 'Visites', path: '/admin/visits' },
-    { icon: Zap, label: 'Jobs', path: '/admin/jobs' },
-    { icon: Calendar, label: 'Rendez-vous', path: '/admin/appointments' },
+    //{ icon: Smartphone, label: 'Visites', path: '/admin/visits' },
+    //{ icon: Zap, label: 'Jobs', path: '/admin/jobs' },
+    //{ icon: Calendar, label: 'Rendez-vous', path: '/admin/appointments' },
     { icon: FolderTree, label: 'Rapports de ventes', path: '/admin/sales-reports' },
+    { icon: Users, label: 'Utilisateurs', path: '/admin/users' },
   ];
 
   const userMenuItems = [
@@ -84,10 +87,10 @@ export const Navbar = () => {
           <div className="flex h-16 items-center justify-between px-4">
             <Link to="/" className="flex items-center gap-2 flex-shrink-0">
               <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg">
-                <Smartphone className="h-5 w-5 text-primary-foreground" />
+                <ShoppingBagIcon className="h-5 w-5 text-primary-foreground" />
               </div>
               <span className="text-xl font-bold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
-                PhoneShop
+                NOOR
               </span>
             </Link>
 
@@ -185,7 +188,7 @@ export const Navbar = () => {
                 <Smartphone className="h-4 w-4 text-primary-foreground" />
               </div>
               <span className="text-lg font-bold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
-                PhoneShop
+                NOOR
               </span>
             </Link>
 
@@ -251,7 +254,7 @@ export const Navbar = () => {
                   <Smartphone className="h-6 w-6 text-primary-foreground" />
                 </div>
                 <span className="text-xl font-bold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
-                  PhoneShop
+                  NOOR
                 </span>
               </Link>
               <Button

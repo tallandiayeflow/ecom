@@ -13,10 +13,10 @@ export const Footer = () => {
           <div className="space-y-4">
             <div className="flex items-center gap-2">
               <Smartphone className="h-6 w-6 text-primary" />
-              <h3 className="text-lg font-bold">PhoneShop</h3>
+              <h3 className="text-lg font-bold">NOOR</h3>
             </div>
             <p className="text-sm text-muted-foreground">
-              Votre destination #1 pour les derniers smartphones, tablettes et accessoires. 
+              Votre destination #1 pour les derniers Robes, Parfums et Bijoux. 
               Qualité garantie et livraison rapide.
             </p>
             <div className="flex gap-3">
@@ -45,18 +45,18 @@ export const Footer = () => {
                 </Link>
               </li>
               <li>
-                <Link to="/products?category=iphone" className="text-sm text-muted-foreground hover:text-primary transition-colors">
-                  iPhones
+                <Link to="/products?category=robes" className="text-sm text-muted-foreground hover:text-primary transition-colors">
+                  Robes
                 </Link>
               </li>
               <li>
-                <Link to="/products?category=android" className="text-sm text-muted-foreground hover:text-primary transition-colors">
-                  Android
+                <Link to="/products?category=parfums" className="text-sm text-muted-foreground hover:text-primary transition-colors">
+                  Parfuns
                 </Link>
               </li>
               <li>
-                <Link to="/products?category=accessories" className="text-sm text-muted-foreground hover:text-primary transition-colors">
-                  Accessoires
+                <Link to="/products?category=abayas" className="text-sm text-muted-foreground hover:text-primary transition-colors">
+                  Bijoux
                 </Link>
               </li>
               <li>
@@ -112,14 +112,14 @@ export const Footer = () => {
               </li>
               <li className="flex items-center gap-2">
                 <Mail className="h-4 w-4 text-primary flex-shrink-0" />
-                <a href="mailto:contact@phoneshop.fr" className="text-sm text-muted-foreground hover:text-primary transition-colors">
-                  contact@phoneshop.fr
+                <a href="mailto:contact@NOOR.fr" className="text-sm text-muted-foreground hover:text-primary transition-colors">
+                  contact@noor.fr
                 </a>
               </li>
               <li className="flex items-center gap-2">
                 <Smartphone className="h-4 w-4 text-primary flex-shrink-0" />
-                <a href="tel:+33123456789" className="text-sm text-muted-foreground hover:text-primary transition-colors">
-                  +33 1 23 45 67 89
+                <a href="tel:+221771234567" className="text-sm text-muted-foreground hover:text-primary transition-colors">
+                  +221 77 123 45 67
                 </a>
               </li>
             </ul>
@@ -131,7 +131,7 @@ export const Footer = () => {
         {/* Bottom Bar */}
         <div className="flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-sm text-muted-foreground text-center md:text-left">
-            © {currentYear} PhoneShop. Tous droits réservés.
+            © {currentYear} NOOR. Tous droits réservés.
           </p>
           <div className="flex gap-6">
             <a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">

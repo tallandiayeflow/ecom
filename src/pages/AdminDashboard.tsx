@@ -46,9 +46,9 @@ const AdminDashboard = () => {
     { icon: Ticket, label: 'Bons d\'achat', path: '/admin/vouchers' },
     { icon: FileText, label: 'Factures', path: '/admin/invoices' },
     { icon: PackageSearch, label: 'Gestion Stock', path: '/admin/stock' },
-    { icon: Smartphone, label: 'Visites', path: '/admin/visits' },
-    { icon: Zap, label: 'Jobs', path: '/admin/jobs' },
-    { icon: Calendar, label: 'Rendez-vous', path: '/admin/appointments' },
+    //{ icon: Smartphone, label: 'Visites', path: '/admin/visits' },
+    //{ icon: Zap, label: 'Jobs', path: '/admin/jobs' },
+    //{ icon: Calendar, label: 'Rendez-vous', path: '/admin/appointments' },
     { icon: FolderTree, label: 'Rapports de ventes', path: '/admin/sales-reports' },
     { icon: Users, label: 'Gestion Utilisateurs', path: '/admin/users' },
   ];
