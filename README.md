@@ -470,7 +470,7 @@ server {
     }
 }
 #Activez le site :
-sudo ln -sf /etc/nginx/sites-available/phone-backend /etc/nginx/sites-enabled/phone-backend
+sudo ln -sf /etc/nginx/sites-available/phone /etc/nginx/sites-enabled/phone
 sudo nginx -t
 sudo systemctl reload nginx
 sudo apt install certbot python3-certbot-nginx -y
@@ -629,7 +629,7 @@ server {
 
 - Activez la config et testez :
 ```bash
-sudo ln -sf /etc/nginx/sites-available/phone-backend /etc/nginx/sites-enabled/phone-backend
+sudo ln -sf /etc/nginx/sites-available/phone /etc/nginx/sites-enabled/phone
 sudo nginx -t
 sudo systemctl reload nginx
 ```
