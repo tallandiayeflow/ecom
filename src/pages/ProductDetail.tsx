@@ -5,8 +5,8 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCart } from '@/contexts/CartContext';
-import { getProduct } from '@/lib/api';
-import { Product } from '@/types';
+import { getProduct, getProducts } from '@/lib/api';
+import type { Product } from '@/types';
 import { motion } from 'framer-motion';
 import {
   ArrowLeft,
@@ -22,7 +22,7 @@ import {
   Truck,
   Zap,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 
@@ -33,27 +33,58 @@ const ProductDetail = () => {
 
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
+
   const [selectedImage, setSelectedImage] = useState(0);
-  const [quantity, setQuantity] = useState(1);
-  const [addingToCart, setAddingToCart] = useState(false);
   const [imageLoading, setImageLoading] = useState(true);
 
+  const [quantity, setQuantity] = useState(1);
+  const [addingToCart, setAddingToCart] = useState(false);
+
+  const [selectedColor, setSelectedColor] = useState<string | null>(null);
+  const [selectedSize, setSelectedSize] = useState<string | null>(null);
+
+  const [similarProducts, setSimilarProducts] = useState<Product[]>([]);
+  const [loadingSimilar, setLoadingSimilar] = useState(false);
+
   useEffect(() => {
-    if (id) {
-      loadProduct(id);
-    }
+    if (id) loadProduct(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   useEffect(() => {
-    // Reset image loading when product changes
     setImageLoading(true);
   }, [selectedImage]);
+
+  const discount = useMemo(() => {
+    if (!product?.originalPrice) return 0;
+    if (product.originalPrice === product.price) return 0;
+    return Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100);
+  }, [product]);
 
   const loadProduct = async (productId: string) => {
     setLoading(true);
     try {
       const data = await getProduct(productId);
       setProduct(data);
+
+      // reset UI states
+      setSelectedImage(0);
+      setQuantity(1);
+      setSelectedColor(data?.colors?.[0] ?? null);
+      setSelectedSize(data?.sizes?.[0] ?? null);
+
+      // similar products (same category)
+      if (data?.category) {
+        setLoadingSimilar(true);
+        try {
+          const res = await getProducts({ category: data.category, limit: 10, page: 1 });
+          setSimilarProducts(res.products.filter((p) => p.id !== data.id).slice(0, 6));
+        } finally {
+          setLoadingSimilar(false);
+        }
+      } else {
+        setSimilarProducts([]);
+      }
     } catch (error) {
       console.error('Error loading product:', error);
       toast.error('Produit introuvable');
@@ -66,10 +97,27 @@ const ProductDetail = () => {
   const handleAddToCart = async () => {
     if (!product) return;
 
+    if (product.colors?.length && !selectedColor) {
+      toast.error('Veuillez choisir une couleur');
+      return;
+    }
+    if (product.sizes?.length && !selectedSize) {
+      toast.error('Veuillez choisir une taille');
+      return;
+    }
+
     setAddingToCart(true);
     try {
-      await addToCart(product, quantity);
-      toast.success(`${quantity} x ${product.name} ajouté au panier ! 🛒`);
+      addToCart(product, quantity, selectedColor ?? undefined, selectedSize ?? undefined);
+
+      const details = [
+        selectedColor ? `Couleur: ${selectedColor}` : null,
+        selectedSize ? `Taille: ${selectedSize}` : null,
+      ]
+        .filter(Boolean)
+        .join(' • ');
+
+      toast.success(`${quantity} x ${product.name}${details ? ` (${details})` : ''} ajouté au panier !`);
     } catch (error) {
       console.error('Error adding to cart:', error);
       toast.error("Erreur lors de l'ajout au panier");
@@ -80,38 +128,37 @@ const ProductDetail = () => {
 
   const handleShare = async () => {
     const url = window.location.href;
+
     if (navigator.share) {
       try {
         await navigator.share({
           title: product?.name,
           text: product?.description,
-          url: url,
+          url,
         });
         toast.success('Lien partagé !');
       } catch (error) {
         if ((error as Error).name !== 'AbortError') {
-          navigator.clipboard.writeText(url);
+          await navigator.clipboard.writeText(url);
           toast.success('Lien copié !');
         }
       }
     } else {
-      navigator.clipboard.writeText(url);
+      await navigator.clipboard.writeText(url);
       toast.success('Lien copié dans le presse-papier !');
     }
   };
 
   const handleAddToWishlist = () => {
-    toast.info('Fonctionnalité en cours de développement 💝');
+    toast.info('Fonctionnalité en cours de développement');
   };
 
-  // Loading Skeleton
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         <Skeleton className="w-24 h-10 rounded-lg mb-6" />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Skeleton Images */}
           <div className="space-y-4">
             <Skeleton className="w-full h-[500px] rounded-xl" />
             <div className="flex gap-2">
@@ -121,7 +168,6 @@ const ProductDetail = () => {
             </div>
           </div>
 
-          {/* Skeleton Infos */}
           <div className="space-y-6">
             <div className="space-y-3">
               <Skeleton className="w-2/3 h-6" />
@@ -143,13 +189,7 @@ const ProductDetail = () => {
     );
   }
 
-  if (!product) {
-    return null;
-  }
-
-  const discount = product.originalPrice
-    ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
-    : 0;
+  if (!product) return null;
 
   return (
     <motion.div
@@ -158,7 +198,6 @@ const ProductDetail = () => {
       transition={{ duration: 0.4 }}
       className="container mx-auto px-4 py-8 max-w-7xl"
     >
-      {/* Header avec boutons d'action */}
       <div className="flex items-center justify-between mb-6">
         <Button variant="ghost" onClick={() => navigate(-1)} size="sm">
           <ArrowLeft className="mr-2 h-4 w-4" />
@@ -176,15 +215,12 @@ const ProductDetail = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Section Images */}
+        {/* Images */}
         <div className="space-y-4">
-          {/* Image principale */}
           <div className="relative h-[500px] rounded-xl overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200 border-2">
-            {imageLoading && (
-              <Skeleton className="absolute inset-0 w-full h-full" />
-            )}
+            {imageLoading && <Skeleton className="absolute inset-0 w-full h-full" />}
             <img
-              src={product.images[selectedImage] || '/placeholder-product.png'}
+              src={product.images?.[selectedImage] || '/placeholder-product.png'}
               alt={product.name}
               className={`w-full h-full object-contain transition-opacity duration-300 ${
                 imageLoading ? 'opacity-0' : 'opacity-100'
@@ -196,12 +232,10 @@ const ProductDetail = () => {
               }}
             />
 
-            {/* Badges */}
             <div className="absolute top-4 left-4 flex flex-col gap-2">
               {discount > 0 && (
                 <Badge variant="destructive" className="font-bold shadow-lg">
-                  <Zap className="h-3 w-3 mr-1" />
-                  -{discount}%
+                  <Zap className="h-3 w-3 mr-1" />-{discount}%
                 </Badge>
               )}
               {!product.inStock && (
@@ -219,8 +253,7 @@ const ProductDetail = () => {
             </div>
           </div>
 
-          {/* Miniatures */}
-          {product.images.length > 1 && (
+          {product.images?.length > 1 && (
             <div className="flex gap-3 overflow-x-auto pb-2">
               {product.images.map((image, index) => (
                 <button
@@ -232,20 +265,24 @@ const ProductDetail = () => {
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
                 >
-                  <img
-                    src={image}
-                    alt={`${product.name} - ${index + 1}`}
-                    className="w-full h-full object-cover"
-                  />
+                  <img src={image} alt={`${product.name} - ${index + 1}`} className="w-full h-full object-cover" />
                 </button>
               ))}
             </div>
           )}
+          {/* Detailed description */}
+      {product.description && (
+        <div className="mt-12">
+          <h2 className="text-2xl font-bold mb-4">Description détaillée</h2>
+          <Card className="p-6">
+            <p className="text-muted-foreground leading-relaxed whitespace-pre-line">{product.description}</p>
+          </Card>
+        </div>
+      )}
         </div>
 
-        {/* Section Informations */}
+        {/* Infos */}
         <div className="space-y-6">
-          {/* En-tête */}
           <div>
             {(product.category || product.brand) && (
               <div className="flex items-center gap-2 mb-3">
@@ -255,10 +292,7 @@ const ProductDetail = () => {
                   </Badge>
                 )}
                 {product.brand && (
-                  <Badge
-                    variant="outline"
-                    className="text-xs font-semibold text-primary border-primary"
-                  >
+                  <Badge variant="outline" className="text-xs font-semibold text-primary border-primary">
                     {product.brand}
                   </Badge>
                 )}
@@ -266,33 +300,30 @@ const ProductDetail = () => {
             )}
 
             <h1 className="text-3xl font-bold mb-3 leading-tight">{product.name}</h1>
-            {product.description && (
-              <p className="text-muted-foreground leading-relaxed">
-                {product.description}
-              </p>
-            )}
+            {product.description && <p className="text-muted-foreground leading-relaxed">{product.description}</p>}
           </div>
 
           <Separator />
 
-          {/* Prix */}
+          {/* Price */}
           <div className="space-y-2">
             <div className="flex items-baseline gap-3">
               <span className="text-4xl font-bold bg-gradient-to-r from-primary to-purple-500 bg-clip-text text-transparent">
                 {product.price.toLocaleString('fr-FR')} FCFA
               </span>
+
               {product.originalPrice && product.originalPrice !== product.price && (
                 <span className="text-xl text-muted-foreground line-through">
                   {product.originalPrice.toLocaleString('fr-FR')} FCFA
                 </span>
               )}
             </div>
-            {discount > 0 && (
+
+            {discount > 0 && product.originalPrice && (
               <div className="inline-flex items-center gap-2 px-3 py-1 bg-green-500/10 rounded-full border border-green-500/20">
                 <Zap className="h-4 w-4 text-green-600" />
                 <span className="text-sm text-green-600 font-medium">
-                  Économisez{' '}
-                  {(product.originalPrice! - product.price).toLocaleString('fr-FR')} FCFA
+                  Économisez {(product.originalPrice - product.price).toLocaleString('fr-FR')} FCFA
                 </span>
               </div>
             )}
@@ -300,7 +331,7 @@ const ProductDetail = () => {
 
           <Separator />
 
-          {/* Disponibilité */}
+          {/* Stock */}
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               {product.inStock ? (
@@ -321,9 +352,7 @@ const ProductDetail = () => {
             </div>
 
             {product.inStock && (
-              <p className="text-sm text-muted-foreground ml-10">
-                {product.stockQuantity} article(s) disponible(s)
-              </p>
+              <p className="text-sm text-muted-foreground ml-10">{product.stockQuantity} article(s) disponible(s)</p>
             )}
 
             {product.inStock && product.stockQuantity <= 5 && (
@@ -338,7 +367,56 @@ const ProductDetail = () => {
 
           <Separator />
 
-          {/* Sélecteur de quantité */}
+          {/* Variants */}
+          {(product.colors?.length || product.sizes?.length) && (
+            <>
+              <div className="space-y-4">
+                {product.colors && product.colors.length > 0 && (
+                  <div className="space-y-2">
+                    <Label className="text-base font-semibold">Couleur</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {product.colors.map((c) => (
+                        <Button
+                          key={c}
+                          type="button"
+                          variant={selectedColor === c ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setSelectedColor(c)}
+                          disabled={!product.inStock}
+                        >
+                          {c}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {product.sizes && product.sizes.length > 0 && (
+                  <div className="space-y-2">
+                    <Label className="text-base font-semibold">Taille</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {product.sizes.map((s) => (
+                        <Button
+                          key={s}
+                          type="button"
+                          variant={selectedSize === s ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setSelectedSize(s)}
+                          disabled={!product.inStock}
+                        >
+                          {s}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <Separator />
+            </>
+          )}
+
+          {/* Qty */}
           <div className="space-y-3">
             <Label className="text-base font-semibold">Quantité:</Label>
             <div className="flex items-center gap-4">
@@ -352,26 +430,27 @@ const ProductDetail = () => {
                 >
                   <Minus className="h-4 w-4" />
                 </Button>
+
                 <span className="w-16 text-center font-bold text-lg">{quantity}</span>
+
                 <Button
                   variant="ghost"
                   size="sm"
                   className="h-12 px-4"
-                  onClick={() =>
-                    setQuantity((q) => Math.min(product.stockQuantity, q + 1))
-                  }
+                  onClick={() => setQuantity((q) => Math.min(product.stockQuantity, q + 1))}
                   disabled={quantity >= product.stockQuantity || !product.inStock}
                 >
                   <Plus className="h-4 w-4" />
                 </Button>
               </div>
+
               <span className="text-sm text-muted-foreground">
                 Maximum: <strong>{product.stockQuantity}</strong>
               </span>
             </div>
           </div>
 
-          {/* Bouton Ajouter au panier */}
+          {/* Add */}
           <Button
             size="lg"
             className="w-full h-14 text-lg group"
@@ -391,7 +470,7 @@ const ProductDetail = () => {
             )}
           </Button>
 
-          {/* Informations de livraison */}
+          {/* Shipping */}
           <Card className="p-4 bg-gradient-to-br from-blue-50 to-blue-100/50 border-blue-200">
             <div className="flex items-start gap-3">
               <div className="h-10 w-10 rounded-full bg-blue-500/10 flex items-center justify-center flex-shrink-0">
@@ -399,26 +478,21 @@ const ProductDetail = () => {
               </div>
               <div>
                 <p className="font-semibold text-blue-900 mb-1">Livraison gratuite</p>
-                <p className="text-sm text-blue-700">
-                  Pour les commandes supérieures à 25 000 FCFA
-                </p>
+                <p className="text-sm text-blue-700">Pour les commandes supérieures à 25 000 FCFA</p>
               </div>
             </div>
           </Card>
 
           <Separator />
 
-          {/* Caractéristiques */}
+          {/* Specs */}
           {product.specifications && Object.entries(product.specifications).length > 0 && (
             <div className="space-y-3">
               <h2 className="text-xl font-bold">Caractéristiques techniques</h2>
               <Card className="p-4">
                 <div className="space-y-3">
                   {Object.entries(product.specifications).map(([key, value]) => (
-                    <div
-                      key={key}
-                      className="flex justify-between items-center py-2 border-b last:border-0"
-                    >
+                    <div key={key} className="flex justify-between items-center py-2 border-b last:border-0">
                       <span className="text-sm text-muted-foreground">{key}</span>
                       <span className="font-medium text-sm">{value}</span>
                     </div>
@@ -430,17 +504,46 @@ const ProductDetail = () => {
         </div>
       </div>
 
-      {/* Section Description détaillée */}
-      {product.description && (
-        <div className="mt-12">
-          <h2 className="text-2xl font-bold mb-4">Description détaillée</h2>
-          <Card className="p-6">
-            <p className="text-muted-foreground leading-relaxed whitespace-pre-line">
-              {product.description}
-            </p>
-          </Card>
+      {/* Similar */}
+      {similarProducts.length > 0 && (
+        <div className="mt-12 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-bold">Produits similaires</h2>
+            {loadingSimilar && <span className="text-sm text-muted-foreground">Chargement...</span>}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {similarProducts.map((p) => (
+              <Card
+                key={p.id}
+                className="p-4 hover:shadow-lg transition cursor-pointer"
+                onClick={() => navigate(`/products/${p.id}`)}
+              >
+                <div className="flex gap-3">
+                  <div className="h-20 w-20 rounded-lg overflow-hidden bg-muted flex-shrink-0">
+                    <img
+                      src={p.images?.[0] || '/placeholder-product.png'}
+                      alt={p.name}
+                      className="h-full w-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.src = '/placeholder-product.png';
+                      }}
+                    />
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold truncate">{p.name}</p>
+                    <p className="text-sm text-muted-foreground truncate">{p.brand || 'Sans marque'}</p>
+                    <p className="mt-2 font-bold text-primary">{p.price.toLocaleString('fr-FR')} FCFA</p>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
         </div>
       )}
+
+      
     </motion.div>
   );
 };

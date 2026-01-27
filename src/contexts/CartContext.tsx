@@ -17,15 +17,17 @@ interface CartItem {
   productId: string;
   product: Product;
   quantity: number;
+  selectedColor?: string;
+  selectedSize?: string;
 }
 
 interface CartContextType {
   cart: CartItem[];
   cartTotal: number;
   cartCount: number;
-  updateQuantity: (productId: string, quantity: number) => void;
-  removeFromCart: (productId: string) => void;
-  addToCart: (product: Product, quantity: number) => void;
+  updateQuantity: (productId: string, quantity: number, selectedColor?: string, selectedSize?: string) => void;
+  removeFromCart: (productId: string, selectedColor?: string, selectedSize?: string) => void;
+  addToCart: (product: Product, quantity: number, selectedColor?: string, selectedSize?: string) => void;
   clearCart: () => Promise<void>;
 }
 
@@ -45,34 +47,77 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     localStorage.setItem('cart', JSON.stringify(cart));
   }, [cart]);
 
-  const addToCart = (product: Product, quantity: number) => {
-    setCart((prev) => {
-      const existing = prev.find((item) => item.productId === product.id);
-      if (existing) {
-        return prev.map((item) =>
-          item.productId === product.id
-            ? { ...item, quantity: Math.min(item.quantity + quantity, product.stockQuantity) }
-            : item
-        );
-      }
-      return [...prev, { productId: product.id, product, quantity }];
-    });
-  };
-
-  const updateQuantity = (productId: string, quantity: number) => {
-    if (quantity < 1) return; // Optionnel: ne pas autoriser <1 ou supprimer ici
-    setCart((prev) =>
-      prev.map((item) =>
-        item.productId === productId
-          ? { ...item, quantity: Math.min(quantity, item.product.stockQuantity) }
-          : item
-      )
+  const addToCart = (
+  product: Product,
+  quantity: number,
+  selectedColor?: string,
+  selectedSize?: string
+) => {
+  setCart((prev) => {
+    const existing = prev.find(
+      (item) =>
+        item.productId === product.id &&
+        item.selectedColor === selectedColor &&
+        item.selectedSize === selectedSize
     );
-  };
 
-  const removeFromCart = (productId: string) => {
-    setCart((prev) => prev.filter((item) => item.productId !== productId));
-  };
+    if (existing) {
+      return prev.map((item) =>
+        item.productId === product.id &&
+        item.selectedColor === selectedColor &&
+        item.selectedSize === selectedSize
+          ? {
+              ...item,
+              quantity: Math.min(item.quantity + quantity, product.stockQuantity),
+            }
+          : item
+      );
+    }
+
+    return [
+      ...prev,
+      { productId: product.id, product, quantity, selectedColor, selectedSize },
+    ];
+  });
+};
+
+
+  const updateQuantity = (
+  productId: string,
+  quantity: number,
+  selectedColor?: string,
+  selectedSize?: string
+) => {
+  if (quantity < 1) return;
+
+  setCart((prev) =>
+    prev.map((item) =>
+      item.productId === productId &&
+      item.selectedColor === selectedColor &&
+      item.selectedSize === selectedSize
+        ? { ...item, quantity: Math.min(quantity, item.product.stockQuantity) }
+        : item
+    )
+  );
+};
+
+  const removeFromCart = (
+  productId: string,
+  selectedColor?: string,
+  selectedSize?: string
+) => {
+  setCart((prev) =>
+    prev.filter(
+      (item) =>
+        !(
+          item.productId === productId &&
+          item.selectedColor === selectedColor &&
+          item.selectedSize === selectedSize
+        )
+    )
+  );
+};
+
 
   const clearCart = async () => {
     setCart([]);

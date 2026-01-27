@@ -42,6 +42,7 @@ export interface Category {
   slug: string;
   icon?: string;
   productCount?: number;
+  
 }
 
 // ==================== CART ====================
@@ -49,6 +50,8 @@ export interface CartItem {
   productId: string;
   quantity: number;
   product: Product;
+  selectedColor?: string;
+  selectedSize?: string;
 }
 
 // ==================== ORDERS ====================
@@ -59,6 +62,8 @@ export interface CreateOrderData {
     quantity: number;
     price: number;
     name: string;
+    selectedColor?: string;
+    selectedSize?: string;
   }[];
   shippingAddress: {
     name: string;
@@ -79,6 +84,8 @@ export interface OrderItem {
   price: number;
   quantity: number;
   name: string;
+  selectedColor?: string;
+  selectedSize?: string;
 }
 
 // Interface pour une commande

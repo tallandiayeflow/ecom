@@ -1,9 +1,9 @@
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
-import { useCart } from '@/contexts/CartContext';
-import { motion } from 'framer-motion';
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { useCart } from "@/contexts/CartContext";
+import { motion } from "framer-motion";
 import {
   AlertCircle,
   ArrowRight,
@@ -15,13 +15,14 @@ import {
   Tag,
   Trash2,
   Truck,
-} from 'lucide-react';
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
+} from "lucide-react";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 const Cart = () => {
-  const { cart, cartTotal, updateQuantity, removeFromCart, clearCart } = useCart();
+  const { cart, cartTotal, updateQuantity, removeFromCart, clearCart } =
+    useCart();
   const navigate = useNavigate();
   const [removingItems, setRemovingItems] = useState<Set<string>>(new Set());
 
@@ -33,19 +34,30 @@ const Cart = () => {
 
   // Calcul des économies si originalPrice existe
   const totalSavings = cart.reduce((sum, item) => {
-    if (item.product.originalPrice && item.product.originalPrice > item.product.price) {
-      return sum + (item.product.originalPrice - item.product.price) * item.quantity;
+    if (
+      item.product.originalPrice &&
+      item.product.originalPrice > item.product.price
+    ) {
+      return (
+        sum + (item.product.originalPrice - item.product.price) * item.quantity
+      );
     }
     return sum;
   }, 0);
 
-  const handleRemoveItem = async (productId: string, productName: string) => {
-    setRemovingItems((prev) => new Set(prev).add(productId));
+  const handleRemoveItem = async (
+    productId: string,
+    productName: string,
+    selectedColor?: string,
+    selectedSize?: string,
+  ) => {
+    setRemovingItems((prev) => new Set(prev).add(`${productId}-${selectedColor ?? 'no-color'}-${selectedSize ?? 'no-size'}`));
     try {
-      await removeFromCart(productId);
+      await removeFromCart(productId, selectedColor, selectedSize);
+
       toast.success(`${productName} retiré du panier`);
     } catch (error) {
-      toast.error('Erreur lors de la suppression');
+      toast.error("Erreur lors de la suppression");
     } finally {
       setRemovingItems((prev) => {
         const newSet = new Set(prev);
@@ -56,17 +68,22 @@ const Cart = () => {
   };
 
   const handleClearCart = () => {
-    if (window.confirm('Voulez-vous vraiment vider votre panier ?')) {
+    if (window.confirm("Voulez-vous vraiment vider votre panier ?")) {
       clearCart();
-      toast.success('Panier vidé avec succès');
+      toast.success("Panier vidé avec succès");
     }
   };
 
-  const handleUpdateQuantity = async (productId: string, newQuantity: number) => {
+  const handleUpdateQuantity = async (
+    productId: string,
+    newQuantity: number,
+    selectedColor?: string,
+    selectedSize?: string,
+  ) => {
     try {
-      await updateQuantity(productId, newQuantity);
+      await updateQuantity(productId, newQuantity, selectedColor, selectedSize);
     } catch (error) {
-      toast.error('Erreur lors de la mise à jour');
+      toast.error("Erreur lors de la mise à jour");
     }
   };
 
@@ -92,14 +109,18 @@ const Cart = () => {
           </div>
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Button size="lg" onClick={() => navigate('/products')} className="gap-2">
+            <Button
+              size="lg"
+              onClick={() => navigate("/products")}
+              className="gap-2"
+            >
               <Package className="h-4 w-4" />
               Découvrir nos produits
             </Button>
             <Button
               size="lg"
               variant="outline"
-              onClick={() => navigate('/flash')}
+              onClick={() => navigate("/flash")}
               className="gap-2"
             >
               <Sparkles className="h-4 w-4" />
@@ -124,11 +145,16 @@ const Cart = () => {
             <div>
               <h1 className="text-4xl font-bold mb-2">Mon Panier</h1>
               <p className="text-muted-foreground">
-                {totalItems} article{totalItems > 1 ? 's' : ''} dans votre panier
+                {totalItems} article{totalItems > 1 ? "s" : ""} dans votre
+                panier
               </p>
             </div>
             {cart.length > 0 && (
-              <Button variant="outline" onClick={handleClearCart} className="gap-2">
+              <Button
+                variant="outline"
+                onClick={handleClearCart}
+                className="gap-2"
+              >
                 <Trash2 className="h-4 w-4" />
                 Vider le panier
               </Button>
@@ -151,7 +177,8 @@ const Cart = () => {
                   </div>
                   <div className="flex-1">
                     <p className="font-semibold text-blue-900">
-                      Plus que {remainingForFreeDelivery.toLocaleString('fr-FR')} FCFA
+                      Plus que{" "}
+                      {remainingForFreeDelivery.toLocaleString("fr-FR")} FCFA
                       pour la livraison gratuite !
                     </p>
                     <p className="text-sm text-blue-700">
@@ -181,19 +208,20 @@ const Cart = () => {
                 item.product.originalPrice &&
                 item.product.originalPrice > item.product.price;
               const itemSavings = hasOriginalPrice
-                ? (item.product.originalPrice! - item.product.price) * item.quantity
+                ? (item.product.originalPrice! - item.product.price) *
+                  item.quantity
                 : 0;
               const discountPercentage = hasOriginalPrice
                 ? Math.round(
                     ((item.product.originalPrice! - item.product.price) /
                       item.product.originalPrice!) *
-                      100
+                      100,
                   )
                 : 0;
 
               return (
                 <motion.div
-                  key={item.productId}
+                  key={`${item.productId}-${item.selectedColor ?? 'no-color'}-${item.selectedSize ?? 'no-size'}`}
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: 20 }}
@@ -201,7 +229,7 @@ const Cart = () => {
                 >
                   <Card
                     className={`hover:shadow-lg transition-shadow ${
-                      isRemoving ? 'opacity-50' : ''
+                      isRemoving ? "opacity-50" : ""
                     }`}
                   >
                     <CardContent className="p-4">
@@ -215,12 +243,12 @@ const Cart = () => {
                             src={
                               item.product.images?.[0] ||
                               item.product.image_url ||
-                              '/placeholder-product.png'
+                              "/placeholder-product.png"
                             }
                             alt={item.product.name}
                             className="h-full w-full object-cover group-hover:scale-105 transition-transform"
                             onError={(e) => {
-                              e.currentTarget.src = '/placeholder-product.png';
+                              e.currentTarget.src = "/placeholder-product.png";
                             }}
                           />
                           {hasOriginalPrice && (
@@ -237,7 +265,9 @@ const Cart = () => {
                         <div className="flex-1 min-w-0">
                           <h3
                             className="font-semibold text-lg mb-1 hover:text-primary cursor-pointer line-clamp-2"
-                            onClick={() => navigate(`/product/${item.productId}`)}
+                            onClick={() =>
+                              navigate(`/product/${item.productId}`)
+                            }
                           >
                             {item.product.name}
                           </h3>
@@ -262,19 +292,48 @@ const Cart = () => {
 
                           <div className="flex items-baseline gap-2">
                             <span className="text-xl font-bold text-primary">
-                              {item.product.price.toLocaleString('fr-FR')} FCFA
+                              {item.product.price.toLocaleString("fr-FR")} FCFA
                             </span>
                             {hasOriginalPrice && (
                               <span className="text-sm text-muted-foreground line-through">
-                                {item.product.originalPrice!.toLocaleString('fr-FR')} FCFA
+                                {item.product.originalPrice!.toLocaleString(
+                                  "fr-FR",
+                                )}{" "}
+                                FCFA
                               </span>
+                            )}
+                          </div>
+
+                          <div  className="flex flex-col sm:flex-row sm:items-center sm:gap-4">
+                            {(item.selectedColor || item.selectedSize) && (
+                              <div className="flex flex-wrap items-center gap-2 mb-3">
+                                {item.selectedColor && (
+                                  <Badge
+                                    variant="secondary"
+                                    className="text-xs"
+                                  >
+                                    Couleur: {item.selectedColor}
+                                  </Badge>
+                                )}
+                                {item.selectedSize && (
+                                  <Badge
+                                    variant="secondary"
+                                    className="text-xs"
+                                  >
+                                    Taille: {item.selectedSize}
+                                  </Badge>
+                                )}
+                              </div>
                             )}
                           </div>
 
                           {itemSavings > 0 && (
                             <p className="text-xs text-green-600 font-medium mt-1 flex items-center gap-1">
                               <Tag className="h-3 w-3" />
-                              Économie: {itemSavings.toLocaleString('fr-FR')} FCFA
+                              Économie: {itemSavings.toLocaleString(
+                                "fr-FR",
+                              )}{" "}
+                              FCFA
                             </p>
                           )}
 
@@ -282,7 +341,9 @@ const Cart = () => {
                           {item.product.stockQuantity <= 5 && (
                             <div className="flex items-center gap-1 mt-2 text-xs text-orange-600">
                               <AlertCircle className="h-3 w-3" />
-                              <span>Plus que {item.product.stockQuantity} en stock</span>
+                              <span>
+                                Plus que {item.product.stockQuantity} en stock
+                              </span>
                             </div>
                           )}
                         </div>
@@ -293,7 +354,7 @@ const Cart = () => {
                             variant="ghost"
                             size="icon"
                             onClick={() =>
-                              handleRemoveItem(item.productId, item.product.name)
+                              handleRemoveItem(item.productId, item.product.name, item.selectedColor, item.selectedSize)
                             }
                             disabled={isRemoving}
                             className="hover:bg-destructive/10"
@@ -307,7 +368,7 @@ const Cart = () => {
                               size="icon"
                               className="h-8 w-8"
                               onClick={() =>
-                                handleUpdateQuantity(item.productId, item.quantity - 1)
+                                handleUpdateQuantity(item.productId, item.quantity - 1, item.selectedColor, item.selectedSize)
                               }
                               disabled={item.quantity <= 1 || isRemoving}
                             >
@@ -321,10 +382,11 @@ const Cart = () => {
                               size="icon"
                               className="h-8 w-8"
                               onClick={() =>
-                                handleUpdateQuantity(item.productId, item.quantity + 1)
+                                handleUpdateQuantity(item.productId, item.quantity + 1, item.selectedColor, item.selectedSize)
                               }
                               disabled={
-                                item.quantity >= item.product.stockQuantity || isRemoving
+                                item.quantity >= item.product.stockQuantity ||
+                                isRemoving
                               }
                             >
                               <Plus className="h-3 w-3" />
@@ -332,9 +394,13 @@ const Cart = () => {
                           </div>
 
                           <div className="text-right">
-                            <p className="text-sm text-muted-foreground">Total</p>
+                            <p className="text-sm text-muted-foreground">
+                              Total
+                            </p>
                             <p className="text-lg font-bold">
-                              {(item.product.price * item.quantity).toLocaleString('fr-FR')}{' '}
+                              {(
+                                item.product.price * item.quantity
+                              ).toLocaleString("fr-FR")}{" "}
                               FCFA
                             </p>
                           </div>
@@ -360,18 +426,21 @@ const Cart = () => {
                 <div className="space-y-3">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">
-                      Sous-total ({totalItems} article{totalItems > 1 ? 's' : ''})
+                      Sous-total ({totalItems} article
+                      {totalItems > 1 ? "s" : ""})
                     </span>
                     <span className="font-semibold">
-                      {cartTotal.toLocaleString('fr-FR')} FCFA
+                      {cartTotal.toLocaleString("fr-FR")} FCFA
                     </span>
                   </div>
 
                   {totalSavings > 0 && (
                     <div className="flex justify-between text-sm">
-                      <span className="text-green-600 font-medium">Économies</span>
+                      <span className="text-green-600 font-medium">
+                        Économies
+                      </span>
                       <span className="font-bold text-green-600">
-                        -{totalSavings.toLocaleString('fr-FR')} FCFA
+                        -{totalSavings.toLocaleString("fr-FR")} FCFA
                       </span>
                     </div>
                   )}
@@ -380,10 +449,10 @@ const Cart = () => {
                     <span className="text-muted-foreground">Livraison</span>
                     <span
                       className={`font-semibold ${
-                        isEligibleForFreeDelivery ? 'text-green-600' : ''
+                        isEligibleForFreeDelivery ? "text-green-600" : ""
                       }`}
                     >
-                      {isEligibleForFreeDelivery ? 'Gratuite' : 'À calculer'}
+                      {isEligibleForFreeDelivery ? "Gratuite" : "À calculer"}
                     </span>
                   </div>
                 </div>
@@ -394,12 +463,13 @@ const Cart = () => {
                   <div className="flex justify-between items-baseline">
                     <span className="font-bold text-lg">Total</span>
                     <span className="font-bold text-primary text-3xl">
-                      {cartTotal.toLocaleString('fr-FR')} FCFA
+                      {cartTotal.toLocaleString("fr-FR")} FCFA
                     </span>
                   </div>
                   {totalSavings > 0 && (
                     <p className="text-xs text-green-600 text-right">
-                      Vous économisez {totalSavings.toLocaleString('fr-FR')} FCFA
+                      Vous économisez {totalSavings.toLocaleString("fr-FR")}{" "}
+                      FCFA
                     </p>
                   )}
                 </div>
@@ -407,7 +477,7 @@ const Cart = () => {
                 <Button
                   size="lg"
                   className="w-full h-12 text-base shadow-lg group"
-                  onClick={() => navigate('/checkout')}
+                  onClick={() => navigate("/checkout")}
                 >
                   Passer la commande
                   <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
@@ -416,7 +486,7 @@ const Cart = () => {
                 <Button
                   variant="outline"
                   className="w-full"
-                  onClick={() => navigate('/products')}
+                  onClick={() => navigate("/products")}
                 >
                   Continuer mes achats
                 </Button>
