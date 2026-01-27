@@ -6,8 +6,8 @@ import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCart } from '@/contexts/CartContext';
-import { getFlashSaleId } from '@/lib/api';
-import { FlashSale, Product } from '@/types';
+import { getFlashSaleId, getProducts } from '@/lib/api';
+import type { FlashSale, Product } from '@/types';
 import { motion } from 'framer-motion';
 import {
   AlertCircle,
@@ -26,7 +26,7 @@ import {
   Truck,
   Zap,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 
@@ -37,49 +37,95 @@ const FlashDetails = () => {
 
   const [flashSale, setFlashSale] = useState<FlashSale | null>(null);
   const [product, setProduct] = useState<Product | null>(null);
+
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState(0);
-  const [quantity, setQuantity] = useState(1);
-  const [addingToCart, setAddingToCart] = useState(false);
-  const [timeRemaining, setTimeRemaining] = useState('');
-  const [isExpired, setIsExpired] = useState(false);
   const [imageLoading, setImageLoading] = useState(true);
 
+  const [quantity, setQuantity] = useState(1);
+  const [addingToCart, setAddingToCart] = useState(false);
+
+  const [selectedColor, setSelectedColor] = useState<string | null>(null);
+  const [selectedSize, setSelectedSize] = useState<string | null>(null);
+
+  const [timeRemaining, setTimeRemaining] = useState('');
+  const [isExpired, setIsExpired] = useState(false);
+
+  const [similarProducts, setSimilarProducts] = useState<Product[]>([]);
+  const [loadingSimilar, setLoadingSimilar] = useState(false);
+
+  const remainingStock = useMemo(() => {
+    if (!flashSale) return 0;
+    return Math.max(0, flashSale.stock - (flashSale.soldCount || 0));
+  }, [flashSale]);
+
+  const soldPercentage = useMemo(() => {
+    if (!flashSale || flashSale.stock <= 0) return 0;
+    const pct = (1 - remainingStock / flashSale.stock) * 100;
+    return Math.max(0, Math.min(100, pct));
+  }, [flashSale, remainingStock]);
+
+  const discountAmount = useMemo(() => {
+    if (!product || !flashSale) return 0;
+    // product.price = prix normal dans ton code actuel
+    return Math.max(0, product.price - flashSale.discountPrice);
+  }, [product, flashSale]);
+
+  const urgencyLevel = useMemo(() => {
+    if (remainingStock <= 5) return 'critical';
+    if (remainingStock <= 10) return 'urgent';
+    return 'normal';
+  }, [remainingStock]);
+
   useEffect(() => {
-    if (id) {
-      loadFlashSale(id);
-    }
+    if (!id) return;
+    void loadFlashSale(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
-
-  // Timer pour le compte à rebours
-  useEffect(() => {
-    if (!flashSale?.endDate) return;
-
-    const updateTimer = () => {
-      const remaining = getTimeRemaining();
-      setTimeRemaining(remaining);
-    };
-
-    updateTimer();
-    const interval = setInterval(updateTimer, 1000); // Mise à jour chaque seconde
-
-    return () => clearInterval(interval);
-  }, [flashSale?.endDate]);
 
   useEffect(() => {
     setImageLoading(true);
   }, [selectedImage]);
+
+  // Timer
+  useEffect(() => {
+    if (!flashSale?.endDate) return;
+
+    const tick = () => setTimeRemaining(getTimeRemaining());
+    tick();
+
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flashSale?.endDate]);
 
   const loadFlashSale = async (flashSaleId: string) => {
     setLoading(true);
     try {
       const data = await getFlashSaleId(flashSaleId);
 
-      if (data && data.product) {
-        setFlashSale(data);
-        setProduct(data.product);
+      if (!data?.product) throw new Error('Données vente flash invalides');
+
+      setFlashSale(data);
+      setProduct(data.product);
+
+      // reset UI
+      setSelectedImage(0);
+      setQuantity(1);
+      setSelectedColor(data.product.colors?.[0] ?? null);
+      setSelectedSize(data.product.sizes?.[0] ?? null);
+
+      // similar products (same category)
+      if (data.product.category) {
+        setLoadingSimilar(true);
+        try {
+          const res = await getProducts({ category: data.product.category, limit: 12, page: 1 });
+          setSimilarProducts(res.products.filter((p) => p.id !== data.product!.id).slice(0, 6));
+        } finally {
+          setLoadingSimilar(false);
+        }
       } else {
-        throw new Error('Données de vente flash invalides');
+        setSimilarProducts([]);
       }
     } catch (error) {
       console.error('Error loading flash sale:', error);
@@ -90,59 +136,6 @@ const FlashDetails = () => {
     }
   };
 
-  const handleAddToCart = async () => {
-    if (!product || !flashSale) return;
-
-    if (isExpired) {
-      toast.error('Cette vente flash est terminée');
-      return;
-    }
-
-    setAddingToCart(true);
-    try {
-      const flashProduct: Product = {
-        ...product,
-        price: flashSale.discountPrice,
-        originalPrice: product.price,
-      };
-
-      await addToCart(flashProduct, quantity);
-      toast.success(`${quantity} x ${product.name} ajouté au panier ! 🛒🔥`);
-    } catch (error) {
-      console.error('Error adding to cart:', error);
-      toast.error("Erreur lors de l'ajout au panier");
-    } finally {
-      setAddingToCart(false);
-    }
-  };
-
-  const handleShare = async () => {
-    const url = window.location.href;
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: `Vente Flash: ${product?.name}`,
-          text: `Ne manquez pas cette offre flash !`,
-          url: url,
-        });
-        toast.success('Lien partagé !');
-      } catch (error) {
-        if ((error as Error).name !== 'AbortError') {
-          navigator.clipboard.writeText(url);
-          toast.success('Lien copié !');
-        }
-      }
-    } else {
-      navigator.clipboard.writeText(url);
-      toast.success('Lien copié dans le presse-papier !');
-    }
-  };
-
-  const handleAddToWishlist = () => {
-    toast.info('Fonctionnalité en cours de développement 💝');
-  };
-
-  // Calculer le temps restant
   const getTimeRemaining = () => {
     if (!flashSale?.endDate) return '';
 
@@ -165,7 +158,78 @@ const FlashDetails = () => {
     return `${minutes}min ${seconds}s`;
   };
 
-  // Loading Skeleton
+  const handleShare = async () => {
+    const url = window.location.href;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Vente Flash: ${product?.name}`,
+          text: `Ne manquez pas cette offre flash !`,
+          url,
+        });
+        toast.success('Lien partagé !');
+      } catch (error) {
+        if ((error as Error).name !== 'AbortError') {
+          await navigator.clipboard.writeText(url);
+          toast.success('Lien copié !');
+        }
+      }
+    } else {
+      await navigator.clipboard.writeText(url);
+      toast.success('Lien copié dans le presse-papier !');
+    }
+  };
+
+  const handleAddToWishlist = () => {
+    toast.info('Fonctionnalité en cours de développement');
+  };
+
+  const handleAddToCart = async () => {
+    if (!product || !flashSale) return;
+
+    if (isExpired) {
+      toast.error('Cette vente flash est terminée');
+      return;
+    }
+
+    if (product.colors?.length && !selectedColor) {
+      toast.error('Veuillez choisir une couleur');
+      return;
+    }
+    if (product.sizes?.length && !selectedSize) {
+      toast.error('Veuillez choisir une taille');
+      return;
+    }
+
+    setAddingToCart(true);
+    try {
+      // IMPORTANT: on clone le produit avec le prix flash
+      const flashProduct: Product = {
+        ...product,
+        price: flashSale.discountPrice,
+        originalPrice: product.price,
+      };
+
+      addToCart(flashProduct, quantity, selectedColor ?? undefined, selectedSize ?? undefined);
+
+      const details = [
+        selectedColor ? `Couleur: ${selectedColor}` : null,
+        selectedSize ? `Taille: ${selectedSize}` : null,
+      ]
+        .filter(Boolean)
+        .join(' • ');
+
+      toast.success(`${quantity} x ${product.name}${details ? ` (${details})` : ''} ajouté au panier !`);
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+      toast.error("Erreur lors de l'ajout au panier");
+    } finally {
+      setAddingToCart(false);
+    }
+  };
+
+  // Loading skeleton
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-8 max-w-7xl">
@@ -199,24 +263,16 @@ const FlashDetails = () => {
     );
   }
 
-  if (!product || !flashSale) {
-    return null;
-  }
-
-  const remainingStock = flashSale.stock - (flashSale.soldCount || 0);
-  const stockPercentage = (remainingStock / flashSale.stock) * 100;
-  const soldPercentage = 100 - stockPercentage;
-  const discountAmount = product.price - flashSale.discountPrice;
-  const urgencyLevel = remainingStock <= 5 ? 'critical' : remainingStock <= 10 ? 'urgent' : 'normal';
+  if (!product || !flashSale) return null;
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 18 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
+      transition={{ duration: 0.35 }}
       className="container mx-auto px-4 py-8 max-w-7xl"
     >
-      {/* Header avec actions */}
+      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <Button variant="ghost" onClick={() => navigate('/flash')} size="sm">
           <ArrowLeft className="mr-2 h-4 w-4" />
@@ -233,7 +289,7 @@ const FlashDetails = () => {
         </div>
       </div>
 
-      {/* Banner Vente Flash */}
+      {/* Banner */}
       <Card
         className={`p-6 mb-8 border-2 ${
           isExpired
@@ -247,11 +303,10 @@ const FlashDetails = () => {
               <Flame className="h-8 w-8 fill-current" />
             </div>
             <div>
-              <h2 className="text-2xl font-bold flex items-center gap-2">
-                Vente Flash {isExpired && '(Terminée)'}
-              </h2>
+              <h2 className="text-2xl font-bold">Vente Flash {isExpired && '(Terminée)'}</h2>
               <p className="text-sm opacity-90">
-                Économisez {flashSale.discountPrice || flashSale.discountPercentage}% • {discountAmount.toLocaleString()} FCFA
+                Économisez {discountAmount.toLocaleString('fr-FR')} FCFA • Prix flash{' '}
+                {flashSale.discountPrice.toLocaleString('fr-FR')} FCFA
               </p>
             </div>
           </div>
@@ -269,7 +324,6 @@ const FlashDetails = () => {
           )}
         </div>
 
-        {/* Barre de progression du stock */}
         <div className="mt-4">
           <div className="flex justify-between text-xs mb-2">
             <span className="opacity-90">Vendus: {flashSale.soldCount || 0}</span>
@@ -278,28 +332,21 @@ const FlashDetails = () => {
           <Progress value={soldPercentage} className="h-3 bg-white/20" />
         </div>
 
-        {/* Alerte urgence */}
         {urgencyLevel === 'critical' && !isExpired && (
           <div className="mt-4 flex items-center gap-2 p-3 bg-white/20 rounded-lg backdrop-blur-sm animate-pulse">
             <AlertCircle className="h-5 w-5" />
-            <span className="font-semibold">
-              Stock critique ! Plus que {remainingStock} article(s) !
-            </span>
+            <span className="font-semibold">Stock critique ! Plus que {remainingStock} article(s) !</span>
           </div>
         )}
       </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Section Images */}
+        {/* Images */}
         <div className="space-y-4">
           <div className="relative h-[500px] rounded-xl overflow-hidden bg-gradient-to-br from-orange-50 to-red-50 border-2 border-orange-200">
             {imageLoading && <Skeleton className="absolute inset-0 w-full h-full" />}
             <img
-              src={
-                product.images?.[selectedImage] ||
-                product.image_url ||
-                '/placeholder-product.png'
-              }
+              src={product.images?.[selectedImage] || product.image_url || '/placeholder-product.png'}
               alt={product.name}
               className={`w-full h-full object-contain transition-opacity duration-300 ${
                 imageLoading ? 'opacity-0' : 'opacity-100'
@@ -311,14 +358,13 @@ const FlashDetails = () => {
               }}
             />
 
-            {/* Badges */}
             <div className="absolute top-4 left-4 flex flex-col gap-2">
               <Badge
                 variant="destructive"
                 className="font-bold bg-gradient-to-r from-red-600 to-orange-600 shadow-lg text-base px-3 py-1"
               >
                 <Zap className="h-4 w-4 mr-1 fill-white" />
-                -{flashSale.discountPrice || flashSale.discountPercentage}%
+                Offre flash
               </Badge>
 
               {!product.inStock && (
@@ -345,33 +391,26 @@ const FlashDetails = () => {
             )}
           </div>
 
-          {/* Miniatures */}
-          {product.images && product.images.length > 1 && (
+          {product.images?.length > 1 && (
             <div className="flex gap-3 overflow-x-auto pb-2">
-              {product.images.map((image, index) => (
+              {product.images.map((img, idx) => (
                 <button
-                  key={index}
-                  onClick={() => setSelectedImage(index)}
+                  key={`${img}-${idx}`}
+                  type="button"
+                  onClick={() => setSelectedImage(idx)}
                   className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-all hover:scale-105 ${
-                    selectedImage === index
-                      ? 'border-orange-500 scale-105 shadow-lg'
-                      : 'border-gray-200 hover:border-orange-300'
+                    selectedImage === idx ? 'border-orange-500 scale-105 shadow-lg' : 'border-gray-200 hover:border-orange-300'
                   }`}
                 >
-                  <img
-                    src={image}
-                    alt={`${product.name} - ${index + 1}`}
-                    className="w-full h-full object-cover"
-                  />
+                  <img src={img} alt={`${product.name} - ${idx + 1}`} className="w-full h-full object-cover" />
                 </button>
               ))}
             </div>
           )}
         </div>
 
-        {/* Section Informations */}
+        {/* Infos */}
         <div className="space-y-6">
-          {/* En-tête */}
           <div>
             {(product.category || product.brand) && (
               <div className="flex items-center gap-2 mb-3">
@@ -381,10 +420,7 @@ const FlashDetails = () => {
                   </Badge>
                 )}
                 {product.brand && (
-                  <Badge
-                    variant="outline"
-                    className="text-xs font-semibold text-orange-600 border-orange-600"
-                  >
+                  <Badge variant="outline" className="text-xs font-semibold text-orange-600 border-orange-600">
                     {product.brand}
                   </Badge>
                 )}
@@ -392,16 +428,12 @@ const FlashDetails = () => {
             )}
 
             <h1 className="text-3xl font-bold mb-3 leading-tight">{product.name}</h1>
-            {product.description && (
-              <p className="text-muted-foreground leading-relaxed">
-                {product.description}
-              </p>
-            )}
+            {product.description && <p className="text-muted-foreground leading-relaxed">{product.description}</p>}
           </div>
 
           <Separator />
 
-          {/* Prix */}
+          {/* Prices */}
           <div className="space-y-3">
             <div className="flex items-baseline gap-3">
               <span className="text-4xl font-bold bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent">
@@ -415,15 +447,14 @@ const FlashDetails = () => {
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-500/10 rounded-lg border border-green-500/20">
               <Zap className="h-5 w-5 text-green-600" />
               <span className="text-sm text-green-600 font-semibold">
-                Économisez {discountAmount.toLocaleString('fr-FR')} FCFA (
-                {flashSale.discountPrice || flashSale.discountPercentage}%)
+                Économisez {discountAmount.toLocaleString('fr-FR')} FCFA
               </span>
             </div>
           </div>
 
           <Separator />
 
-          {/* Disponibilité */}
+          {/* Availability */}
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               {remainingStock > 0 ? (
@@ -448,20 +479,60 @@ const FlashDetails = () => {
                 {remainingStock} article(s) disponible(s) en vente flash
               </p>
             )}
-
-            {urgencyLevel !== 'normal' && remainingStock > 0 && !isExpired && (
-              <div className="ml-10 inline-flex items-center gap-2 px-3 py-1 bg-orange-500/10 rounded-md border border-orange-500/20 animate-pulse">
-                <Flame className="h-4 w-4 text-orange-600" />
-                <span className="text-sm text-orange-600 font-medium">
-                  Plus que {remainingStock} restant(s) !
-                </span>
-              </div>
-            )}
           </div>
 
           <Separator />
 
-          {/* Sélecteur de quantité */}
+          {/* Variants */}
+          {(product.colors?.length || product.sizes?.length) && (
+            <>
+              <div className="space-y-4">
+                {product.colors?.length ? (
+                  <div className="space-y-2">
+                    <Label className="text-base font-semibold">Couleur</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {product.colors.map((c) => (
+                        <Button
+                          key={c}
+                          type="button"
+                          variant={selectedColor === c ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setSelectedColor(c)}
+                          disabled={remainingStock === 0 || isExpired}
+                        >
+                          {c}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                {product.sizes?.length ? (
+                  <div className="space-y-2">
+                    <Label className="text-base font-semibold">Taille</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {product.sizes.map((s) => (
+                        <Button
+                          key={s}
+                          type="button"
+                          variant={selectedSize === s ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setSelectedSize(s)}
+                          disabled={remainingStock === 0 || isExpired}
+                        >
+                          {s}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+
+              <Separator />
+            </>
+          )}
+
+          {/* Quantity */}
           <div className="space-y-3">
             <Label className="text-base font-semibold">Quantité:</Label>
             <div className="flex items-center gap-4">
@@ -475,7 +546,9 @@ const FlashDetails = () => {
                 >
                   <Minus className="h-4 w-4" />
                 </Button>
+
                 <span className="w-16 text-center font-bold text-lg">{quantity}</span>
+
                 <Button
                   variant="ghost"
                   size="sm"
@@ -486,13 +559,14 @@ const FlashDetails = () => {
                   <Plus className="h-4 w-4" />
                 </Button>
               </div>
+
               <span className="text-sm text-muted-foreground">
                 Maximum: <strong>{remainingStock}</strong>
               </span>
             </div>
           </div>
 
-          {/* Bouton Ajouter au panier */}
+          {/* Add button */}
           <Button
             size="lg"
             className="w-full h-14 text-lg bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 shadow-xl group disabled:from-gray-400 disabled:to-gray-500"
@@ -507,16 +581,12 @@ const FlashDetails = () => {
             ) : (
               <>
                 <ShoppingCart className="mr-2 h-5 w-5 group-hover:scale-110 transition-transform" />
-                {isExpired
-                  ? 'Vente terminée'
-                  : remainingStock === 0
-                  ? 'Stock épuisé'
-                  : 'Ajouter au panier'}
+                {isExpired ? 'Vente terminée' : remainingStock === 0 ? 'Stock épuisé' : 'Ajouter au panier'}
               </>
             )}
           </Button>
 
-          {/* Informations de livraison */}
+          {/* Shipping */}
           <Card className="p-4 bg-gradient-to-br from-blue-50 to-blue-100/50 border-blue-200">
             <div className="flex items-start gap-3">
               <div className="h-10 w-10 rounded-full bg-blue-500/10 flex items-center justify-center flex-shrink-0">
@@ -524,45 +594,77 @@ const FlashDetails = () => {
               </div>
               <div>
                 <p className="font-semibold text-blue-900 mb-1">Livraison gratuite</p>
-                <p className="text-sm text-blue-700">
-                  Pour les commandes supérieures à 25 000 FCFA
-                </p>
+                <p className="text-sm text-blue-700">Pour les commandes supérieures à 25 000 FCFA</p>
               </div>
             </div>
           </Card>
 
-          <Separator />
-
-          {/* Caractéristiques */}
+          {/* Specs */}
           {product.specifications && Object.entries(product.specifications).length > 0 && (
-            <div className="space-y-3">
-              <h2 className="text-xl font-bold">Caractéristiques techniques</h2>
-              <Card className="p-4">
-                <div className="space-y-3">
-                  {Object.entries(product.specifications).map(([key, value]) => (
-                    <div
-                      key={key}
-                      className="flex justify-between items-center py-2 border-b last:border-0"
-                    >
-                      <span className="text-sm text-muted-foreground">{key}</span>
-                      <span className="font-medium text-sm">{value}</span>
-                    </div>
-                  ))}
-                </div>
-              </Card>
-            </div>
+            <>
+              <Separator />
+              <div className="space-y-3">
+                <h2 className="text-xl font-bold">Caractéristiques techniques</h2>
+                <Card className="p-4">
+                  <div className="space-y-3">
+                    {Object.entries(product.specifications).map(([k, v]) => (
+                      <div key={k} className="flex justify-between items-center py-2 border-b last:border-0">
+                        <span className="text-sm text-muted-foreground">{k}</span>
+                        <span className="font-medium text-sm">{v}</span>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              </div>
+            </>
           )}
         </div>
       </div>
 
-      {/* Section Description détaillée */}
+      {/* Similar products */}
+      {similarProducts.length > 0 && (
+        <div className="mt-12 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-bold">Produits similaires</h2>
+            {loadingSimilar && <span className="text-sm text-muted-foreground">Chargement...</span>}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {similarProducts.map((p) => (
+              <Card
+                key={p.id}
+                className="p-4 hover:shadow-lg transition cursor-pointer"
+                onClick={() => navigate(`/products/${p.id}`)}
+              >
+                <div className="flex gap-3">
+                  <div className="h-20 w-20 rounded-lg overflow-hidden bg-muted flex-shrink-0">
+                    <img
+                      src={p.images?.[0] || '/placeholder-product.png'}
+                      alt={p.name}
+                      className="h-full w-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.src = '/placeholder-product.png';
+                      }}
+                    />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold truncate">{p.name}</p>
+                    <p className="text-sm text-muted-foreground truncate">{p.brand || 'Sans marque'}</p>
+                    <p className="mt-2 font-bold text-primary">{p.price.toLocaleString('fr-FR')} FCFA</p>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Description */}
       {product.description && (
         <div className="mt-12">
           <h2 className="text-2xl font-bold mb-4">Description détaillée</h2>
           <Card className="p-6">
-            <p className="text-muted-foreground leading-relaxed whitespace-pre-line">
-              {product.description}
-            </p>
+            <p className="text-muted-foreground leading-relaxed whitespace-pre-line">{product.description}</p>
           </Card>
         </div>
       )}

@@ -7,6 +7,16 @@ from datetime import datetime
 
 bp = Blueprint('flash_sales', __name__)
 
+def parse_json_list(value):
+    if not value:
+        return []
+    if isinstance(value, (list, tuple)):
+        return list(value)
+    try:
+        return json.loads(value)
+    except Exception:
+        return []
+ 
 # ================= GET ALL FLASH SALES (ADMIN) =================
 @bp.route('/admin', methods=['GET'])
 @admin_required
@@ -18,7 +28,7 @@ def get_all_flash_sales(current_user):
     flash_sales = execute_query(
         """
         SELECT fs.*, p.name, p.description, p.price, p.image_url, p.images,
-               p.stock, p.brand, p.specifications,
+               p.stock, p.brand, p.specifications,p.colors, p.sizes,
                c.name as category_name, c.slug as category_slug
         FROM flash_sales fs
         JOIN products p ON fs.product_id = p.id
@@ -32,6 +42,8 @@ def get_all_flash_sales(current_user):
     for fs in flash_sales:
         images_list = json.loads(fs['images']) if fs.get('images') else []
         specs = json.loads(fs['specifications']) if fs.get('specifications') else {}
+        colors = parse_json_list(fs.get('colors'))
+        sizes = parse_json_list(fs.get('sizes'))
 
         original_price = float(fs['original_price'])
         sale_price = float(fs['sale_price'])
@@ -50,7 +62,9 @@ def get_all_flash_sales(current_user):
                 'inStock': fs['stock'] > 0,
                 'stockQuantity': fs['stock'],
                 'specifications': specs,
-                'brand': fs.get('brand')
+                'brand': fs.get('brand'),
+                'colors': colors,
+                'sizes': sizes
             },
             'discountPrice': sale_price,
             'discountPercentage': discount_percentage,
@@ -121,6 +135,8 @@ def get_active_flash_sales():
             p.description,
             p.price,
             p.images,
+            p.sizes,
+            p.colors,
             p.category_id,
             c.slug AS category_slug,
             p.brand,
@@ -164,6 +180,9 @@ def get_active_flash_sales():
                 'inStock': fs['stock'] > 0,
                 'stockQuantity': fs['stock'],
                 'brand': fs['brand'],
+                'colors': parse_json_list(fs.get('colors')),
+                'sizes': parse_json_list(fs.get('sizes'))
+
             },
             'discountPrice': float(fs['discountPrice']),
             'discountPercentage': round(float(fs['discountPercentage']), 2),
@@ -200,6 +219,8 @@ def get_flash_sale_by_id(flash_id):
             p.image_url,
             p.images,
             p.brand,
+            p.colors,
+            p.sizes,
             p.category_id,
             p.stock,
             p.specifications,
@@ -228,6 +249,8 @@ def get_flash_sale_by_id(flash_id):
     sale_price = float(flash_sale['sale_price'])
     discount_percentage = round(((original_price - sale_price) / original_price) * 100)
     remaining_stock = flash_sale['stock_limit'] - flash_sale['sold_count'] if flash_sale['stock_limit'] is not None else flash_sale['stock']
+    colors = parse_json_list(flash_sale.get('colors'))  
+    sizes = parse_json_list(flash_sale.get('sizes'))
 
     now = datetime.now()
     start_time = flash_sale['start_time']
@@ -252,7 +275,9 @@ def get_flash_sale_by_id(flash_id):
             'inStock': flash_sale['stock'] > 0,
             'stockQuantity': flash_sale['stock'],
             'specifications': specs,
-            'brand': flash_sale.get('brand')
+            'brand': flash_sale.get('brand'),
+            'colors': colors,
+            'sizes': sizes
         },
         'discountPrice': sale_price,
         'discountPercentage': discount_percentage,
