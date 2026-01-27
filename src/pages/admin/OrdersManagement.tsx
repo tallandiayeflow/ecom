@@ -818,6 +818,18 @@ const OrdersManagement = () => {
                         <p className="text-sm text-muted-foreground">
                           Qté: {item.quantity} • {item.price.toLocaleString()} FCFA
                         </p>
+                        <p className="text-xs sm:text-sm text-muted-foreground">
+                        {item.selectedColor && (
+                          <span className="text-xs text-muted-foreground mr-2">
+                            Couleur: {item.selectedColor}
+                          </span>
+                        )}
+                        {item.selectedSize && (
+                          <span className="text-xs text-muted-foreground">
+                            Taille: {item.selectedSize}
+                          </span>
+                        )}
+                      </p>
                       </div>
                       <p className="font-bold text-primary">
                         {(item.price * item.quantity).toLocaleString()} FCFA

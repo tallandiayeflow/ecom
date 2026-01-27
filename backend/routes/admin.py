@@ -144,7 +144,9 @@ def admin_get_orders(current_user):
                 'productName': item['product_name'],
                 'productImage': item.get('product_image', ''),
                 'price': float(item['price']),
-                'quantity': item['quantity']
+                'quantity': item['quantity'],
+                'selectedColor': item.get('selected_color'),
+                'selectedSize': item.get('selected_size'),
             } for item in items],
             'createdAt': order['created_at'].isoformat() if order.get('created_at') else None
         })
@@ -188,7 +190,9 @@ def admin_get_order_detail(current_user, order_id):
             'productName': item['product_name'],
             'productImage': item.get('product_image', ''),
             'price': float(item['price']),
-            'quantity': item['quantity']
+            'quantity': item['quantity'],
+            'selectedColor': item.get('selected_color'),
+            'selectedSize': item.get('selected_size'),
         } for item in items],
         'createdAt': order.get('created_at').isoformat() if order.get('created_at') else None
     }), 200
