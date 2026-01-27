@@ -101,6 +101,8 @@ const ProductsManagement = () => {
     stockQuantity: "",
     brand: "",
     specifications: "{}",
+    colors: '',
+    sizes: '',
   });
 
   useEffect(() => {
@@ -156,6 +158,8 @@ const ProductsManagement = () => {
         stockQuantity: product.stockQuantity.toString(),
         brand: product.brand || "",
         specifications: JSON.stringify(product.specifications, null, 2),
+        colors: (product.colors ?? []).join(', '),
+        sizes: (product.sizes ?? []).join(', '),
       });
     } else {
       setEditingProduct(null);
@@ -169,6 +173,8 @@ const ProductsManagement = () => {
         stockQuantity: "",
         brand: "",
         specifications: "{}",
+        colors: "",
+        sizes: "",
       });
     }
     setIsDialogOpen(true);
@@ -199,6 +205,12 @@ const ProductsManagement = () => {
         stock: parseInt(formData.stockQuantity),
         brand: formData.brand.trim() || undefined,
         specifications: JSON.parse(formData.specifications),
+        colors: formData.colors
+    ? formData.colors.split(",").map((c) => c.trim()).filter(Boolean)
+    : undefined,
+  sizes: formData.sizes
+    ? formData.sizes.split(",").map((s) => s.trim()).filter(Boolean)
+    : undefined,
       };
 
       if (editingProduct) {
@@ -654,273 +666,316 @@ const ProductsManagement = () => {
       </Card>
 
       {/* Dialog d'ajout/édition */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-2xl flex items-center gap-2">
+<Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+  <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+    <DialogHeader>
+      <DialogTitle className="text-2xl flex items-center gap-2">
+        {editingProduct ? (
+          <>
+            <Pencil className="h-5 w-5 text-primary" />
+            Modifier le produit
+          </>
+        ) : (
+          <>
+            <Plus className="h-5 w-5 text-primary" />
+            Ajouter un produit
+          </>
+        )}
+      </DialogTitle>
+      <DialogDescription>
+        Remplissez les informations du produit. Les champs marqués d'un * sont obligatoires.
+      </DialogDescription>
+    </DialogHeader>
+
+    <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Informations de base */}
+      <div className="space-y-4">
+        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+          <Package className="h-4 w-4" />
+          Informations de base
+        </h3>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="md:col-span-2 space-y-2">
+            <Label htmlFor="name">Nom du produit *</Label>
+            <Input
+              id="name"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              placeholder="Ex: iPhone 15 Pro Max 256GB"
+              required
+              disabled={submitting}
+              className="h-11"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="category">Catégorie *</Label>
+            <Select
+              value={formData.category}
+              onValueChange={(value) => setFormData({ ...formData, category: value })}
+              disabled={submitting}
+              required
+            >
+              <SelectTrigger className="h-11">
+                <SelectValue placeholder="Sélectionner une catégorie" />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map((cat) => (
+                  <SelectItem key={cat.id} value={cat.slug}>
+                    {cat.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="brand">Marque</Label>
+            <Input
+              id="brand"
+              value={formData.brand}
+              onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
+              placeholder="Ex: Apple, Samsung..."
+              disabled={submitting}
+              className="h-11"
+            />
+          </div>
+
+          <div className="md:col-span-2 space-y-2">
+            <Label htmlFor="description">Description *</Label>
+            <Textarea
+              id="description"
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              placeholder="Description détaillée du produit..."
+              rows={4}
+              required
+              disabled={submitting}
+              className="resize-none"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Prix et Stock */}
+      <div className="space-y-4">
+        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+          <Tag className="h-4 w-4" />
+          Prix et Stock
+        </h3>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="price">Prix de vente (FCFA) *</Label>
+            <Input
+              id="price"
+              type="number"
+              step="0.01"
+              value={formData.price}
+              onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+              placeholder="450000"
+              required
+              disabled={submitting}
+              className="h-11"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="originalPrice">Prix original (FCFA)</Label>
+            <Input
+              id="originalPrice"
+              type="number"
+              step="0.01"
+              value={formData.originalPrice}
+              onChange={(e) => setFormData({ ...formData, originalPrice: e.target.value })}
+              placeholder="500000"
+              disabled={submitting}
+              className="h-11"
+            />
+            <p className="text-xs text-muted-foreground">Pour afficher une réduction</p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="stock">Quantité en stock *</Label>
+            <Input
+              id="stock"
+              type="number"
+              min="0"
+              value={formData.stockQuantity}
+              onChange={(e) => setFormData({ ...formData, stockQuantity: e.target.value })}
+              placeholder="50"
+              required
+              disabled={submitting}
+              className="h-11"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Variantes */}
+      <div className="space-y-4">
+        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+          Variantes (optionnel)
+        </h3>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="colors">Couleurs</Label>
+            <Input
+              id="colors"
+              value={formData.colors}
+              onChange={(e) => setFormData({ ...formData, colors: e.target.value })}
+              placeholder="Ex: noir, blanc, bleu"
+              disabled={submitting}
+              className="h-11"
+            />
+            <p className="text-xs text-muted-foreground">
+              Sépare par des virgules. Laisse vide si non applicable.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="sizes">Tailles</Label>
+            <Input
+              id="sizes"
+              value={formData.sizes}
+              onChange={(e) => setFormData({ ...formData, sizes: e.target.value })}
+              placeholder="Ex: S, M, L (ou 64Go, 128Go)"
+              disabled={submitting}
+              className="h-11"
+            />
+            <p className="text-xs text-muted-foreground">
+              Sépare par des virgules. Laisse vide si non applicable.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Images */}
+      <div className="space-y-4">
+        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+          <ImageIcon className="h-4 w-4" />
+          Images du produit
+        </h3>
+
+        <div className="space-y-3">
+          {(() => {
+            const imagesArray = formData.images
+              ? formData.images.split(",").map((s) => s.trim())
+              : [""];
+
+            return (
+              <>
+                {imagesArray.map((img, idx) => (
+                  <div
+                    key={idx}
+                    className="flex flex-col sm:flex-row sm:items-center gap-2"
+                  >
+                    <div className="flex-1 flex flex-col sm:flex-row sm:items-center gap-2">
+                      <span className="text-sm font-medium text-muted-foreground sm:w-20">
+                        Image {idx + 1}
+                      </span>
+
+                      <Input
+                        value={img}
+                        onChange={(e) => {
+                          const arr = [...imagesArray];
+                          arr[idx] = e.target.value;
+                          setFormData({ ...formData, images: arr.join(", ") });
+                        }}
+                        placeholder="https://example.com/image.jpg"
+                        disabled={submitting}
+                        className="h-11"
+                      />
+                    </div>
+
+                    <div className="flex gap-1 justify-end">
+                      {imagesArray.length > 1 && (
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => {
+                            const arr = [...imagesArray];
+                            arr.splice(idx, 1);
+                            setFormData({ ...formData, images: arr.join(", ") });
+                          }}
+                          disabled={submitting}
+                          className="h-11 w-11 text-destructive hover:bg-destructive/10"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+
+                      {idx === imagesArray.length - 1 && (
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="outline"
+                          onClick={() =>
+                            setFormData({
+                              ...formData,
+                              images: [...imagesArray, ""].join(", "),
+                            })
+                          }
+                          disabled={submitting}
+                          className="h-11 w-11"
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+
+                <p className="text-xs text-muted-foreground flex items-start gap-2">
+                  <Eye className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                  La première image sera utilisée comme image principale du produit.
+                </p>
+              </>
+            );
+          })()}
+        </div>
+      </div>
+
+      <DialogFooter className="gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => setIsDialogOpen(false)}
+          disabled={submitting}
+        >
+          Annuler
+        </Button>
+
+        <Button type="submit" disabled={submitting} className="min-w-[120px]">
+          {submitting ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              {editingProduct ? "Modification..." : "Ajout..."}
+            </>
+          ) : (
+            <>
               {editingProduct ? (
                 <>
-                  <Pencil className="h-5 w-5 text-primary" />
-                  Modifier le produit
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Modifier
                 </>
               ) : (
                 <>
-                  <Plus className="h-5 w-5 text-primary" />
-                  Ajouter un produit
+                  <Plus className="mr-2 h-4 w-4" />
+                  Ajouter
                 </>
               )}
-            </DialogTitle>
-            <DialogDescription>
-              Remplissez les informations du produit. Les champs marqués d'un * sont obligatoires.
-            </DialogDescription>
-          </DialogHeader>
+            </>
+          )}
+        </Button>
+      </DialogFooter>
+    </form>
+  </DialogContent>
+</Dialog>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Informations de base */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
-                <Package className="h-4 w-4" />
-                Informations de base
-              </h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="md:col-span-2 space-y-2">
-                  <Label htmlFor="name">Nom du produit *</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="Ex: iPhone 15 Pro Max 256GB"
-                    required
-                    disabled={submitting}
-                    className="h-11"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="category">Catégorie *</Label>
-                  <Select
-                    value={formData.category}
-                    onValueChange={(value) => setFormData({ ...formData, category: value })}
-                    disabled={submitting}
-                    required
-                  >
-                    <SelectTrigger className="h-11">
-                      <SelectValue placeholder="Sélectionner une catégorie" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categories.map((cat) => (
-                        <SelectItem key={cat.id} value={cat.slug}>
-                          {cat.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="brand">Marque</Label>
-                  <Input
-                    id="brand"
-                    value={formData.brand}
-                    onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
-                    placeholder="Ex: Apple, Samsung..."
-                    disabled={submitting}
-                    className="h-11"
-                  />
-                </div>
-
-                <div className="md:col-span-2 space-y-2">
-                  <Label htmlFor="description">Description *</Label>
-                  <Textarea
-                    id="description"
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    placeholder="Description détaillée du produit..."
-                    rows={4}
-                    required
-                    disabled={submitting}
-                    className="resize-none"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Prix et Stock */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
-                <Tag className="h-4 w-4" />
-                Prix et Stock
-              </h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="price">Prix de vente (FCFA) *</Label>
-                  <Input
-                    id="price"
-                    type="number"
-                    step="0.01"
-                    value={formData.price}
-                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                    placeholder="450000"
-                    required
-                    disabled={submitting}
-                    className="h-11"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="originalPrice">Prix original (FCFA)</Label>
-                  <Input
-                    id="originalPrice"
-                    type="number"
-                    step="0.01"
-                    value={formData.originalPrice}
-                    onChange={(e) => setFormData({ ...formData, originalPrice: e.target.value })}
-                    placeholder="500000"
-                    disabled={submitting}
-                    className="h-11"
-                  />
-                  <p className="text-xs text-muted-foreground">Pour afficher une réduction</p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="stock">Quantité en stock *</Label>
-                  <Input
-                    id="stock"
-                    type="number"
-                    min="0"
-                    value={formData.stockQuantity}
-                    onChange={(e) => setFormData({ ...formData, stockQuantity: e.target.value })}
-                    placeholder="50"
-                    required
-                    disabled={submitting}
-                    className="h-11"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Images */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
-                <ImageIcon className="h-4 w-4" />
-                Images du produit
-              </h3>
-              
-              <div className="space-y-3">
-                {(() => {
-                  const imagesArray = formData.images
-                    ? formData.images.split(",").map((s) => s.trim())
-                    : [""];
-                  return (
-                    <>
-                      {imagesArray.map((img, idx) => (
-                        <div key={idx} className="flex items-center gap-2">
-                          <div className="flex-1 flex items-center gap-2">
-                            <span className="text-sm font-medium text-muted-foreground w-20">
-                              Image {idx + 1}
-                            </span>
-                            <Input
-                              value={img}
-                              onChange={(e) => {
-                                const arr = [...imagesArray];
-                                arr[idx] = e.target.value;
-                                setFormData({
-                                  ...formData,
-                                  images: arr.join(", "),
-                                });
-                              }}
-                              placeholder="https://example.com/image.jpg"
-                              disabled={submitting}
-                              className="h-11"
-                            />
-                          </div>
-                          <div className="flex gap-1">
-                            {imagesArray.length > 1 && (
-                              <Button
-                                type="button"
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => {
-                                  const arr = [...imagesArray];
-                                  arr.splice(idx, 1);
-                                  setFormData({
-                                    ...formData,
-                                    images: arr.join(", "),
-                                  });
-                                }}
-                                disabled={submitting}
-                                className="h-11 w-11 text-destructive hover:bg-destructive/10"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            )}
-                            {idx === imagesArray.length - 1 && (
-                              <Button
-                                type="button"
-                                size="icon"
-                                variant="outline"
-                                onClick={() =>
-                                  setFormData({
-                                    ...formData,
-                                    images: [...imagesArray, ""].join(", "),
-                                  })
-                                }
-                                disabled={submitting}
-                                className="h-11 w-11"
-                              >
-                                <Plus className="h-4 w-4" />
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                      <p className="text-xs text-muted-foreground flex items-start gap-2">
-                        <Eye className="h-3 w-3 mt-0.5 flex-shrink-0" />
-                        La première image sera utilisée comme image principale du produit.
-                      </p>
-                    </>
-                  );
-                })()}
-              </div>
-            </div>
-
-            <DialogFooter className="gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsDialogOpen(false)}
-                disabled={submitting}
-              >
-                Annuler
-              </Button>
-              <Button type="submit" disabled={submitting} className="min-w-[120px]">
-                {submitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {editingProduct ? "Modification..." : "Ajout..."}
-                  </>
-                ) : (
-                  <>
-                    {editingProduct ? (
-                      <>
-                        <Pencil className="mr-2 h-4 w-4" />
-                        Modifier
-                      </>
-                    ) : (
-                      <>
-                        <Plus className="mr-2 h-4 w-4" />
-                        Ajouter
-                      </>
-                    )}
-                  </>
-                )}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
 
       {/* Dialog de confirmation de suppression */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>

@@ -108,4 +108,9 @@ INSERT INTO services (name, description, duration_minutes, price) VALUES
 ('Massage dos', 'Massage ciblé dos/cervicales', 30, 15000);
 test
 
+ALTER TABLE products
+  ADD COLUMN colors LONGTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NULL CHECK (json_valid(colors)),
+  ADD COLUMN sizes  LONGTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NULL CHECK (json_valid(sizes));
+
+
 """

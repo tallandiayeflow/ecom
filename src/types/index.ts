@@ -31,6 +31,8 @@ export interface Product {
   featured?: boolean;
   createdAt: string;
   brand: string;
+  colors?: string[];
+  sizes?: string[];
 }
 
 // ==================== CATEGORY ====================
