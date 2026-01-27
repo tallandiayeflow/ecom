@@ -138,6 +138,8 @@ const Checkout = () => {
           quantity: item.quantity,
           price: item.product.price,
           name: item.product.name,
+          selectedColor: item.selectedColor,
+          selectedSize: item.selectedSize,
         })),
         shippingAddress: { ...formData },
         voucherCode: voucherApplied ? voucherCode.toUpperCase() : undefined,
@@ -457,6 +459,18 @@ const Checkout = () => {
                           </p>
                           <p className="text-xs text-muted-foreground">
                             {item.quantity} × {item.product.price.toLocaleString('fr-FR')} FCFA
+                          </p>
+                          <p>
+                            {item.selectedColor && (
+                              <span className="text-xs text-muted-foreground mr-2">
+                                Couleur: {item.selectedColor}
+                              </span>
+                            )}
+                            {item.selectedSize && (
+                              <span className="text-xs text-muted-foreground">
+                                Taille: {item.selectedSize}
+                              </span>
+                            )}
                           </p>
                           <p className="text-sm font-semibold">
                             {(item.product.price * item.quantity).toLocaleString('fr-FR')} FCFA

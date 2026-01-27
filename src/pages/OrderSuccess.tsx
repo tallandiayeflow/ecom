@@ -451,6 +451,18 @@ const OrderSuccess = () => {
                         Quantité : {item.quantity} ×{' '}
                         {item.price.toLocaleString('fr-FR')} FCFA
                       </p>
+                      <p className="text-xs sm:text-sm text-muted-foreground">
+                        {item.selectedColor && (
+                          <span className="text-xs text-muted-foreground mr-2">
+                            Couleur: {item.selectedColor}
+                          </span>
+                        )}
+                        {item.selectedSize && (
+                          <span className="text-xs text-muted-foreground">
+                            Taille: {item.selectedSize}
+                          </span>
+                        )}
+                      </p>
                     </div>
                     <p className="text-sm sm:text-lg font-bold">
                       {(item.price * item.quantity).toLocaleString('fr-FR')} FCFA

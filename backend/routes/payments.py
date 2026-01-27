@@ -18,6 +18,7 @@ BACKEND_URL = os.getenv('BACKEND_URL', 'https://phone-backend.duckdns.org')
 def create_order_from_data(data):
     user_id = data.get('user_id')
     items = data.get('items')
+    
     shipping_address_obj = data.get('shippingAddress')
     json_shipping_address = json.dumps(shipping_address_obj)
 
@@ -44,6 +45,8 @@ def create_order_from_data(data):
         item_id = str(uuid.uuid4())
         product_name = item.get('name', '')
         product_image = ''
+        selected_color = item.get('selectedColor')
+        selected_size = item.get('selectedSize')
         product = execute_query(
             "SELECT image_url, images FROM products WHERE id=%s",
             (item['productId'],),
@@ -57,10 +60,10 @@ def create_order_from_data(data):
                 product_image = product.get('image_url', '')
         execute_query(
             """
-            INSERT INTO order_items (id, order_id, product_id, product_name, product_image, price, quantity)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO order_items (id, order_id, product_id, product_name, product_image, price, quantity, selected_color, selected_size)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
             """,
-            (item_id, order_id, item['productId'], product_name, product_image, item['price'], item['quantity']),
+            (item_id, order_id, item['productId'], product_name, product_image, item['price'], item['quantity'], selected_color, selected_size),
             commit=True
         )
 
@@ -129,6 +132,8 @@ def request_payment():
             item_id = str(uuid.uuid4())
             product_name = item.get('name', '')
             product_image = ''
+            selected_color = item.get('selectedColor')
+            selected_size = item.get('selectedSize')
             product = execute_query(
                 "SELECT image_url, images FROM products WHERE id=%s",
                 (item['productId'],),
@@ -142,10 +147,10 @@ def request_payment():
                     product_image = product.get('image_url', '')
             execute_query(
                 """
-                INSERT INTO order_items (id, order_id, product_id, product_name, product_image, price, quantity)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                INSERT INTO order_items (id, order_id, product_id, product_name, product_image, price, quantity, selected_color, selected_size)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """,
-                (item_id, order_id, item['productId'], product_name, product_image, item['price'], item['quantity']),
+                (item_id, order_id, item['productId'], product_name, product_image, item['price'], item['quantity'], selected_color, selected_size),
                 commit=True
             )
 

@@ -42,7 +42,9 @@ def get_user_orders(current_user):
                 'productName': item['product_name'],
                 'productImage': item.get('product_image', ''),
                 'price': float(item['price']),
-                'quantity': item['quantity']
+                'quantity': item['quantity'],
+                'selectedColor': item.get('selected_color'),
+                'selectedSize': item.get('selected_size'),
             } for item in items],
             'createdAt': order.get('created_at').isoformat() if order.get('created_at') else None
         })
@@ -93,6 +95,9 @@ def create_order():
             item_id = str(uuid.uuid4())
             product_name = item.get('name','')
             product_image = ''
+            selected_color = item.get('selectedColor')
+            selected_size = item.get('selectedSize')
+
             product = execute_query("SELECT image_url, images FROM products WHERE id=%s", (item['productId'],), fetch_one=True)
             if product:
                 try:
@@ -102,12 +107,26 @@ def create_order():
                     product_image = product.get('image_url','')
             execute_query(
                 """
-                INSERT INTO order_items (id, order_id, product_id, product_name, product_image, price, quantity)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                INSERT INTO order_items (
+                    id, order_id, product_id, product_name, product_image, price, quantity,
+                    selected_color, selected_size
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """,
-                (item_id, order_id, item['productId'], product_name, product_image, item['price'], item['quantity']),
+                (
+                    item_id,
+                    order_id,
+                    item['productId'],
+                    product_name,
+                    product_image,
+                    item['price'],
+                    item['quantity'],
+                    selected_color,
+                    selected_size,
+                ),
                 commit=True
             )
+
         if voucher_code:
             execute_query("UPDATE vouchers SET used_count = used_count + 1 WHERE code=%s", (voucher_code,), commit=True)
             # Décrémenter automatiquement le stock
@@ -148,7 +167,9 @@ def get_order(current_user, order_id):
             'productName': item['product_name'],
             'productImage': item.get('product_image', ''),
             'price': float(item['price']),
-            'quantity': item['quantity']
+            'quantity': item['quantity'],
+            'selectedColor': item.get('selected_color'),
+            'selectedSize': item.get('selected_size'),
         } for item in items],
         'createdAt': order.get('created_at').isoformat() if order.get('created_at') else None
     }), 200
@@ -192,7 +213,9 @@ def get_order_public(order_id):
                 'productName': item['product_name'],
                 'productImage': item['product_image'],
                 'price': float(item['price']),
-                'quantity': item['quantity']
+                'quantity': item['quantity'],
+                'selectedColor': item.get('selected_color'),
+                'selectedSize': item.get('selected_size'),
             } for item in items],
             'createdAt': order['created_at'].isoformat() if order.get('created_at') else None
         })

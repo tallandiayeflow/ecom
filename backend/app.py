@@ -111,6 +111,9 @@ test
 ALTER TABLE products
   ADD COLUMN colors LONGTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NULL CHECK (json_valid(colors)),
   ADD COLUMN sizes  LONGTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NULL CHECK (json_valid(sizes));
+ALTER TABLE order_items
+  ADD COLUMN selected_color VARCHAR(50) NULL,
+  ADD COLUMN selected_size VARCHAR(50) NULL;
 
 
 """
