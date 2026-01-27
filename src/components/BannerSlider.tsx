@@ -126,7 +126,7 @@ export const BannerSlider = () => {
                   <Button
                     size="sm"
                     className="bg-primary hover:bg-primary/90"
-                    onClick={() => navigate(`/products/${banner.productId}`)}
+                    onClick={() => navigate(`/product/${banner.productId}`)}
                   >
                     Découvrir
                   </Button>

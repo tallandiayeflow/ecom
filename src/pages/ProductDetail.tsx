@@ -517,7 +517,7 @@ const ProductDetail = () => {
               <Card
                 key={p.id}
                 className="p-4 hover:shadow-lg transition cursor-pointer"
-                onClick={() => navigate(`/products/${p.id}`)}
+                onClick={() => navigate(`/product/${p.id}`)}
               >
                 <div className="flex gap-3">
                   <div className="h-20 w-20 rounded-lg overflow-hidden bg-muted flex-shrink-0">

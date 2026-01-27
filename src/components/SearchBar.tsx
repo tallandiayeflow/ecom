@@ -21,7 +21,7 @@ export const SearchBar = ({ onClose, className = '' }: SearchBarProps) => {
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   // Popular searches
-  const popularSearches = ['iPhone', 'Samsung', 'AirPods', 'iPad', 'Watch'];
+  const popularSearches = ['Abaya', 'Hijab', 'Jilbab', 'Kaftan', 'Khimar'];
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

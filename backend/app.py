@@ -10,14 +10,14 @@ cache.init_app(app)
 
 
 # CORSssss
-CORS(app, resources={
+"""CORS(app, resources={
     r"/api/*": {
         "origins": Config.CORS_ORIGINS,
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization"],
         "supports_credentials": True
     }
-})
+})"""
 #CORS(app)
 # Blueprints tests
 app.register_blueprint(auth.bp, url_prefix='/api/auth')
@@ -106,14 +106,5 @@ INSERT INTO services (name, description, duration_minutes, price) VALUES
 ('Manucure', 'Soin des mains + pose vernis', 45, 10000),
 ('Massage relaxant', 'Massage corps complet 60min', 60, 25000),
 ('Massage dos', 'Massage ciblé dos/cervicales', 30, 15000);
-test
-
-ALTER TABLE products
-  ADD COLUMN colors LONGTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NULL CHECK (json_valid(colors)),
-  ADD COLUMN sizes  LONGTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NULL CHECK (json_valid(sizes));
-ALTER TABLE order_items
-  ADD COLUMN selected_color VARCHAR(50) NULL,
-  ADD COLUMN selected_size VARCHAR(50) NULL;
-
 
 """
