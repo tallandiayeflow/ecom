@@ -10,14 +10,14 @@ cache.init_app(app)
 
 
 # CORSssss
-"""CORS(app, resources={
+CORS(app, resources={
     r"/api/*": {
         "origins": Config.CORS_ORIGINS,
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization"],
         "supports_credentials": True
     }
-})"""
+})
 #CORS(app)
 # Blueprints tests
 app.register_blueprint(auth.bp, url_prefix='/api/auth')
@@ -106,5 +106,6 @@ INSERT INTO services (name, description, duration_minutes, price) VALUES
 ('Manucure', 'Soin des mains + pose vernis', 45, 10000),
 ('Massage relaxant', 'Massage corps complet 60min', 60, 25000),
 ('Massage dos', 'Massage ciblé dos/cervicales', 30, 15000);
+test
 
 """
