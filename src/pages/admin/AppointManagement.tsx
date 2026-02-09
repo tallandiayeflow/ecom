@@ -1,49 +1,49 @@
 "use client"
 
 import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
 } from "@/components/ui/card"
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table"
 import { Textarea } from "@/components/ui/textarea"
 import { deleteAppointment, getAdminAppointments, updateAppointmentStatus } from "@/lib/api"
@@ -51,22 +51,22 @@ import { format } from "date-fns"
 import { fr } from "date-fns/locale"
 import { motion } from "framer-motion"
 import {
-    AlertCircle,
-    Calendar,
-    CheckCircle,
-    ChevronLeft,
-    ChevronRight,
-    Clock,
-    Edit,
-    Eye,
-    Filter,
-    Phone,
-    RefreshCw,
-    Search,
-    Trash2,
-    User,
-    X,
-    XCircle
+  AlertCircle,
+  Calendar,
+  CheckCircle,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Edit,
+  Eye,
+  Filter,
+  Phone,
+  RefreshCw,
+  Search,
+  Trash2,
+  User,
+  X,
+  XCircle
 } from "lucide-react"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
@@ -96,7 +96,7 @@ const AppointmentsManagement = () => {
   const [search, setSearch] = useState("")
   const [filterStatus, setFilterStatus] = useState("all")
   const [filterDate, setFilterDate] = useState("")
-  
+
   // Dialogs
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false)
@@ -131,7 +131,7 @@ const AppointmentsManagement = () => {
 
   useEffect(() => {
     fetchAppointments()
-  }, [page, perPage, filterStatus, filterDate])
+  }, [page, perPage, filterStatus, filterDate, search])
 
   // Actions
   const confirmDelete = (appointment: Appointment) => {
@@ -399,8 +399,8 @@ const AppointmentsManagement = () => {
                 </div>
                 <h3 className="text-lg font-semibold mb-2">Aucun rendez-vous trouvé</h3>
                 <p className="text-muted-foreground max-w-md">
-                  {search || filterStatus !== "all" || filterDate 
-                    ? "Essayez de modifier vos critères de recherche" 
+                  {search || filterStatus !== "all" || filterDate
+                    ? "Essayez de modifier vos critères de recherche"
                     : "Les rendez-vous apparaîtront ici une fois réservés"}
                 </p>
               </div>

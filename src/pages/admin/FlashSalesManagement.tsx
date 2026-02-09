@@ -50,6 +50,7 @@ import {
   deleteFlashSale,
   getFlashSalesAdmin,
   getProducts,
+  getImageUrl,
 } from "@/lib/api";
 import type { FlashSale, Product } from "@/types";
 import { format } from "date-fns";
@@ -378,12 +379,18 @@ const FlashSalesManagement = () => {
                         >
                           <TableCell>
                             <div className="flex items-center gap-3">
-                              {sale.product?.images?.[0] && (
-                                <img
-                                  src={sale.product.images[0]}
-                                  alt={sale.product.name}
-                                  className="h-12 w-12 object-cover rounded-lg"
-                                />
+                              {sale.product?.images?.[0] ? (
+                                <div className="h-12 w-12 rounded-lg overflow-hidden">
+                                  <img
+                                    src={getImageUrl(sale.product.images[0])}
+                                    alt={sale.product.name}
+                                    className="h-full w-full object-cover"
+                                  />
+                                </div>
+                              ) : (
+                                <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center">
+                                  <Package className="h-6 w-6 text-muted-foreground" />
+                                </div>
                               )}
                               <div className="space-y-1">
                                 <p className="font-medium">{sale.product?.name}</p>
@@ -491,7 +498,7 @@ const FlashSalesManagement = () => {
                           <div className="flex items-start gap-3">
                             {sale.product?.images?.[0] && (
                               <img
-                                src={sale.product.images[0]}
+                                src={getImageUrl(sale.product.images[0])}
                                 alt={sale.product.name}
                                 className="h-16 w-16 object-cover rounded-lg"
                               />
@@ -608,7 +615,7 @@ const FlashSalesManagement = () => {
                       <div className="flex items-center gap-2">
                         {product.images?.[0] && (
                           <img
-                            src={product.images[0]}
+                            src={getImageUrl(product.images[0])}
                             alt={product.name}
                             className="h-6 w-6 object-cover rounded"
                           />

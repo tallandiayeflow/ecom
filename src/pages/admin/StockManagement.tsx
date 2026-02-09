@@ -116,10 +116,10 @@ const StockManagement = () => {
         stock.getInventory({ page: 1, limit: 1000 }),
         stock.getMovements({ page: 1, limit: 500 }),
       ]);
-      setStats(statsData);
-      setAlerts(alertsData);
-      setInventory(inventoryData.inventory);
-      setMovements(movementsData.movements);
+      setStats(statsData || { totalProducts: 0, totalStock: 0, lowStockCount: 0, outOfStockCount: 0, totalStockValue: 0 });
+      setAlerts(alertsData || { lowStockCount: 0, outOfStockCount: 0, alerts: [] });
+      setInventory(inventoryData?.inventory || []);
+      setMovements(movementsData?.movements || []);
     } catch (err: any) {
       console.error(err);
       setError(err.response?.data?.error || "Erreur lors du chargement des données");
@@ -661,7 +661,7 @@ const StockManagement = () => {
                               className="group hover:bg-accent/50 transition-all duration-200 border-b"
                             >
                               <TableCell className="text-sm">
-                                {new Date(mov.createdAt).toLocaleString("fr-FR", {
+                                {new Date(mov.date || mov.createdAt).toLocaleString("fr-FR", {
                                   year: "numeric",
                                   month: "short",
                                   day: "numeric",
@@ -780,14 +780,21 @@ const StockManagement = () => {
             {adjustmentQuantity && !isNaN(parseInt(adjustmentQuantity)) && (
               <div className="p-4 bg-blue-500/5 rounded-lg border border-blue-500/20">
                 <p className="text-sm text-blue-600 dark:text-blue-400">
-                  📊 <strong>Nouveau stock:</strong>{" "}
-                  {adjustmentType === "in"
+                  📊 <strong>Nouveau stock estimé:</strong>{" "}
+                  {adjustmentType === "in" || adjustmentType === "return"
                     ? (selectedProduct?.stock || 0) + parseInt(adjustmentQuantity)
                     : adjustmentType === "out"
-                    ? Math.max(0, (selectedProduct?.stock || 0) - parseInt(adjustmentQuantity))
-                    : selectedProduct?.stock || 0}{" "}
+                      ? Math.max(0, (selectedProduct?.stock || 0) - parseInt(adjustmentQuantity))
+                      : adjustmentType === "adjustment"
+                        ? parseInt(adjustmentQuantity)
+                        : selectedProduct?.stock || 0}{" "}
                   unités
                 </p>
+                {adjustmentType === "adjustment" && (
+                  <p className="text-[10px] text-muted-foreground mt-1 italic">
+                    * L'ajustement définit la valeur exacte du stock.
+                  </p>
+                )}
               </div>
             )}
           </div>

@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { getBanners } from '@/lib/api';
+import { getBanners, getImageUrl } from '@/lib/api';
 import { BannerSlide } from '@/types';
 import { ChevronLeft, ChevronRight, Loader2, Pause, Play } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -86,8 +86,8 @@ export const BannerSlider = () => {
   const currentBanner = banners[currentIndex];
 
   return (
-    <div 
-      role="region" 
+    <div
+      role="region"
       aria-label="Bannières promotionnelles"
       aria-live="polite"
       className="relative w-full h-[400px] md:h-[500px] overflow-hidden rounded-lg group"
@@ -99,13 +99,12 @@ export const BannerSlider = () => {
         {banners.map((banner, index) => (
           <div
             key={banner.id}
-            className={`absolute inset-0 transition-opacity duration-700 ${
-              index === currentIndex ? 'opacity-100 z-10' : 'opacity-0 z-0'
-            }`}
+            className={`absolute inset-0 transition-opacity duration-700 ${index === currentIndex ? 'opacity-100 z-10' : 'opacity-0 z-0'
+              }`}
             aria-hidden={index !== currentIndex}
           >
             <img
-              src={banner.imageUrl || banner.product?.images?.[0] || banner.images?.[0]}
+              src={getImageUrl(banner.imageUrl || banner.product?.images?.[0] || banner.images?.[0])}
               alt={banner.title}
               loading={index === 0 ? 'eager' : 'lazy'}
               className="absolute inset-0 w-full h-full object-cover"
@@ -154,7 +153,7 @@ export const BannerSlider = () => {
         >
           <ChevronLeft className="h-4 w-4" />
         </Button>
-        
+
         {/* Bouton Pause/Play */}
         <Button
           variant="ghost"
@@ -187,9 +186,8 @@ export const BannerSlider = () => {
             aria-selected={index === currentIndex}
             aria-label={`Aller à la bannière ${index + 1}: ${banner.title}`}
             aria-controls={`banner-${index}`}
-            className={`h-1.5 rounded-full transition-all ${
-              index === currentIndex ? 'w-5 bg-white' : 'w-2 bg-white/50'
-            }`}
+            className={`h-1.5 rounded-full transition-all ${index === currentIndex ? 'w-5 bg-white' : 'w-2 bg-white/50'
+              }`}
           />
         ))}
       </div>

@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCart } from '@/contexts/CartContext';
-import { getProduct, getProducts } from '@/lib/api';
+import { getImageUrl, getProduct, getProducts } from '@/lib/api';
 import type { Product } from '@/types';
 import { motion } from 'framer-motion';
 import {
@@ -220,11 +220,10 @@ const ProductDetail = () => {
           <div className="relative h-[500px] rounded-xl overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200 border-2">
             {imageLoading && <Skeleton className="absolute inset-0 w-full h-full" />}
             <img
-              src={product.images?.[selectedImage] || '/placeholder-product.png'}
+              src={getImageUrl(product.images?.[selectedImage] || '/placeholder-product.png')}
               alt={product.name}
-              className={`w-full h-full object-contain transition-opacity duration-300 ${
-                imageLoading ? 'opacity-0' : 'opacity-100'
-              }`}
+              className={`w-full h-full object-contain transition-opacity duration-300 ${imageLoading ? 'opacity-0' : 'opacity-100'
+                }`}
               onLoad={() => setImageLoading(false)}
               onError={(e) => {
                 e.currentTarget.src = '/placeholder-product.png';
@@ -259,26 +258,29 @@ const ProductDetail = () => {
                 <button
                   key={index}
                   onClick={() => setSelectedImage(index)}
-                  className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-all hover:scale-105 ${
-                    selectedImage === index
-                      ? 'border-primary scale-105 shadow-lg'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
+                  className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-all hover:scale-105 ${selectedImage === index
+                    ? 'border-primary scale-105 shadow-lg'
+                    : 'border-gray-200 hover:border-gray-300'
+                    }`}
                 >
-                  <img src={image} alt={`${product.name} - ${index + 1}`} className="w-full h-full object-cover" />
+                  <img
+                    src={getImageUrl(image)}
+                    alt={`${product.name} thumbnail ${index + 1}`}
+                    className="w-full h-full object-contain"
+                  />
                 </button>
               ))}
             </div>
           )}
           {/* Detailed description */}
-      {product.description && (
-        <div className="mt-12">
-          <h2 className="text-2xl font-bold mb-4">Description détaillée</h2>
-          <Card className="p-6">
-            <p className="text-muted-foreground leading-relaxed whitespace-pre-line">{product.description}</p>
-          </Card>
-        </div>
-      )}
+          {product.description && (
+            <div className="mt-12">
+              <h2 className="text-2xl font-bold mb-4">Description détaillée</h2>
+              <Card className="p-6">
+                <p className="text-muted-foreground leading-relaxed whitespace-pre-line">{product.description}</p>
+              </Card>
+            </div>
+          )}
         </div>
 
         {/* Infos */}
@@ -543,7 +545,7 @@ const ProductDetail = () => {
         </div>
       )}
 
-      
+
     </motion.div>
   );
 };

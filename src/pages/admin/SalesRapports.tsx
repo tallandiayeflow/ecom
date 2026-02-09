@@ -3,11 +3,11 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,17 +18,17 @@ import { facturesAPI } from "@/lib/api";
 import type { SalesReport } from "@/types/invoices.ts";
 import { motion } from "framer-motion";
 import {
-    ArrowDown,
-    ArrowUp,
-    Calendar,
-    Download,
-    FileText,
-    Loader2,
-    Package,
-    Receipt,
-    RefreshCw,
-    TrendingDown,
-    TrendingUp,
+  ArrowDown,
+  ArrowUp,
+  Calendar,
+  Download,
+  FileText,
+  Loader2,
+  Package,
+  Receipt,
+  RefreshCw,
+  TrendingDown,
+  TrendingUp,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -47,7 +47,7 @@ const SalesReports = () => {
 
   useEffect(() => {
     loadReport();
-  }, [period, startDate, endDate]);
+  }, [period, startDate, endDate, useCustomDates]);
 
   const loadReport = async () => {
     setLoading(true);

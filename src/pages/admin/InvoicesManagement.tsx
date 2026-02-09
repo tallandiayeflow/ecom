@@ -47,7 +47,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { InventoryItem } from "@/lib/api";
-import { facturesAPI, stock } from "@/lib/api";
+import { facturesAPI, getImageUrl, stock } from "@/lib/api";
 import type { CreateInvoiceItem, Invoice } from "@/types/invoices.ts";
 import { motion } from "framer-motion";
 import {
@@ -73,10 +73,11 @@ import {
   Search,
   ShoppingBag,
   Trash2,
-  TrendingUp,
+  Smartphone,
   User,
   X,
-  XCircle
+  XCircle,
+  TrendingUp
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -113,6 +114,8 @@ const paymentMethodConfig = {
   card: { label: "Carte bancaire", icon: CreditCard },
   bank_transfer: { label: "Virement", icon: DollarSign },
   other: { label: "Autre", icon: Receipt },
+  'espèces': { label: "Espèces", icon: Package },
+  'Mobile Money': { label: "Mobile Money", icon: Smartphone },
 };
 
 const InvoicesManagement = () => {
@@ -986,7 +989,7 @@ const InvoicesManagement = () => {
                             <div className="flex items-center gap-2">
                               {product.imageUrl && (
                                 <img
-                                  src={product.imageUrl}
+                                  src={getImageUrl(product.imageUrl)}
                                   alt={product.name}
                                   className="w-8 h-8 rounded object-cover"
                                 />
@@ -1062,6 +1065,7 @@ const InvoicesManagement = () => {
                     <SelectItem value="card">Carte bancaire</SelectItem>
                     <SelectItem value="bank_transfer">Virement</SelectItem>
                     <SelectItem value="other">Autre</SelectItem>
+                    <SelectItem value="Mobile Money">Mobile Money</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCart } from '@/contexts/CartContext';
+import { getImageUrl } from '@/lib/api';
 import { FlashSale, Product } from '@/types';
 import { motion } from 'framer-motion';
 import { Clock, Eye, Flame, ShoppingCart, Star, Zap } from 'lucide-react';
@@ -121,7 +122,12 @@ export const FlashCard = ({
         originalPrice: originalPrice,
       };
 
-      await addToCart(flashProduct, 1);
+      await addToCart(
+        flashProduct,
+        1,
+        product.colors?.[0],
+        product.sizes?.[0]
+      );
       toast.success(`${product.name} ajouté au panier ! 🛒🔥`);
     } catch (error) {
       console.error('Error adding to cart:', error);
@@ -133,9 +139,10 @@ export const FlashCard = ({
     navigate(`/product/${flashSale.productId}`);
   };
 
+  // ---------- GESTION D'IMAGE ----------
   const imageSrc = imageError
     ? '/placeholder-product.png'
-    : product.images?.[0] || '/placeholder-product.png';
+    : getImageUrl(product.images?.[0] || '/placeholder-product.png');
 
   // Déterminer l'urgence du temps restant
   const getUrgencyLevel = () => {
@@ -162,11 +169,10 @@ export const FlashCard = ({
       className="h-full"
     >
       <Card
-        className={`group cursor-pointer hover:shadow-2xl transition-all duration-300 h-full flex flex-col overflow-hidden border-2 ${
-          isExpired
-            ? 'border-gray-300 opacity-60'
-            : 'border-orange-300 hover:border-orange-500 hover:scale-[1.02]'
-        } relative`}
+        className={`group cursor-pointer hover:shadow-2xl transition-all duration-300 h-full flex flex-col overflow-hidden border-2 ${isExpired
+          ? 'border-gray-300 opacity-60'
+          : 'border-orange-300 hover:border-orange-500 hover:scale-[1.02]'
+          } relative`}
         onClick={handleViewProduct}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
@@ -174,13 +180,12 @@ export const FlashCard = ({
         {/* Barre "En direct" animée */}
         {!isExpired && (
           <div
-            className={`absolute top-0 left-0 right-0 h-1 z-20 ${
-              urgencyLevel === 'critical'
-                ? 'bg-gradient-to-r from-red-600 via-red-500 to-orange-500 animate-pulse'
-                : urgencyLevel === 'urgent'
+            className={`absolute top-0 left-0 right-0 h-1 z-20 ${urgencyLevel === 'critical'
+              ? 'bg-gradient-to-r from-red-600 via-red-500 to-orange-500 animate-pulse'
+              : urgencyLevel === 'urgent'
                 ? 'bg-gradient-to-r from-orange-500 via-red-500 to-orange-500 animate-pulse'
                 : 'bg-gradient-to-r from-red-500 via-orange-500 to-yellow-500'
-            }`}
+              }`}
           />
         )}
 
@@ -189,11 +194,10 @@ export const FlashCard = ({
           <div className="absolute top-3 left-3 z-10 flex flex-col gap-2">
             <Badge
               variant="destructive"
-              className={`font-bold shadow-lg ${
-                urgencyLevel === 'critical'
-                  ? 'bg-gradient-to-r from-red-600 to-red-700 animate-bounce'
-                  : 'bg-gradient-to-r from-red-500 to-orange-500 animate-pulse'
-              }`}
+              className={`font-bold shadow-lg ${urgencyLevel === 'critical'
+                ? 'bg-gradient-to-r from-red-600 to-red-700 animate-bounce'
+                : 'bg-gradient-to-r from-red-500 to-orange-500 animate-pulse'
+                }`}
             >
               <Flame className="h-3 w-3 mr-1 fill-white" />
               -{discountPercentage}%
@@ -215,15 +219,14 @@ export const FlashCard = ({
           {/* Compteur temps restant */}
           <div className="absolute top-3 right-3 z-10">
             <Badge
-              className={`font-semibold shadow-lg ${
-                isExpired
-                  ? 'bg-gray-500'
-                  : urgencyLevel === 'critical'
+              className={`font-semibold shadow-lg ${isExpired
+                ? 'bg-gray-500'
+                : urgencyLevel === 'critical'
                   ? 'bg-red-600 animate-pulse'
                   : urgencyLevel === 'urgent'
-                  ? 'bg-orange-600 animate-pulse'
-                  : 'bg-gradient-to-r from-black/80 to-gray-900/80 backdrop-blur-sm'
-              }`}
+                    ? 'bg-orange-600 animate-pulse'
+                    : 'bg-gradient-to-r from-black/80 to-gray-900/80 backdrop-blur-sm'
+                }`}
             >
               <Clock className="h-3 w-3 mr-1" />
               {timeRemaining || getTimeRemaining()}
@@ -236,11 +239,9 @@ export const FlashCard = ({
             <img
               src={imageSrc}
               alt={product.name}
-              className={`w-full h-full object-cover transition-all duration-500 ${
-                isHovered ? 'scale-110' : 'scale-100'
-              } ${imageLoaded ? 'opacity-100' : 'opacity-0'} ${
-                isExpired ? 'grayscale' : ''
-              }`}
+              className={`w-full h-full object-cover transition-all duration-500 ${isHovered ? 'scale-110' : 'scale-100'
+                } ${imageLoaded ? 'opacity-100' : 'opacity-0'} ${isExpired ? 'grayscale' : ''
+                }`}
               loading="lazy"
               onLoad={() => setImageLoaded(true)}
               onError={() => {
@@ -252,9 +253,8 @@ export const FlashCard = ({
             {/* Overlay Quick View */}
             {showQuickView && !isExpired && (
               <div
-                className={`absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent backdrop-blur-sm flex items-center justify-center transition-all duration-300 ${
-                  isHovered ? 'opacity-100' : 'opacity-0 pointer-events-none'
-                }`}
+                className={`absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent backdrop-blur-sm flex items-center justify-center transition-all duration-300 ${isHovered ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                  }`}
               >
                 <Button
                   variant="secondary"

@@ -2,6 +2,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { useCart } from "@/contexts/CartContext";
 import { motion } from "framer-motion";
 import {
@@ -21,7 +29,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 const Cart = () => {
-  const { cart, cartTotal, updateQuantity, removeFromCart, clearCart } =
+  const { cart, cartTotal, updateQuantity, updateVariant, removeFromCart, clearCart } =
     useCart();
   const navigate = useNavigate();
   const [removingItems, setRemovingItems] = useState<Set<string>>(new Set());
@@ -209,14 +217,14 @@ const Cart = () => {
                 item.product.originalPrice > item.product.price;
               const itemSavings = hasOriginalPrice
                 ? (item.product.originalPrice! - item.product.price) *
-                  item.quantity
+                item.quantity
                 : 0;
               const discountPercentage = hasOriginalPrice
                 ? Math.round(
-                    ((item.product.originalPrice! - item.product.price) /
-                      item.product.originalPrice!) *
-                      100,
-                  )
+                  ((item.product.originalPrice! - item.product.price) /
+                    item.product.originalPrice!) *
+                  100,
+                )
                 : 0;
 
               return (
@@ -228,9 +236,8 @@ const Cart = () => {
                   transition={{ delay: index * 0.05 }}
                 >
                   <Card
-                    className={`hover:shadow-lg transition-shadow ${
-                      isRemoving ? "opacity-50" : ""
-                    }`}
+                    className={`hover:shadow-lg transition-shadow ${isRemoving ? "opacity-50" : ""
+                      }`}
                   >
                     <CardContent className="p-4">
                       <div className="flex flex-col sm:flex-row gap-4">
@@ -304,25 +311,62 @@ const Cart = () => {
                             )}
                           </div>
 
-                          <div  className="flex flex-col sm:flex-row sm:items-center sm:gap-4">
-                            {(item.selectedColor || item.selectedSize) && (
-                              <div className="flex flex-wrap items-center gap-2 mb-3">
-                                {item.selectedColor && (
-                                  <Badge
-                                    variant="secondary"
-                                    className="text-xs"
-                                  >
-                                    Couleur: {item.selectedColor}
-                                  </Badge>
-                                )}
-                                {item.selectedSize && (
-                                  <Badge
-                                    variant="secondary"
-                                    className="text-xs"
-                                  >
-                                    Taille: {item.selectedSize}
-                                  </Badge>
-                                )}
+                          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {item.product.colors && item.product.colors.length > 0 && (
+                              <div className="space-y-1.5">
+                                <Label className="text-xs font-semibold">Couleur</Label>
+                                <Select
+                                  value={item.selectedColor}
+                                  onValueChange={(value) =>
+                                    updateVariant(
+                                      item.productId,
+                                      item.selectedColor,
+                                      item.selectedSize,
+                                      value,
+                                      item.selectedSize
+                                    )
+                                  }
+                                >
+                                  <SelectTrigger className="h-8 text-xs">
+                                    <SelectValue placeholder="Couleur" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {item.product.colors.map((color) => (
+                                      <SelectItem key={color} value={color} className="text-xs">
+                                        {color}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            )}
+
+                            {item.product.sizes && item.product.sizes.length > 0 && (
+                              <div className="space-y-1.5">
+                                <Label className="text-xs font-semibold">Taille</Label>
+                                <Select
+                                  value={item.selectedSize}
+                                  onValueChange={(value) =>
+                                    updateVariant(
+                                      item.productId,
+                                      item.selectedColor,
+                                      item.selectedSize,
+                                      item.selectedColor,
+                                      value
+                                    )
+                                  }
+                                >
+                                  <SelectTrigger className="h-8 text-xs">
+                                    <SelectValue placeholder="Taille" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {item.product.sizes.map((size) => (
+                                      <SelectItem key={size} value={size} className="text-xs">
+                                        {size}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
                               </div>
                             )}
                           </div>
@@ -448,9 +492,8 @@ const Cart = () => {
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Livraison</span>
                     <span
-                      className={`font-semibold ${
-                        isEligibleForFreeDelivery ? "text-green-600" : ""
-                      }`}
+                      className={`font-semibold ${isEligibleForFreeDelivery ? "text-green-600" : ""
+                        }`}
                     >
                       {isEligibleForFreeDelivery ? "Gratuite" : "À calculer"}
                     </span>

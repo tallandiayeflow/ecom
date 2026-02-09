@@ -447,12 +447,24 @@ def delete_facture(current_user, invoice_id):
     try:
         with conn.cursor() as cursor:
             cursor.execute("SELECT * FROM invoices WHERE id=%s", (invoice_id,))
-            if not cursor.fetchone():
+            old_invoice = cursor.fetchone()
+            
+            if not old_invoice:
                 return jsonify({'error': 'Facture non trouvée'}), 404
+
+            # Rendre le stock si la facture n'était pas déjà annulée
+            if old_invoice['status'] != 'cancelled':
+                cursor.execute("SELECT * FROM invoice_items WHERE invoice_id=%s", (invoice_id,))
+                items = cursor.fetchall()
+                user_id = get_user_id(current_user)
+                update_stock_for_invoice(cursor, items, old_invoice['invoice_number'], 
+                                       user_id, operation='return')
 
             cursor.execute("DELETE FROM invoice_items WHERE invoice_id=%s", (invoice_id,))
             cursor.execute("DELETE FROM invoices WHERE id=%s", (invoice_id,))
             conn.commit()
+            
+            invalidate_stock_cache()
 
             return jsonify({'message': 'Facture supprimée avec succès'}), 200
     except Exception as e:
@@ -577,11 +589,11 @@ def download_facture_pdf(current_user, invoice_id):
             # ========== INFORMATIONS BOUTIQUE ==========
             SHOP_INFO = {
                 'name': 'TEUSS PHONE SHOP',
-                'address': 'Casablanca, Maroc',
-                'phone': '+212 6XX XXX XXX',
-                'email': 'contact@teussphone.com',
+                'address': 'Dakar, Sénégal',
+                'phone': '+221 77 000 0000',
+                'email': 'contact@teussphone.sn',
                 'ice': 'ICE000000000',
-                'website': 'www.teussphone.com'
+                'website': 'www.teussphone.sn'
             }
 
             # ========== EN-TÊTE COMPACT AVEC LOGO ==========
@@ -844,11 +856,11 @@ def get_sales_report(current_user):
             cursor.execute("""
                 SELECT 
                     COUNT(*) as total_invoices,
-                    COALESCE(SUM(total), 0) as total_revenue,
-                    COALESCE(SUM(amount), 0) as total_ht,
-                    COALESCE(SUM(tax), 0) as total_tax,
-                    COALESCE(SUM(discount), 0) as total_discounts,
-                    COALESCE(AVG(total), 0) as average_invoice
+                    COALESCE(SUM(CASE WHEN status = 'paid' THEN total ELSE 0 END), 0) as total_revenue,
+                    COALESCE(SUM(CASE WHEN status = 'paid' THEN amount ELSE 0 END), 0) as total_ht,
+                    COALESCE(SUM(CASE WHEN status = 'paid' THEN tax ELSE 0 END), 0) as total_tax,
+                    COALESCE(SUM(CASE WHEN status = 'paid' THEN discount ELSE 0 END), 0) as total_discounts,
+                    COALESCE(AVG(CASE WHEN status = 'paid' THEN total ELSE NULL END), 0) as average_invoice
                 FROM invoices
                 WHERE DATE(created_at) BETWEEN %s AND %s
                 AND status != 'cancelled'
@@ -857,7 +869,7 @@ def get_sales_report(current_user):
 
             cursor.execute("""
                 SELECT DATE(created_at) as date, COUNT(*) as invoices_count,
-                    COALESCE(SUM(total), 0) as daily_revenue
+                    COALESCE(SUM(CASE WHEN status = 'paid' THEN total ELSE 0 END), 0) as daily_revenue
                 FROM invoices
                 WHERE DATE(created_at) BETWEEN %s AND %s AND status != 'cancelled'
                 GROUP BY DATE(created_at) ORDER BY date DESC
@@ -869,7 +881,7 @@ def get_sales_report(current_user):
                     COALESCE(SUM(ii.total), 0) as total_revenue
                 FROM invoice_items ii
                 JOIN invoices i ON ii.invoice_id = i.id
-                WHERE DATE(i.created_at) BETWEEN %s AND %s AND i.status != 'cancelled'
+                WHERE DATE(i.created_at) BETWEEN %s AND %s AND i.status = 'paid'
                 GROUP BY ii.product_id, ii.product_name
                 ORDER BY total_revenue DESC LIMIT 10
             """, (start_date, end_date))
@@ -941,15 +953,19 @@ def export_sales_report_pdf(current_user):
             
             # Stats
             cursor.execute("""
-                SELECT COUNT(*) as total_invoices, COALESCE(SUM(total), 0) as total_revenue,
-                    COALESCE(SUM(amount), 0) as total_ht, COALESCE(SUM(tax), 0) as total_tax,
-                    COALESCE(SUM(discount), 0) as total_discounts, COALESCE(AVG(total), 0) as average_invoice
+                SELECT COUNT(*) as total_invoices, 
+                    COALESCE(SUM(CASE WHEN status = 'paid' THEN total ELSE 0 END), 0) as total_revenue,
+                    COALESCE(SUM(CASE WHEN status = 'paid' THEN amount ELSE 0 END), 0) as total_ht, 
+                    COALESCE(SUM(CASE WHEN status = 'paid' THEN tax ELSE 0 END), 0) as total_tax,
+                    COALESCE(SUM(CASE WHEN status = 'paid' THEN discount ELSE 0 END), 0) as total_discounts, 
+                    COALESCE(AVG(CASE WHEN status = 'paid' THEN total ELSE NULL END), 0) as average_invoice
                 FROM invoices WHERE DATE(created_at) BETWEEN %s AND %s AND status != 'cancelled'
             """, (start_date, end_date))
             stats = cursor.fetchone()
             
             cursor.execute("""
-                SELECT DATE(created_at) as date, COUNT(*) as invoices_count, COALESCE(SUM(total), 0) as daily_revenue
+                SELECT DATE(created_at) as date, COUNT(*) as invoices_count, 
+                    COALESCE(SUM(CASE WHEN status = 'paid' THEN total ELSE 0 END), 0) as daily_revenue
                 FROM invoices WHERE DATE(created_at) BETWEEN %s AND %s AND status != 'cancelled'
                 GROUP BY DATE(created_at) ORDER BY date DESC LIMIT 15
             """, (start_date, end_date))
@@ -958,7 +974,7 @@ def export_sales_report_pdf(current_user):
             cursor.execute("""
                 SELECT ii.product_name, SUM(ii.quantity) as total_quantity, COALESCE(SUM(ii.total), 0) as total_revenue
                 FROM invoice_items ii JOIN invoices i ON ii.invoice_id = i.id
-                WHERE DATE(i.created_at) BETWEEN %s AND %s AND i.status != 'cancelled'
+                WHERE DATE(i.created_at) BETWEEN %s AND %s AND i.status = 'paid'
                 GROUP BY ii.product_id, ii.product_name ORDER BY total_revenue DESC LIMIT 10
             """, (start_date, end_date))
             top_products = cursor.fetchall()
@@ -978,8 +994,8 @@ def export_sales_report_pdf(current_user):
                                          textColor=colors.HexColor('#374151'), fontName='Helvetica')
             
             story = []
-            SHOP_INFO = {'name': 'TEUSS PHONE SHOP', 'address': 'Casablanca, Maroc', 'phone': '+212 6XX XXX XXX', 
-                        'email': 'contact@teussphone.com', 'website': 'www.teussphone.com'}
+            SHOP_INFO = {'name': 'TEUSS PHONE SHOP', 'address': 'Dakar, Sénégal', 'phone': '+221 77 000 0000', 
+                        'email': 'contact@teussphone.sn', 'website': 'www.teussphone.sn'}
             
             story.append(Paragraph(f"<b>{SHOP_INFO['name']}</b>", title_style))
             story.append(Paragraph("RAPPORT DE VENTES", title_style))

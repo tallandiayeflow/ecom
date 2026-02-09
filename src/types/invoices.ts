@@ -18,7 +18,7 @@ export interface Invoice {
   discount: number;
   total: number;
   status: 'paid' | 'pending' | 'cancelled';
-  payment_method: 'cash_on_delivery' | 'card' | 'bank_transfer' | 'other';
+  payment_method: PaymentMethod;
   payment_date?: string;
   notes?: string;
   created_at: string;
@@ -56,7 +56,7 @@ export interface CreateInvoiceData {
   customerCity?: string;
   items: CreateInvoiceItem[];
   status?: 'paid' | 'pending' | 'cancelled';
-  paymentMethod?: 'cash_on_delivery' | 'card' | 'bank_transfer' | 'other'| 'espèces'|'Mobile Money';
+  paymentMethod?: PaymentMethod;
   notes?: string;
   taxRate?: number;
   discount?: number;
@@ -78,7 +78,7 @@ export interface CreateInvoiceItem {
  */
 export interface UpdateInvoiceData {
   status?: 'paid' | 'pending' | 'cancelled';
-  paymentMethod?: 'cash_on_delivery' | 'card' | 'bank_transfer' | 'other'| 'espèces'|'Mobile Money';
+  paymentMethod?: PaymentMethod;
   notes?: string;
 }
 
@@ -93,7 +93,7 @@ export interface UpdateInvoiceCompleteData {
   customerCity?: string;
   items?: CreateInvoiceItem[];
   status?: 'paid' | 'pending' | 'cancelled';
-  paymentMethod?: 'cash_on_delivery' | 'card' | 'bank_transfer' | 'other'| 'espéces'| 'espèces'|'Mobile Money';
+  paymentMethod?: PaymentMethod;
   notes?: string;
   taxRate?: number;
   discount?: number;
@@ -156,7 +156,7 @@ export interface SalesReportParams {
 export interface InvoiceFilters {
   search?: string;
   status?: 'paid' | 'pending' | 'cancelled';
-  payment_method?: 'cash_on_delivery' | 'card' | 'bank_transfer' | 'other';
+  payment_method?: PaymentMethod;
   date_min?: string;
   date_max?: string;
   page?: number;
@@ -181,7 +181,7 @@ export type InvoiceStatus = 'paid' | 'pending' | 'cancelled';
 /**
  * Type pour la méthode de paiement
  */
-export type PaymentMethod = 'cash_on_delivery' | 'card' | 'bank_transfer' | 'other';
+export type PaymentMethod = 'cash_on_delivery' | 'card' | 'bank_transfer' | 'other' | 'espèces' | 'Mobile Money';
 
 /**
  * Libellés français pour les statuts
@@ -200,6 +200,8 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   card: 'Carte bancaire',
   bank_transfer: 'Virement',
   other: 'Autre',
+  'espèces': 'Espèces',
+  'Mobile Money': 'Mobile Money',
 };
 
 /**

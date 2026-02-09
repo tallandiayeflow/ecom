@@ -37,6 +37,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import {
   Table,
   TableBody,
@@ -93,6 +94,7 @@ const UsersManagement = () => {
     city: "",
     role: "user" as "user" | "admin",
     password: "",
+    isActive: true,
   });
 
   useEffect(() => {
@@ -136,6 +138,7 @@ const UsersManagement = () => {
         city: user.city ?? "",
         role: user.role,
         password: "",
+        isActive: user.isActive,
       });
     } else {
       setSelectedUser(null);
@@ -148,6 +151,7 @@ const UsersManagement = () => {
         city: "",
         role: "user",
         password: "",
+        isActive: true,
       });
     }
     setDialogOpen(true);
@@ -165,6 +169,7 @@ const UsersManagement = () => {
       city: "",
       role: "user",
       password: "",
+      isActive: true,
     });
   };
 
@@ -750,6 +755,23 @@ const UsersManagement = () => {
                   </p>
                 )}
               </div>
+            </div>
+
+            <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
+              <div className="space-y-1">
+                <Label htmlFor="isActive" className="font-semibold cursor-pointer">
+                  Compte actif
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  Désactivez pour empêcher l'utilisateur de se connecter
+                </p>
+              </div>
+              <Switch
+                id="isActive"
+                checked={form.isActive}
+                onCheckedChange={(checked) => setForm({ ...form, isActive: checked })}
+                disabled={submitting}
+              />
             </div>
 
             <div className="p-4 bg-blue-500/5 rounded-lg border border-blue-500/20">

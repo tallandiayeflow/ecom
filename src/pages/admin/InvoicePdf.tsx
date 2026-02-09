@@ -31,13 +31,13 @@ import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 
 const SHOP_INFO = {
-  name: "Didio Glow Skin",
+  name: "TEUSS PHONE SHOP",
   address: "Dakar, Sénégal",
-  phone: "+221 77 777 7777",
-  email: "contact@didioglowskin.com",
+  phone: "+221 77 000 0000",
+  email: "contact@teussphone.sn",
   ice: "ICE000000000",
   logo: "/logo.png",
-  website: "www.didioglowskin.com",
+  website: "www.teussphone.sn",
 };
 
 const statusConfig = {
@@ -421,6 +421,8 @@ const InvoiceDetails = () => {
                         {invoice.payment_method === 'card' && 'Carte bancaire'}
                         {invoice.payment_method === 'bank_transfer' && 'Virement'}
                         {invoice.payment_method === 'other' && 'Autre'}
+                        {invoice.payment_method === 'espèces' && 'Espèces'}
+                        {invoice.payment_method === 'Mobile Money' && 'Mobile Money'}
                       </span>
                     </div>
                     {invoice.payment_date && (

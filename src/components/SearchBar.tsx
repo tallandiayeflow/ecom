@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { getProducts } from '@/lib/api';
+import { getImageUrl, getProducts } from '@/lib/api';
 import type { Product } from '@/types';
 import { Search, TrendingUp, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
@@ -145,7 +145,7 @@ export const SearchBar = ({ onClose, className = '' }: SearchBarProps) => {
                   className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors"
                 >
                   <img
-                    src={product.images?.[0] || '/placeholder.svg'}
+                    src={getImageUrl(product.images?.[0] || '/placeholder.svg')}
                     alt={product.name}
                     className="w-12 h-12 object-cover rounded"
                   />

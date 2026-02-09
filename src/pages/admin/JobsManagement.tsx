@@ -1,66 +1,66 @@
 "use client"
 
 import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
 } from "@/components/ui/card"
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table"
 import { deleteJob, downloadJobCV, getAllJobs } from "@/lib/api"
 import { motion } from "framer-motion"
 import {
-    Calendar,
-    ChevronLeft,
-    ChevronRight,
-    Download,
-    Eye,
-    FileText,
-    Filter,
-    Mail,
-    Phone,
-    RefreshCw,
-    Search,
-    Trash2,
-    User,
-    X
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  Eye,
+  FileText,
+  Filter,
+  Mail,
+  Phone,
+  RefreshCw,
+  Search,
+  Trash2,
+  User,
+  X
 } from "lucide-react"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
@@ -88,7 +88,7 @@ const JobsManagement = () => {
   const [total, setTotal] = useState(0)
   const [search, setSearch] = useState("")
   const [filterStatus, setFilterStatus] = useState("all")
-  
+
   // Dialogs
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false)
@@ -374,7 +374,7 @@ const JobsManagement = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredJobs.map((job, index) => (
+                      {jobs.map((job, index) => (
                         <motion.tr
                           key={job.id}
                           initial={{ opacity: 0, y: 20 }}

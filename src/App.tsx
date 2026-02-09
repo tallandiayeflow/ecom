@@ -88,8 +88,8 @@ const App = () => (
                           <Route path="/payment-cancel" element={<PaymentCancel />} />
                           <Route path="/jobs-application" element={<JobApplicationForm />} />
                           <Route path="/book-appointment" element={<BookAppointment />} />
-                          
-                          
+
+
                         </Routes>
                       </main>
                       <Footer />
@@ -112,12 +112,13 @@ const App = () => (
                   <Route path="users" element={<UsersManagement />} />
                   <Route path="vouchers" element={<VouchersManagement />} />
                   <Route path="invoices" element={<InvoicesManagement />} />
+                  <Route path="invoices/:id" element={<InvoicePDF />} />
                   <Route path="stock" element={<StockManagement />} />
                   <Route path="visits" element={<AdminVisits />} />
                   <Route path="jobs" element={<JobsManagement />} />
                   <Route path="appointments" element={<AppointmentsManagement />} />
                   <Route path="sales-reports" element={<SalesReports />} />
-                 
+
 
                 </Route>
 

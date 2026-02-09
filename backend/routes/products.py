@@ -3,6 +3,17 @@ from utils.database import execute_query
 from utils.auth import admin_required
 import uuid
 import json
+import os
+from werkzeug.utils import secure_filename
+import secrets
+
+UPLOAD_FOLDER = 'uploads/products'
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp', 'gif'}
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 bp = Blueprint('products', __name__)
 
@@ -158,6 +169,34 @@ def get_product(product_id):
         'colors': colors_list,
         'sizes': sizes_list
     }), 200
+
+
+@bp.route('/upload', methods=['POST'])
+@admin_required
+def upload_image(current_user):
+    """Upload a product image (admin only)"""
+    if 'image' not in request.files:
+        return jsonify({'error': 'No image part'}), 400
+    
+    file = request.files['image']
+    if file.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+    
+    if file and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        # Add random string to avoid collisions
+        unique_filename = f"{secrets.token_urlsafe(8)}_{filename}"
+        file_path = os.path.join(UPLOAD_FOLDER, unique_filename)
+        file.save(file_path)
+        
+        # Return the public URL
+        url = f"/uploads/products/{unique_filename}"
+        return jsonify({
+            'url': url,
+            'message': 'Image uploaded successfully'
+        }), 201
+    
+    return jsonify({'error': 'Invalid file type'}), 400
 
 
 @bp.route('', methods=['POST'])

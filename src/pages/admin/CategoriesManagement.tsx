@@ -181,7 +181,7 @@ const CategoriesManagement = () => {
 
       const categoryData = {
         name: formData.name.trim(),
-        slug: "default-slug",
+        slug: formData.name.toLowerCase().trim().replace(/[^\w\s-]/g, '').replace(/[\s_-]+/g, '-').replace(/^-+|-+$/g, ''),
         icon: formData.icon,
       };
 
@@ -591,22 +591,19 @@ const CategoriesManagement = () => {
                                 setIconPopoverOpen(false);
                                 setIconSearchTerm("");
                               }}
-                              className={`flex flex-col items-center gap-1 p-3 rounded-lg border-2 transition-all duration-200 hover:scale-105 hover:shadow-md ${
-                                isSelected
+                              className={`flex flex-col items-center gap-1 p-3 rounded-lg border-2 transition-all duration-200 hover:scale-105 hover:shadow-md ${isSelected
                                   ? "border-primary bg-primary/10"
                                   : "border-transparent hover:border-primary/50 hover:bg-accent"
-                              }`}
+                                }`}
                               title={iconData.name}
                             >
                               <IconComponent
-                                className={`h-6 w-6 ${
-                                  isSelected ? "text-primary" : "text-muted-foreground"
-                                }`}
+                                className={`h-6 w-6 ${isSelected ? "text-primary" : "text-muted-foreground"
+                                  }`}
                               />
                               <span
-                                className={`text-[10px] font-medium truncate w-full text-center ${
-                                  isSelected ? "text-primary" : "text-muted-foreground"
-                                }`}
+                                className={`text-[10px] font-medium truncate w-full text-center ${isSelected ? "text-primary" : "text-muted-foreground"
+                                  }`}
                               >
                                 {iconData.name}
                               </span>

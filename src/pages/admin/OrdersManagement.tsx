@@ -81,27 +81,27 @@ type OrderStatus = "pending" | "processing" | "shipped" | "delivered" | "cancell
 
 const OrdersManagement = () => {
   const navigate = useNavigate();
-  
+
   // State pour les commandes
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusUpdating, setStatusUpdating] = useState(false);
-  
+
   // Filtres et recherche
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [dateMin, setDateMin] = useState("");
   const [dateMax, setDateMax] = useState("");
-  
+
   // Pagination
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
   const [total, setTotal] = useState(0);
-  
+
   // Dialog suppression
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<Order | null>(null);
-  
+
   // Dialog édition
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [orderToEdit, setOrderToEdit] = useState<Order | null>(null);
@@ -110,14 +110,14 @@ const OrdersManagement = () => {
   const [editPaymentMethod, setEditPaymentMethod] = useState("");
   const [editPaymentReference, setEditPaymentReference] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
-  
+
   // Dialog détails
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
   useEffect(() => {
     fetchOrders();
-  }, [page, perPage, filterStatus, dateMin, dateMax]);
+  }, [page, perPage, filterStatus, dateMin, dateMax, search]);
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -132,6 +132,7 @@ const OrdersManagement = () => {
       }
       if (dateMin) params.date_min = dateMin;
       if (dateMax) params.date_max = dateMax;
+      if (search) params.search = search;
 
       const data = await getAllOrders(params);
       setOrders(data.orders || []);
@@ -144,19 +145,7 @@ const OrdersManagement = () => {
     }
   };
 
-  // Filtrage recherche locale
-  const filteredOrders = orders.filter((order) => {
-    if (!search) return true;
-    const q = search.toLowerCase();
-    const ship = order.shippingAddress;
-    return (
-      order.id.toLowerCase().includes(q) ||
-      ship?.name?.toLowerCase().includes(q) ||
-      ship?.phone?.toLowerCase().includes(q) ||
-      ship?.city?.toLowerCase().includes(q) ||
-      ship?.address?.toLowerCase().includes(q)
-    );
-  });
+  // Actions
 
   // Mise à jour rapide du statut
   const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
@@ -366,7 +355,7 @@ const OrdersManagement = () => {
                 Gestion des Commandes
               </CardTitle>
               <CardDescription className="text-sm">
-                {filteredOrders.length} commande(s) • {stats.revenue.toLocaleString()} FCFA
+                {orders.length} commande(s) • {stats.revenue.toLocaleString()} FCFA
               </CardDescription>
             </div>
             <Button
@@ -454,19 +443,6 @@ const OrdersManagement = () => {
           {/* Table */}
           <div className="rounded-lg border overflow-hidden bg-card">
             {loading ? (
-              <div className="p-8 space-y-4">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <div key={i} className="flex items-center gap-4">
-                    <Skeleton className="h-16 w-16 rounded-lg" />
-                    <div className="space-y-2 flex-1">
-                      <Skeleton className="h-4 w-1/3" />
-                      <Skeleton className="h-3 w-1/4" />
-                    </div>
-                    <Skeleton className="h-8 w-24" />
-                  </div>
-                ))}
-              </div>
-            ) : filteredOrders.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-center">
                 <div className="h-20 w-20 rounded-full bg-muted flex items-center justify-center mb-4">
                   <ShoppingBag className="h-10 w-10 text-muted-foreground" />
@@ -498,7 +474,7 @@ const OrdersManagement = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredOrders.map((order, index) => (
+                      {orders.map((order, index) => (
                         <motion.tr
                           key={order.id}
                           initial={{ opacity: 0, y: 20 }}
@@ -604,7 +580,7 @@ const OrdersManagement = () => {
 
                 {/* Mobile Cards */}
                 <div className="lg:hidden p-4 space-y-4">
-                  {filteredOrders.map((order, index) => (
+                  {orders.map((order, index) => (
                     <motion.div
                       key={order.id}
                       initial={{ opacity: 0, scale: 0.95 }}
@@ -819,17 +795,17 @@ const OrdersManagement = () => {
                           Qté: {item.quantity} • {item.price.toLocaleString()} FCFA
                         </p>
                         <p className="text-xs sm:text-sm text-muted-foreground">
-                        {item.selectedColor && (
-                          <span className="text-xs text-muted-foreground mr-2">
-                            Couleur: {item.selectedColor}
-                          </span>
-                        )}
-                        {item.selectedSize && (
-                          <span className="text-xs text-muted-foreground">
-                            Taille: {item.selectedSize}
-                          </span>
-                        )}
-                      </p>
+                          {item.selectedColor && (
+                            <span className="text-xs text-muted-foreground mr-2">
+                              Couleur: {item.selectedColor}
+                            </span>
+                          )}
+                          {item.selectedSize && (
+                            <span className="text-xs text-muted-foreground">
+                              Taille: {item.selectedSize}
+                            </span>
+                          )}
+                        </p>
                       </div>
                       <p className="font-bold text-primary">
                         {(item.price * item.quantity).toLocaleString()} FCFA

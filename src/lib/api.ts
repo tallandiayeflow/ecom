@@ -1,7 +1,18 @@
 import axios, { AxiosInstance } from 'axios';
 
 // Configuration de base
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://phone-backend.duckdns.org/api';
+export const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://phone-backend.duckdns.org/api';
+
+/**
+ * Résout une URL d'image. Si l'URL est relative, elle est préfixée par l'URL du backend.
+ */
+export const getImageUrl = (path: string) => {
+  if (!path) return '';
+  if (path.startsWith('http')) return path;
+  // Retire le suffixe /api de l'URL de base si présent
+  const baseUrl = API_BASE_URL.replace(/\/api$/, '');
+  return `${baseUrl}${path.startsWith('/') ? '' : '/'}${path}`;
+};
 
 // Instance Axios configurée
 const api: AxiosInstance = axios.create({
@@ -107,8 +118,8 @@ export interface CreateOrderData {
   };
   voucherCode?: string;
   discount?: number;
-  total?:number,
-  finalTotal?:number,
+  total?: number,
+  finalTotal?: number,
 
 }
 
@@ -152,7 +163,7 @@ export const register = async (
   email: string,
   password: string,
   name: string,
-  phone:string
+  phone: string
 ): Promise<LoginResponse> => {
   const response = await api.post('/auth/register', {
     email,
@@ -291,6 +302,18 @@ export const deleteProduct = async (
   id: string
 ): Promise<{ message: string }> => {
   const response = await api.delete(`/products/${id}`);
+  return response.data;
+};
+
+export const uploadProductImage = async (file: File): Promise<{ url: string; message: string }> => {
+  const formData = new FormData();
+  formData.append('image', file);
+
+  const response = await api.post('/products/upload', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
   return response.data;
 };
 
@@ -695,7 +718,7 @@ export const getUsers = async (): Promise<User[]> => {
 export const deleteUser = async (id: string): Promise<{ message: string }> => {
   const response = await api.delete<{ message: string }>(`/admin/users/${id}`);
   return response.data;
-} 
+}
 
 // Mettre à jour un utilisateur (admin)
 export const updateUser = async (
@@ -1167,7 +1190,7 @@ export const downloadSalesReportPdf = async (params?: {
   const url = window.URL.createObjectURL(blob);
 
   const filename = `Rapport_Ventes_${params?.period || 'custom'}_${new Date().toISOString().split('T')[0]}.pdf`;
-  
+
   const link = document.createElement('a');
   link.href = url;
   link.download = filename;
@@ -1201,7 +1224,7 @@ export const facturesAPI = {
 // ==================== APPOINTMENTS ====================
 
 
- 
+
 
 // Book appointment
 export const bookAppointment = async (data: {

@@ -2,7 +2,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { getAllOrders, getAllUsers, getProducts, getVisitsStats } from '@/lib/api';
+import { getAllOrders, getAllUsers, getProducts, getVisitsStats, facturesAPI } from '@/lib/api';
+import { formatDistanceToNow } from 'date-fns';
+import { fr } from 'date-fns/locale';
 import {
   AlertCircle,
   ArrowDown,
@@ -46,6 +48,7 @@ const Overview = () => {
   });
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [recentOrders, setRecentOrders] = useState<any[]>([]);
 
   useEffect(() => {
     loadStats();
@@ -54,26 +57,30 @@ const Overview = () => {
   const loadStats = async () => {
     try {
       setLoading(true);
-      const [ordersData, productsData, users, visitsData] = await Promise.all([
+      const [ordersData, productsData, users, visitsData, salesReport] = await Promise.all([
         getAllOrders(),
-        getProducts({ limit: 1000 }),
+        getProducts({ limit: 1 }),
         getAllUsers(),
         getVisitsStats(),
+        facturesAPI.getSalesReport({ period: 'month' }),
       ]);
 
-      const orders = ordersData.orders;
-      const pendingOrders = orders.filter(o => o.status === 'pending').length;
-      const revenue = orders.reduce((sum, order) => sum + order.finalTotal, 0);
+      const orders = ordersData.orders || [];
+      const pendingOrdersCount = ordersData.total_pending || orders.filter(o => o.status === 'pending').length;
+      const revenue = salesReport.statistics.total_revenue;
 
       setStats({
-        totalOrders: orders.length,
-        pendingOrders,
-        totalProducts: productsData.products.length,
+        totalOrders: ordersData.total || 0,
+        pendingOrders: pendingOrdersCount,
+        totalProducts: productsData.total || 0,
         totalUsers: users.length,
         revenue,
         totalVisits: visitsData.total_visits,
         todayVisits: visitsData.today_visits,
       });
+
+      // On garde les derniers ordres pour l'activité
+      setRecentOrders(orders.slice(0, 4));
     } catch (error) {
       console.error('Erreur chargement stats:', error);
     } finally {
@@ -129,11 +136,10 @@ const Overview = () => {
             {value}
           </div>
           {trend && (
-            <div className={`flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-lg ${
-              trend.isPositive
+            <div className={`flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-lg ${trend.isPositive
                 ? 'bg-green-500/10 text-green-600'
                 : 'bg-red-500/10 text-red-600'
-            }`}>
+              }`}>
               {trend.isPositive ? (
                 <ArrowUp className="h-3 w-3" />
               ) : (
@@ -276,14 +282,14 @@ const Overview = () => {
 
       {/* KPI Cards - 5 colonnes responsive */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {/*<StatCard
-          title="Chiffre d'affaires"
+        <StatCard
+          title="Chiffre d'affaires (Mois)"
           value={`${(stats.revenue / 1000).toFixed(1)}k Fcfa`}
-          icon={<DollarSign className="h-5 w-5 text-green-500" />}
-          description="Total généré"
+          icon={<Zap className="h-5 w-5 text-green-500" />}
+          description="Ventes confirmées"
           trend={{ value: 12, isPositive: true }}
           color="bg-green-500"
-        />*/}
+        />
         <StatCard
           title="Commandes totales"
           value={stats.totalOrders}
@@ -341,38 +347,21 @@ const Overview = () => {
             </div>
           </CardHeader>
           <CardContent className="space-y-3">
-            <ActivityItem
-              icon={ShoppingBag}
-              title="Nouvelle commande #1245"
-              description="iPhone 16 Pro Max x1"
-              time="Il y a 12 minutes"
-              badge="En attente"
-              badgeVariant="pending"
-            />
-            <ActivityItem
-              icon={Users}
-              title="Nouvel utilisateur inscrit"
-              description="Ahmed M. - ahmed@example.com"
-              time="Il y a 2 heures"
-              badge="Succès"
-              badgeVariant="success"
-            />
-            <ActivityItem
-              icon={Smartphone}
-              title={`${stats.todayVisits} visites aujourd'hui`}
-              description="Trafic en hausse"
-              time="Mise à jour en temps réel"
-              badge="+18%"
-              badgeVariant="info"
-            />
-            <ActivityItem
-              icon={AlertCircle}
-              title="Stock faible détecté"
-              description="iPhone 15 - 2 articles restants"
-              time="Il y a 1 heure"
-              badge="Alerte"
-              badgeVariant="secondary"
-            />
+            {recentOrders.length > 0 ? (
+              recentOrders.map((order) => (
+                <ActivityItem
+                  key={order.id}
+                  icon={ShoppingBag}
+                  title={`Commande #${order.id.slice(0, 8)}`}
+                  description={`${order.userName || 'Client'} - ${order.finalTotal.toLocaleString()} FCFA`}
+                  time={order.createdAt ? formatDistanceToNow(new Date(order.createdAt), { addSuffix: true, locale: fr }) : 'À l\'instant'}
+                  badge={order.status === 'pending' ? 'En attente' : order.status === 'delivered' ? 'Livré' : order.status}
+                  badgeVariant={order.status === 'pending' ? 'pending' : 'success'}
+                />
+              ))
+            ) : (
+              <p className="text-center py-4 text-muted-foreground">Aucune activité récente</p>
+            )}
           </CardContent>
         </Card>
 

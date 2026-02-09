@@ -51,6 +51,7 @@ import {
   deleteBanner,
   getBanners,
   getProducts,
+  getImageUrl,
 } from "@/lib/api";
 import type { BannerSlide, Product } from "@/types";
 import { motion } from "framer-motion";
@@ -371,7 +372,7 @@ const BannersManagement = () => {
                             <div className="relative h-20 w-32 rounded-lg overflow-hidden bg-muted">
                               {banner.product?.images?.[0] ? (
                                 <img
-                                  src={banner.product.images[0]}
+                                  src={getImageUrl(banner.product.images[0])}
                                   alt={banner.title}
                                   className="h-full w-full object-cover"
                                 />
@@ -495,7 +496,7 @@ const BannersManagement = () => {
                             <div className="relative h-20 w-28 rounded-lg overflow-hidden bg-muted flex-shrink-0">
                               {banner.product?.images?.[0] ? (
                                 <img
-                                  src={banner.product.images[0]}
+                                  src={getImageUrl(banner.product.images[0])}
                                   alt={banner.title}
                                   className="h-full w-full object-cover"
                                 />
@@ -623,7 +624,7 @@ const BannersManagement = () => {
                       <div className="flex items-center gap-2">
                         {product.images?.[0] && (
                           <img
-                            src={product.images[0]}
+                            src={getImageUrl(product.images[0])}
                             alt={product.name}
                             className="h-6 w-6 object-cover rounded"
                           />

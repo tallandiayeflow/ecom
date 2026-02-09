@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCart } from '@/contexts/CartContext';
+import { getImageUrl } from '@/lib/api';
 import { Product } from '@/types';
 import { motion } from 'framer-motion';
 import {
@@ -85,7 +86,7 @@ export const ProductCard = ({
   // ---------- GESTION D'IMAGE ----------
   const imageSrc = imageError
     ? '/placeholder-product.png'
-    : product.images?.[0] || '/placeholder-product.png';
+    : getImageUrl(product.images?.[0] || '/placeholder-product.png');
 
   // ---------- AJOUT AU PANIER ----------
   const handleAddToCart = async (e: React.MouseEvent) => {
@@ -97,7 +98,12 @@ export const ProductCard = ({
     }
 
     try {
-      await addToCart(product, 1);
+      await addToCart(
+        product,
+        1,
+        product.colors?.[0],
+        product.sizes?.[0]
+      );
       toast.success(`${product.name} ajouté au panier ! 🛒`);
     } catch (error) {
       console.error('Erreur ajout panier:', error);
@@ -179,9 +185,8 @@ export const ProductCard = ({
             <img
               src={imageSrc}
               alt={product.name}
-              className={`w-full h-full object-cover transition-all duration-500 ${
-                isHovered ? 'scale-110' : 'scale-100'
-              } ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
+              className={`w-full h-full object-cover transition-all duration-500 ${isHovered ? 'scale-110' : 'scale-100'
+                } ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
               loading="lazy"
               onLoad={() => setImageLoaded(true)}
               onError={() => {
@@ -193,9 +198,8 @@ export const ProductCard = ({
             {/* Overlay avec bouton Quick View */}
             {showQuickView && (
               <div
-                className={`absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center transition-all duration-300 ${
-                  isHovered ? 'opacity-100' : 'opacity-0 pointer-events-none'
-                }`}
+                className={`absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center transition-all duration-300 ${isHovered ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                  }`}
               >
                 <Button
                   variant="secondary"
