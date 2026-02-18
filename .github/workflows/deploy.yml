@@ -25,12 +25,12 @@ jobs:
           timeout: 60s
           command_timeout: 10m
           script: |
-            cd /home/phone/app/backend
+            cd /home/noor/app/backend
             git pull origin main
             python3 -m venv venv
             source venv/bin/activate
             pip install -r requirements.txt --quiet
-            sudo supervisorctl restart phone
+            sudo supervisorctl restart noor
 
       - name: 🔍 Check Node and pm2 versions
         uses: appleboy/ssh-action@master
