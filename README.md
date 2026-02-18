@@ -655,7 +655,7 @@ server {
 - Activez la config et testez :
 
 ```bash
-sudo ln -sf /etc/nginx/sites-available/noor /etc/nginx/sites-enabled/noor
+sudo ln -sf /etc/nginx/sites-available/noor-boutique /etc/nginx/sites-enabled/noor-boutique
 sudo nginx -t
 sudo systemctl reload nginx
 ```
