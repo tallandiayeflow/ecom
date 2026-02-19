@@ -1065,7 +1065,7 @@ const InvoicesManagement = () => {
                     <SelectItem value="card">Carte bancaire</SelectItem>
                     <SelectItem value="bank_transfer">Virement</SelectItem>
                     <SelectItem value="other">Autre</SelectItem>
-                    <SelectItem value="mobile_money">Mobile Money </SelectItem>
+                    <SelectItem value="mobile_money">Mobile Money</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
