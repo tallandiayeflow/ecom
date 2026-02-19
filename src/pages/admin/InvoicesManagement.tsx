@@ -113,6 +113,7 @@ const paymentMethodConfig = {
   cash_on_delivery: { label: "Espèces", icon: Package },
   card: { label: "Carte bancaire", icon: CreditCard },
   bank_transfer: { label: "Virement", icon: DollarSign },
+  mobile_money: { label: "Mobile Money", icon: Smartphone },
   other: { label: "Autre", icon: Receipt },
   'espèces': { label: "Espèces", icon: Package },
   'Mobile Money': { label: "Mobile Money", icon: Smartphone },
@@ -1064,8 +1065,8 @@ const InvoicesManagement = () => {
                     <SelectItem value="cash_on_delivery">Espèces</SelectItem>
                     <SelectItem value="card">Carte bancaire</SelectItem>
                     <SelectItem value="bank_transfer">Virement</SelectItem>
-                    <SelectItem value="other">Autre</SelectItem>
                     <SelectItem value="mobile_money">Mobile Money</SelectItem>
+                    <SelectItem value="other">Autre</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
