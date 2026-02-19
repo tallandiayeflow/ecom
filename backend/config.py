@@ -27,3 +27,6 @@ class Config:
     HOST = os.getenv('HOST', '0.0.0.0')
     PORT = int(os.getenv('PORT', 8000))
     DEBUG = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
+    
+    # Limite de taille pour les uploads (16 MB)
+    MAX_CONTENT_LENGTH = 16 * 1024 * 1024

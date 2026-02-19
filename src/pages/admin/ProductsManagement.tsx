@@ -234,6 +234,13 @@ const ProductsManagement = () => {
   };
 
   const handleImageUpload = async (file: File, idx: number) => {
+    // Vérification de la taille du fichier (10 Mo max côté client pour être sûr)
+    const MAX_SIZE = 10 * 1024 * 1024;
+    if (file.size > MAX_SIZE) {
+      toast.error("L'image est trop volumineuse (max 10 Mo)");
+      return;
+    }
+
     try {
       setUploadingIdx(idx);
       const data = await uploadProductImage(file);
@@ -245,8 +252,13 @@ const ProductsManagement = () => {
       imagesArray[idx] = data.url;
       setFormData({ ...formData, images: imagesArray.join(", ") });
       toast.success("Image uploadée avec succès !");
-    } catch (error) {
-      toast.error("Erreur lors de l'upload de l'image");
+    } catch (error: any) {
+      console.error("Upload error:", error);
+      const errorMessage = error.response?.status === 413
+        ? "L'image est trop lourde pour le serveur. Veuillez la compresser."
+        : (error.response?.data?.error || "Erreur lors de l'upload de l'image");
+
+      toast.error(errorMessage);
     } finally {
       setUploadingIdx(null);
     }

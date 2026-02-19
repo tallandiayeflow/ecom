@@ -9,9 +9,16 @@ export const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://phone-backe
 export const getImageUrl = (path: string) => {
   if (!path) return '';
   if (path.startsWith('http')) return path;
-  // Retire le suffixe /api de l'URL de base si présent
+
+  let normalizedPath = path;
+  // Si le chemin commence par /uploads (ancien format), on ajoute /api pour passer par le proxy Nginx
+  if (path.startsWith('/uploads')) {
+    normalizedPath = `/api${path}`;
+  }
+
+  // Retire le suffixe /api de l'URL de base si présent pour éviter les doublons
   const baseUrl = API_BASE_URL.replace(/\/api$/, '');
-  return `${baseUrl}${path.startsWith('/') ? '' : '/'}${path}`;
+  return `${baseUrl}${normalizedPath.startsWith('/') ? '' : '/'}${normalizedPath}`;
 };
 
 // Instance Axios configurée

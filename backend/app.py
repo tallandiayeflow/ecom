@@ -17,7 +17,8 @@ cache.init_app(app)
         "allow_headers": ["Content-Type", "Authorization"],
         "supports_credentials": True
     }
-})"""
+})
+"""
 #CORS(app)
 # Blueprints tests
 app.register_blueprint(auth.bp, url_prefix='/api/auth')
@@ -40,7 +41,7 @@ app.register_blueprint(appointements.bp, url_prefix='/api')
 import os
 from flask import send_from_directory
 
-@app.route('/uploads/<path:filename>')
+@app.route('/api/uploads/<path:filename>')
 def uploaded_file(filename):
     return send_from_directory(os.path.join(app.root_path, 'uploads'), filename)
 
@@ -58,6 +59,10 @@ def not_found(error):
 @app.errorhandler(500)
 def internal_error(error):
     return jsonify({'error': 'Internal server error'}), 500
+
+@app.errorhandler(413)
+def request_entity_too_large(error):
+    return jsonify({'error': 'Le fichier est trop volumineux. La limite est de 16 Mo.'}), 413
 
 if __name__ == '__main__':
     app.run(host=Config.HOST, port=Config.PORT, debug=Config.DEBUG)

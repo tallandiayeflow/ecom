@@ -190,7 +190,7 @@ def upload_image(current_user):
         file.save(file_path)
         
         # Return the public URL
-        url = f"/uploads/products/{unique_filename}"
+        url = f"/api/uploads/products/{unique_filename}"
         return jsonify({
             'url': url,
             'message': 'Image uploaded successfully'
