@@ -10,14 +10,14 @@ cache.init_app(app)
 
 
 # CORSssss
-CORS(app, resources={
+"""CORS(app, resources={
     r"/api/*": {
         "origins": Config.CORS_ORIGINS,
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization"],
         "supports_credentials": True
     }
-})
+})"""
 
 #CORS(app)
 # Blueprints tests

@@ -588,12 +588,11 @@ def download_facture_pdf(current_user, invoice_id):
 
             # ========== INFORMATIONS BOUTIQUE ==========
             SHOP_INFO = {
-                'name': 'TEUSS PHONE SHOP',
+                'name': 'Noor Boutique',
                 'address': 'Dakar, Sénégal',
                 'phone': '+221 77 000 0000',
-                'email': 'contact@teussphone.sn',
-                'ice': 'ICE000000000',
-                'website': 'www.teussphone.sn'
+                'email': 'noor-boutique@gmail',
+                'website': 'www.noor-boutique.com'
             }
 
             # ========== EN-TÊTE COMPACT AVEC LOGO ==========
@@ -612,9 +611,9 @@ def download_facture_pdf(current_user, invoice_id):
             shop_info_text = f"""<b><font size="12" color="#1f2937">{SHOP_INFO['name']}</font></b><br/>
                 <font size="7" color="#6366f1">{SHOP_INFO['website']}</font><br/>
                 <font size="7" color="#6b7280">
-                📍 {SHOP_INFO['address']}<br/>
-                📞 {SHOP_INFO['phone']}<br/>
-                ✉ {SHOP_INFO['email']}<br/>
+                {SHOP_INFO['address']}<br/>
+                {SHOP_INFO['phone']}<br/>
+                {SHOP_INFO['email']}<br/>
                 <font size="6">ICE: {SHOP_INFO['ice']}</font>
                 </font>"""
 
