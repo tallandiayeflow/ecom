@@ -2,7 +2,7 @@ from utils.cache import cache
 from flask import Flask, jsonify
 from flask_cors import CORS
 from config import Config
-from routes import auth, appointements,products, categories, cart, orders, flash_sales, banners, vouchers, admin, user, factures, stock,loyalty,visits,payments, jobs
+from routes import auth, appointements,products, categories, cart, orders, flash_sales, banners, vouchers, admin, user, factures, stock,loyalty,visits,payments, jobs, contacts
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -37,6 +37,7 @@ app.register_blueprint(loyalty.bp, url_prefix='/api/loyalty')
 app.register_blueprint(visits.bp, url_prefix='/api/visits')
 app.register_blueprint(payments.bp, url_prefix='/api/payments')
 app.register_blueprint(jobs.bp, url_prefix='/api/jobs')
+app.register_blueprint(contacts.bp, url_prefix='/api/contacts')
 app.register_blueprint(appointements.bp, url_prefix='/api')
 import os
 from flask import send_from_directory

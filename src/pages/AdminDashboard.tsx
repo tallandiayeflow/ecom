@@ -11,6 +11,7 @@ import {
   Image,
   LayoutDashboard,
   LogOut,
+  MessageSquare,
   Package,
   PackageSearch,
   ShoppingBag,
@@ -66,6 +67,7 @@ const AdminDashboard = () => {
     //{ icon: Calendar, label: 'Rendez-vous', path: '/admin/appointments' },
     { icon: FolderTree, label: 'Rapports de ventes', path: '/admin/sales-reports' },
     { icon: Users, label: 'Gestion Utilisateurs', path: '/admin/users' },
+    { icon: MessageSquare, label: 'Messages Contact', path: '/admin/contacts-messages' },
   ];
 
   const handleLogout = () => {

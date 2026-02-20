@@ -38,6 +38,8 @@ import {
   Users,
   X,
   Zap,
+  Mail,
+  MessageSquare
 } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -72,12 +74,15 @@ export const Navbar = () => {
     //{ icon: Calendar, label: 'Rendez-vous', path: '/admin/appointments' },
     { icon: FolderTree, label: 'Rapports de ventes', path: '/admin/sales-reports' },
     { icon: Users, label: 'Utilisateurs', path: '/admin/users' },
+    { icon: MessageSquare, label: 'Messages Contact', path: '/admin/contacts-messages' }
+
   ];
 
   const userMenuItems = [
     { icon: User, label: 'Mon Profil', path: '/profile' },
     { icon: ShoppingCart, label: 'Panier', path: '/cart' },
     { icon: ShoppingBag, label: 'Mes Commandes', path: '/orders' },
+    { icon: Mail, label: 'Contact', path: '/contact' },
   ];
 
   return (
@@ -301,52 +306,43 @@ export const Navbar = () => {
               [&::-webkit-scrollbar-thumb]:border-accent
               hover:[&::-webkit-scrollbar-thumb]:bg-primary/50
               active:[&::-webkit-scrollbar-thumb]:bg-primary/70">
-              {isAuthenticated && (
+              {isAuthenticated ? (
                 <>
-                  {user?.role === 'admin' ? (
-                    adminMenuItems.map((item, index) => {
-                      const Icon = item.icon;
-                      return (
-                        <Link
-                          key={item.path}
-                          to={item.path}
-                          className="block"
-                          onClick={() => setSidebarOpen(false)}
-                          style={{ animationDelay: `${index * 30}ms` }}
+                  {(user?.role === 'admin' ? adminMenuItems : userMenuItems).map((item, index) => {
+                    const Icon = item.icon;
+                    return (
+                      <Link
+                        key={item.path}
+                        to={item.path}
+                        className="block"
+                        onClick={() => setSidebarOpen(false)}
+                        style={{ animationDelay: `${index * 30}ms` }}
+                      >
+                        <Button
+                          variant="ghost"
+                          className="w-full h-12 justify-start gap-3 hover:bg-accent transition-all duration-200 animate-in fade-in slide-in-from-left"
                         >
-                          <Button
-                            variant="ghost"
-                            className="w-full h-12 justify-start gap-3 hover:bg-accent transition-all duration-200 animate-in fade-in slide-in-from-left"
-                          >
-                            <Icon className="h-5 w-5 flex-shrink-0" />
-                            <span className="font-medium text-sm">{item.label}</span>
-                          </Button>
-                        </Link>
-                      );
-                    })
-                  ) : (
-                    userMenuItems.map((item, index) => {
-                      const Icon = item.icon;
-                      return (
-                        <Link
-                          key={item.path}
-                          to={item.path}
-                          className="block"
-                          onClick={() => setSidebarOpen(false)}
-                          style={{ animationDelay: `${index * 30}ms` }}
-                        >
-                          <Button
-                            variant="ghost"
-                            className="w-full h-12 justify-start gap-3 hover:bg-accent transition-all duration-200 animate-in fade-in slide-in-from-left"
-                          >
-                            <Icon className="h-5 w-5 flex-shrink-0" />
-                            <span className="font-medium text-sm">{item.label}</span>
-                          </Button>
-                        </Link>
-                      );
-                    })
-                  )}
+                          <Icon className="h-5 w-5 flex-shrink-0" />
+                          <span className="font-medium text-sm">{item.label}</span>
+                        </Button>
+                      </Link>
+                    );
+                  })}
                 </>
+              ) : (
+                <Link
+                  to="/contact"
+                  className="block"
+                  onClick={() => setSidebarOpen(false)}
+                >
+                  <Button
+                    variant="ghost"
+                    className="w-full h-12 justify-start gap-3 hover:bg-accent transition-all duration-200"
+                  >
+                    <Mail className="h-5 w-5 flex-shrink-0" />
+                    <span className="font-medium">Contact</span>
+                  </Button>
+                </Link>
               )}
             </nav>
 

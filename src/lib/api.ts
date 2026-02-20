@@ -1277,6 +1277,49 @@ export const deleteAppointment = async (id: string) => {
 }
 
 
+// ==================== CONTACTS ====================
+
+export interface ContactMessage {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  subject?: string;
+  message: string;
+  status: 'new' | 'read' | 'replied';
+  created_at: string;
+}
+
+export const sendContactMessage = async (data: {
+  name: string;
+  email: string;
+  phone?: string;
+  subject?: string;
+  message: string;
+}) => {
+  const response = await api.post('/contacts', data);
+  return response.data;
+};
+
+export const getAdminContactMessages = async (): Promise<ContactMessage[]> => {
+  const response = await api.get('/contacts/admin');
+  return response.data;
+};
+
+export const updateContactMessageStatus = async (
+  id: string,
+  status: 'new' | 'read' | 'replied'
+) => {
+  const response = await api.put(`/contacts/admin/${id}/status`, { status });
+  return response.data;
+};
+
+export const deleteContactMessage = async (id: string) => {
+  const response = await api.delete(`/contacts/admin/${id}`);
+  return response.data;
+};
+
+
 export default api;
 
 

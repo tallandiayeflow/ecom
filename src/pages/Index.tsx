@@ -43,8 +43,7 @@ const Index = () => {
               Explorez nos Catégories
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
-              Découvrez notre large gamme de produits pour tous vos besoins
-              technologiques
+              Découvrez L'ensemble de nos produits NOOR conçus avec des matières luxieuses et des finitions soignées
             </p>
           </div>
           <CategorySlider />

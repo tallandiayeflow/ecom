@@ -128,23 +128,23 @@ const Auth = () => {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+      <div className="min-h-screen flex items-center justify-center ">
         <Loader2 className="h-12 w-12 animate-spin text-blue-600" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4">
+    <div className="min-h-screen flex items-center justify-center  p-4">
       <Card className="w-full max-w-md shadow-2xl rounded-3xl border-0">
         <CardHeader className="text-center space-y-3 pb-4">
           <div className="flex justify-center mb-2">
-            <div className="bg-gradient-to-br from-blue-600 to-indigo-600 p-4 rounded-2xl shadow-lg">
-              <Smartphone className="h-8 w-8 text-white" />
+            <div className="p-4 rounded-2xl shadow-lg">
+              <img src="logo.png" alt="Logo de NOOR" className="h-12 w-12 text-white" />
             </div>
           </div>
-          <CardTitle className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-            Boutique de Téléphones
+          <CardTitle className="text-3xl font-bold  bg-clip-text text-transparent">
+            NOOR
           </CardTitle>
           <CardDescription className="text-base">
             Connectez-vous ou créez un compte pour continuer
@@ -215,7 +215,7 @@ const Auth = () => {
                         <Phone className="absolute left-3 top-3.5 h-4 w-4 text-gray-400" />
                       )}
                       <Input
-                        placeholder={loginByEmail ? 'email@example.com' : '771234567'}
+                        placeholder={loginByEmail ? 'noor@example.com' : '771234567'}
                         className="pl-10 h-12 rounded-xl"
                         value={loginData.identifier}
                         onChange={(e) =>
@@ -264,7 +264,7 @@ const Auth = () => {
 
                 <Button
                   type="submit"
-                  className="w-full h-12 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold shadow-lg transition-all"
+                  className="w-full h-12 rounded-xl  hover:from-blue-700 hover:to-indigo-700 text-white font-semibold shadow-lg transition-all"
                   disabled={loading}
                 >
                   {loading ? (
@@ -279,24 +279,17 @@ const Auth = () => {
               </form>
 
               <div className="mt-6 pt-6 border-t text-center space-y-2">
-                <p className="text-xs text-gray-600">Comptes de démonstration</p>
+                <p className="text-xs text-gray-600">Retour a l'acceuil</p>
                 <div className="flex gap-2 justify-center">
                   <Button
                     variant="outline"
                     size="sm"
                     className="flex-1 rounded-lg"
-                    onClick={() => fillDemoCredentials('user')}
+                    onClick={() => navigate('/')}
                   >
-                    Utilisateur
+                    Acceuil
                   </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 rounded-lg"
-                    onClick={() => fillDemoCredentials('admin')}
-                  >
-                    Admin
-                  </Button>
+
                 </div>
               </div>
             </TabsContent>
@@ -410,7 +403,7 @@ const Auth = () => {
 
                 <Button
                   type="submit"
-                  className="w-full h-12 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold shadow-lg transition-all"
+                  className="w-full h-12 rounded-xl  hover:from-blue-700 hover:to-indigo-700 text-white font-semibold shadow-lg transition-all"
                   disabled={loading}
                 >
                   {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Inscription...</> : "S'inscrire"}

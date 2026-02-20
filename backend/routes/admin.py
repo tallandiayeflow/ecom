@@ -1,11 +1,15 @@
 from flask import Blueprint, request, jsonify
 from utils.database import execute_query
-from utils.auth import admin_required
+from utils.auth import admin_required, hash_password
 import json
 import uuid
-from werkzeug.security import generate_password_hash
+import random
+import string
 
 bp = Blueprint('admin', __name__)
+
+def generate_unique_code(length=8):
+    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=length))
 
 # ----------- Utilisateurs -----------
 
@@ -32,15 +36,18 @@ def admin_create_user(current_user):
     if not name or not email or not password:
         return jsonify({'error': 'Nom, email, et mot de passe sont requis'}), 400
 
-    hashed_password = generate_password_hash(password)
+    hashed_password = hash_password(password)
 
     # Forcer le rôle admin, le formulaire ne l'envoie pas
     role = 'admin'
 
+    # Générer un code unique pour le nouvel admin
+    unique_code = generate_unique_code()
+
     try:
         execute_query(
-            "INSERT INTO users (id, name, email, phone, address, password_hash, role) VALUES (%s, %s, %s, %s, %s, %s, %s)",
-            (str(uuid.uuid4()), name, email, phone, address, hashed_password, role),
+            "INSERT INTO users (id, name, email, phone, address, password_hash, role, is_active, code) VALUES (%s, %s, %s, %s, %s, %s, %s, 1, %s)",
+            (str(uuid.uuid4()), name, email, phone, address, hashed_password, role, unique_code),
             commit=True
         )
     except Exception as e:
@@ -72,6 +79,18 @@ def admin_toggle_user_status(current_user, user_id):
     new_status = 0 if user['is_active'] else 1
     execute_query("UPDATE users SET is_active = %s WHERE id = %s", (new_status, user_id), commit=True)
     return jsonify({'message': 'Statut utilisateur mis à jour'}), 200
+
+@bp.route('/users/<user_id>', methods=['DELETE'])
+@admin_required
+def admin_delete_user(current_user, user_id):
+    # Vérifier si l'utilisateur a des commandes
+    orders_count = execute_query("SELECT COUNT(*) as count FROM orders WHERE user_id = %s", (user_id,), fetch_one=True)
+    
+    if orders_count and orders_count['count'] > 0:
+        return jsonify({'error': 'Impossible de supprimer cet utilisateur car il possède des commandes. Désactivez-le plutôt.'}), 400
+
+    execute_query("DELETE FROM users WHERE id = %s", (user_id,), commit=True)
+    return jsonify({'message': 'Utilisateur supprimé avec succès'}), 200
 
 # ----------- Commandes -----------
 

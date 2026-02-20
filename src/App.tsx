@@ -47,6 +47,8 @@ import StockManagement from "./pages/admin/StockManagement";
 import UsersManagement from "./pages/admin/UsersManagement";
 import AdminVisits from "./pages/admin/VisitManagements";
 import VouchersManagement from "./pages/admin/VouchersManagement";
+import Contact from "./pages/Contact";
+import ContactMessages from "./pages/admin/ContactMessages";
 import OrderDetails from "./pages/orderDetails";
 
 const queryClient = new QueryClient();
@@ -83,6 +85,7 @@ const App = () => (
                   <Route path="jobs" element={<JobsManagement />} />
                   <Route path="appointments" element={<AppointmentsManagement />} />
                   <Route path="sales-reports" element={<SalesReports />} />
+                  <Route path="contacts-messages" element={<ContactMessages />} />
                 </Route>
 
                 {/* Public Routes with Navbar */}
@@ -113,6 +116,7 @@ const App = () => (
                           <Route path="/payment-cancel" element={<PaymentCancel />} />
                           <Route path="/jobs-application" element={<JobApplicationForm />} />
                           <Route path="/book-appointment" element={<BookAppointment />} />
+                          <Route path="/contact" element={<Contact />} />
                         </Routes>
                       </main>
                       <Footer />

@@ -16,7 +16,7 @@ export const Footer = () => {
               <h3 className="text-lg font-bold">NOOR</h3>
             </div>
             <p className="text-sm text-muted-foreground">
-              Votre destination #1 pour les derniers Robes, Parfums et Bijoux. 
+              Votre destination #1 pour les derniers Robes, Parfums et Bijoux.
               Qualité garantie et livraison rapide.
             </p>
             <div className="flex gap-3">
@@ -71,6 +71,11 @@ export const Footer = () => {
           <div>
             <h3 className="text-lg font-semibold mb-4">Service Client</h3>
             <ul className="space-y-2">
+              <li>
+                <Link to="/contact" className="text-sm text-muted-foreground hover:text-primary transition-colors font-bold">
+                  Nous Contacter ✉️
+                </Link>
+              </li>
               <li>
                 <a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">
                   Centre d'Aide
