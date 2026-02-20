@@ -3,20 +3,37 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>PhoneShop - Boutique de téléphones en ligne</title>
-    <meta name="description" content="Découvrez notre sélection de smartphones, tablettes et accessoires. Livraison rapide et programme de fidélité." />
-    <meta name="author" content="PhoneShop" />
+    <title>Noor - Boutique de l'élégance </title>
+    <meta name="description" content="Découvrez notre sélection de Abayas, Kimono et autres accessoires. Livraison rapide et programme de fidélité." />
 
-    <meta property="og:title" content="PhoneShop - Boutique de téléphones" />
-    <meta property="og:description" content="Les meilleurs smartphones aux meilleurs prix" />
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="/logo.png" />
+    <link rel="apple-touch-icon" href="/logo.png" />
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#ffffff" />
+
+    <meta property="og:title" content="Noor - Boutique de l'élégance" />
+    <meta property="og:description" content="Découvrez notre sélection de Abayas, Kimono et autres accessoires. Livraison rapide et programme de fidélité." />
     <meta property="og:type" content="website" />
 
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@PhoneShop" />
+    <meta name="twitter:site" content="@Noor" />
+    <meta name="twitter:title" content="Noor - Boutique de l'élégance" />
+    <meta name="twitter:description" content="Découvrez notre sélection de Abayas, Kimono et autres accessoires. Livraison rapide et programme de fidélité." />
+    <meta name="twitter:image" content="https://noorboutique.com/logo.png" />
   </head>
 
   <body>
     <div id="root"></div>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js');
+        });
+      }
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

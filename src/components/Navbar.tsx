@@ -1,6 +1,7 @@
 // ========== NAVBAR AVEC SCROLLBAR AMÉLIORÉ ==========
 
 import { SearchBar } from '@/components/SearchBar';
+import { InstallPWA } from '@/components/InstallPWA';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -62,7 +63,7 @@ export const Navbar = () => {
     { icon: ShoppingBag, label: 'Commandes', path: '/admin/orders' },
     { icon: Zap, label: 'Ventes Flash', path: '/admin/flash-sales' },
     { icon: Image, label: 'Bannières', path: '/admin/banners' },
-   
+
     { icon: Ticket, label: "Bons d'achat", path: '/admin/vouchers' },
     { icon: FileText, label: 'Factures', path: '/admin/invoices' },
     { icon: PackageSearch, label: 'Gestion Stock', path: '/admin/stock' },
@@ -86,8 +87,8 @@ export const Navbar = () => {
         <div className="mx-auto max-w-7xl">
           <div className="flex h-16 items-center justify-between px-4">
             <Link to="/" className="flex items-center gap-2 flex-shrink-0">
-              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg">
-                <ShoppingBagIcon className="h-5 w-5 text-primary-foreground" />
+              <div className="h-10 w-10 rounded-lg overflow-hidden flex items-center justify-center shadow-lg border border-primary/10 bg-white">
+                <img src="/logo.png" alt="Noor" className="h-full w-full object-contain" />
               </div>
               <span className="text-xl font-bold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
                 NOOR
@@ -99,6 +100,7 @@ export const Navbar = () => {
             </div>
 
             <div className="flex items-center gap-2 flex-shrink-0">
+              <InstallPWA />
               <Button
                 variant="ghost"
                 size="icon"
@@ -184,8 +186,8 @@ export const Navbar = () => {
         <div className="px-4">
           <div className="flex h-14 items-center justify-between">
             <Link to="/" className="flex items-center gap-2 flex-shrink-0">
-              <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-md">
-                <Smartphone className="h-4 w-4 text-primary-foreground" />
+              <div className="h-9 w-9 rounded-lg overflow-hidden flex items-center justify-center shadow-md border border-primary/10 bg-white">
+                <img src="/logo.png" alt="Noor" className="h-full w-full object-contain" />
               </div>
               <span className="text-lg font-bold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
                 NOOR
@@ -250,8 +252,8 @@ export const Navbar = () => {
                 className="flex items-center gap-3"
                 onClick={() => setSidebarOpen(false)}
               >
-                <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg">
-                  <Smartphone className="h-6 w-6 text-primary-foreground" />
+                <div className="h-12 w-12 rounded-xl overflow-hidden flex items-center justify-center shadow-lg border border-primary/10 bg-white">
+                  <img src="/logo.png" alt="Noor" className="h-full w-full object-contain" />
                 </div>
                 <span className="text-xl font-bold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
                   NOOR
@@ -299,7 +301,7 @@ export const Navbar = () => {
               [&::-webkit-scrollbar-thumb]:border-accent
               hover:[&::-webkit-scrollbar-thumb]:bg-primary/50
               active:[&::-webkit-scrollbar-thumb]:bg-primary/70">
-              {isAuthenticated ? (
+              {isAuthenticated && (
                 <>
                   {user?.role === 'admin' ? (
                     adminMenuItems.map((item, index) => {
@@ -345,6 +347,21 @@ export const Navbar = () => {
                     })
                   )}
                 </>
+              )}
+            </nav>
+
+            {/* Footer */}
+            <div className="p-4 border-t space-y-2 bg-card">
+              <InstallPWA />
+              {isAuthenticated ? (
+                <Button
+                  variant="ghost"
+                  className="w-full h-12 justify-start gap-3 text-destructive hover:bg-destructive/10"
+                  onClick={handleLogout}
+                >
+                  <LogOut className="h-5 w-5 flex-shrink-0" />
+                  <span className="font-medium">Déconnexion</span>
+                </Button>
               ) : (
                 <Button
                   variant="default"
@@ -358,21 +375,7 @@ export const Navbar = () => {
                   <span className="font-medium">Se connecter</span>
                 </Button>
               )}
-            </nav>
-
-            {/* Footer */}
-            {isAuthenticated && (
-              <div className="p-4 border-t flex-shrink-0 bg-card">
-                <Button
-                  variant="ghost"
-                  className="w-full h-12 justify-start gap-3 text-destructive hover:bg-destructive/10"
-                  onClick={handleLogout}
-                >
-                  <LogOut className="h-5 w-5 flex-shrink-0" />
-                  <span className="font-medium">Déconnexion</span>
-                </Button>
-              </div>
-            )}
+            </div>
           </aside>
         </>
       )}

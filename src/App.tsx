@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { OrderNotificationWatcher } from "@/components/OrderNotificationWatcher";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 
 import InvoicePDF from "@/pages/admin/InvoicePdf";
@@ -59,7 +60,31 @@ const App = () => (
             <Toaster />
             <Sonner />
             <BrowserRouter>
+              <OrderNotificationWatcher />
               <Routes>
+                {/* Auth Route (no navbar) */}
+                <Route path="/auth" element={<Auth />} />
+
+                {/* Admin Routes (no navbar, has own layout) */}
+                <Route path="/admin" element={<AdminDashboard />}>
+                  <Route index element={<Overview />} />
+                  <Route path="products" element={<ProductsManagement />} />
+                  <Route path="categories" element={<CategoriesManagement />} />
+                  <Route path="orders" element={<OrdersManagement />} />
+                  <Route path="orders/update/:id" element={<OrderDetailUpdate />} />
+                  <Route path="flash-sales" element={<FlashSalesManagement />} />
+                  <Route path="banners" element={<BannersManagement />} />
+                  <Route path="users" element={<UsersManagement />} />
+                  <Route path="vouchers" element={<VouchersManagement />} />
+                  <Route path="invoices" element={<InvoicesManagement />} />
+                  <Route path="invoices/:id" element={<InvoicePDF />} />
+                  <Route path="stock" element={<StockManagement />} />
+                  <Route path="visits" element={<AdminVisits />} />
+                  <Route path="jobs" element={<JobsManagement />} />
+                  <Route path="appointments" element={<AppointmentsManagement />} />
+                  <Route path="sales-reports" element={<SalesReports />} />
+                </Route>
+
                 {/* Public Routes with Navbar */}
                 <Route
                   path="/*"
@@ -88,39 +113,12 @@ const App = () => (
                           <Route path="/payment-cancel" element={<PaymentCancel />} />
                           <Route path="/jobs-application" element={<JobApplicationForm />} />
                           <Route path="/book-appointment" element={<BookAppointment />} />
-
-
                         </Routes>
                       </main>
                       <Footer />
                     </div>
                   }
                 />
-
-                {/* Auth Route (no navbar) */}
-                <Route path="/auth" element={<Auth />} />
-
-                {/* Admin Routes (no navbar, has own layout) */}
-                <Route path="/admin" element={<AdminDashboard />}>
-                  <Route index element={<Overview />} />
-                  <Route path="products" element={<ProductsManagement />} />
-                  <Route path="categories" element={<CategoriesManagement />} />
-                  <Route path="orders" element={<OrdersManagement />} />
-                  <Route path="orders/update/:id" element={<OrderDetailUpdate />} />
-                  <Route path="flash-sales" element={<FlashSalesManagement />} />
-                  <Route path="banners" element={<BannersManagement />} />
-                  <Route path="users" element={<UsersManagement />} />
-                  <Route path="vouchers" element={<VouchersManagement />} />
-                  <Route path="invoices" element={<InvoicesManagement />} />
-                  <Route path="invoices/:id" element={<InvoicePDF />} />
-                  <Route path="stock" element={<StockManagement />} />
-                  <Route path="visits" element={<AdminVisits />} />
-                  <Route path="jobs" element={<JobsManagement />} />
-                  <Route path="appointments" element={<AppointmentsManagement />} />
-                  <Route path="sales-reports" element={<SalesReports />} />
-
-
-                </Route>
 
                 {/* 404 */}
                 <Route path="*" element={<NotFound />} />

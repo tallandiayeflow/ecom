@@ -23,16 +23,31 @@ import { useEffect, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 const AdminDashboard = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, isLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   useEffect(() => {
-    if (!user || user.role !== 'admin') {
+    if (!isLoading && (!user || user.role !== 'admin')) {
       navigate('/auth');
     }
-  }, [user, navigate]);
+  }, [user, isLoading, navigate]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-4">
+          <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center animate-pulse shadow-lg">
+            <LayoutDashboard className="h-6 w-6 text-primary-foreground animate-spin" />
+          </div>
+          <p className="text-sm font-medium text-muted-foreground animate-pulse">
+            Chargement de l'interface admin...
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (!user || user.role !== 'admin') return null;
 
