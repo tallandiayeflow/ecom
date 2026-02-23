@@ -614,7 +614,6 @@ def download_facture_pdf(current_user, invoice_id):
                 {SHOP_INFO['address']}<br/>
                 {SHOP_INFO['phone']}<br/>
                 {SHOP_INFO['email']}<br/>
-                <font size="6">ICE: {SHOP_INFO['ice']}</font>
                 </font>"""
 
             left_content.append(Paragraph(shop_info_text, normal_style))
@@ -701,7 +700,7 @@ def download_facture_pdf(current_user, invoice_id):
 
             items_table = Table(items_data, colWidths=[100*mm, 28*mm, 18*mm, 40*mm])
             items_table.setStyle(TableStyle([
-                ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#1f2937')),
+                ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#f3f4f6')),
                 ('TEXTCOLOR', (0,0), (-1,0), colors.white),
                 ('FONTSIZE', (0,0), (-1,0), 8),
                 ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
