@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { useCart } from "@/contexts/CartContext";
+import { getImageUrl } from "@/lib/api";
 import { motion } from "framer-motion";
 import {
   AlertCircle,
@@ -247,11 +248,11 @@ const Cart = () => {
                           onClick={() => navigate(`/product/${item.productId}`)}
                         >
                           <img
-                            src={
+                            src={getImageUrl(
                               item.product.images?.[0] ||
                               item.product.image_url ||
                               "/placeholder-product.png"
-                            }
+                            )}
                             alt={item.product.name}
                             className="h-full w-full object-cover group-hover:scale-105 transition-transform"
                             onError={(e) => {

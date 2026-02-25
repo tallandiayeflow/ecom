@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { getOrderPubic } from '@/lib/api';
+import { getImageUrl, getOrderPubic } from '@/lib/api';
 import { ArrowLeft, Loader2, Package, Tag } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -123,7 +123,7 @@ export default function OrderDetails() {
                   <div className="flex items-center gap-4">
                     {item.productImage && (
                       <img
-                        src={item.productImage}
+                        src={getImageUrl(item.productImage)}
                         className="w-16 h-16 object-cover rounded-xl border dark:border-gray-700"
                       />
                     )}
@@ -205,8 +205,8 @@ export default function OrderDetails() {
             <span className="font-semibold">Date de commande: </span>
             {order.createdAt
               ? new Date(order.createdAt).toLocaleDateString('fr-FR') +
-                " — " +
-                new Date(order.createdAt).toLocaleTimeString('fr-FR')
+              " — " +
+              new Date(order.createdAt).toLocaleTimeString('fr-FR')
               : "N/A"}
           </p>
 

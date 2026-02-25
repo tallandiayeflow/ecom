@@ -6,7 +6,7 @@ import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCart } from '@/contexts/CartContext';
-import { getFlashSaleId, getProducts } from '@/lib/api';
+import { getFlashSaleId, getImageUrl, getProducts } from '@/lib/api';
 import type { FlashSale, Product } from '@/types';
 import { motion } from 'framer-motion';
 import {
@@ -291,11 +291,10 @@ const FlashDetails = () => {
 
       {/* Banner */}
       <Card
-        className={`p-6 mb-8 border-2 ${
-          isExpired
+        className={`p-6 mb-8 border-2 ${isExpired
             ? 'bg-gradient-to-r from-gray-400 to-gray-500'
             : 'bg-gradient-to-r from-red-500 via-orange-500 to-red-500 animate-gradient-x'
-        } text-white shadow-2xl`}
+          } text-white shadow-2xl`}
       >
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -346,11 +345,10 @@ const FlashDetails = () => {
           <div className="relative h-[500px] rounded-xl overflow-hidden bg-gradient-to-br from-orange-50 to-red-50 border-2 border-orange-200">
             {imageLoading && <Skeleton className="absolute inset-0 w-full h-full" />}
             <img
-              src={product.images?.[selectedImage] || product.image_url || '/placeholder-product.png'}
+              src={getImageUrl(product.images?.[selectedImage] || product.image_url || '/placeholder-product.png')}
               alt={product.name}
-              className={`w-full h-full object-contain transition-opacity duration-300 ${
-                imageLoading ? 'opacity-0' : 'opacity-100'
-              } ${isExpired ? 'grayscale' : ''}`}
+              className={`w-full h-full object-contain transition-opacity duration-300 ${imageLoading ? 'opacity-0' : 'opacity-100'
+                } ${isExpired ? 'grayscale' : ''}`}
               onLoad={() => setImageLoading(false)}
               onError={(e) => {
                 e.currentTarget.src = '/placeholder-product.png';
@@ -398,11 +396,10 @@ const FlashDetails = () => {
                   key={`${img}-${idx}`}
                   type="button"
                   onClick={() => setSelectedImage(idx)}
-                  className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-all hover:scale-105 ${
-                    selectedImage === idx ? 'border-orange-500 scale-105 shadow-lg' : 'border-gray-200 hover:border-orange-300'
-                  }`}
+                  className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-all hover:scale-105 ${selectedImage === idx ? 'border-orange-500 scale-105 shadow-lg' : 'border-gray-200 hover:border-orange-300'
+                    }`}
                 >
-                  <img src={img} alt={`${product.name} - ${idx + 1}`} className="w-full h-full object-cover" />
+                  <img src={getImageUrl(img)} alt={`${product.name} - ${idx + 1}`} className="w-full h-full object-cover" />
                 </button>
               ))}
             </div>
@@ -639,7 +636,7 @@ const FlashDetails = () => {
                 <div className="flex gap-3">
                   <div className="h-20 w-20 rounded-lg overflow-hidden bg-muted flex-shrink-0">
                     <img
-                      src={p.images?.[0] || '/placeholder-product.png'}
+                      src={getImageUrl(p.images?.[0] || '/placeholder-product.png')}
                       alt={p.name}
                       className="h-full w-full object-cover"
                       onError={(e) => {

@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
-import { createOrder, requestPaytechPayment, validateVoucher } from '@/lib/api';
+import { createOrder, getImageUrl, requestPaytechPayment, validateVoucher } from '@/lib/api';
 import { motion } from 'framer-motion';
 import {
   ArrowLeft,
@@ -32,7 +32,7 @@ const Checkout = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  const [paymentMethod, setPaymentMethod] = useState<'online' | 'cod'>('online');
+  const [paymentMethod, setPaymentMethod] = useState<'online' | 'cod'>('cod');
   const [loading, setLoading] = useState(false);
   const [voucherCode, setVoucherCode] = useState('');
   const [discount, setDiscount] = useState(0);
@@ -351,39 +351,27 @@ const Checkout = () => {
                   </h2>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Paiement en ligne */}
+                    {/* Paiement en ligne (Temporairement désactivé) */}
                     <button
                       type="button"
-                      onClick={() => setPaymentMethod('online')}
-                      className={`relative p-6 rounded-lg border-2 text-left transition-all ${
-                        paymentMethod === 'online'
-                          ? 'border-primary bg-primary/5 shadow-lg'
-                          : 'border-gray-200 hover:border-gray-300 hover:shadow'
-                      }`}
+                      disabled
+                      className="relative p-6 rounded-lg border-2 text-left transition-all border-gray-100 bg-gray-50/50 opacity-60 cursor-not-allowed"
                     >
                       <div className="flex items-start justify-between mb-3">
-                        <div className="h-12 w-12 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
-                          <Wallet className="h-6 w-6 text-white" />
+                        <div className="h-12 w-12 rounded-full bg-gray-300 flex items-center justify-center">
+                          <Wallet className="h-6 w-6 text-gray-500" />
                         </div>
-                        <div
-                          className={`h-6 w-6 rounded-full border-2 flex items-center justify-center ${
-                            paymentMethod === 'online'
-                              ? 'border-primary bg-primary'
-                              : 'border-gray-300'
-                          }`}
-                        >
-                          {paymentMethod === 'online' && (
-                            <CheckCircle2 className="h-4 w-4 text-white" />
-                          )}
-                        </div>
+                        <Badge variant="outline" className="text-[10px] bg-red-50 text-red-600 border-red-200 uppercase tracking-wider">
+                          Hors service
+                        </Badge>
                       </div>
-                      <div className="font-semibold text-lg mb-1">Payer en ligne</div>
-                      <div className="text-sm text-muted-foreground mb-3">
-                        Wave, Orange Money, Free Money
+                      <div className="font-semibold text-lg mb-1 text-gray-400">Payer en ligne</div>
+                      <div className="text-sm text-gray-400 mb-3">
+                        Wave, Orange Money (Indisponible)
                       </div>
-                      <Badge variant="secondary" className="text-xs">
+                      <Badge variant="secondary" className="text-xs bg-gray-100 text-gray-400 border-none">
                         <Shield className="h-3 w-3 mr-1" />
-                        Paiement sécurisé
+                        Temporairement indisponible
                       </Badge>
                     </button>
 
@@ -391,22 +379,20 @@ const Checkout = () => {
                     <button
                       type="button"
                       onClick={() => setPaymentMethod('cod')}
-                      className={`relative p-6 rounded-lg border-2 text-left transition-all ${
-                        paymentMethod === 'cod'
-                          ? 'border-primary bg-primary/5 shadow-lg'
-                          : 'border-gray-200 hover:border-gray-300 hover:shadow'
-                      }`}
+                      className={`relative p-6 rounded-lg border-2 text-left transition-all ${paymentMethod === 'cod'
+                        ? 'border-primary bg-primary/5 shadow-lg'
+                        : 'border-gray-200 hover:border-gray-300 hover:shadow'
+                        }`}
                     >
                       <div className="flex items-start justify-between mb-3">
                         <div className="h-12 w-12 rounded-full bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center">
                           <Banknote className="h-6 w-6 text-white" />
                         </div>
                         <div
-                          className={`h-6 w-6 rounded-full border-2 flex items-center justify-center ${
-                            paymentMethod === 'cod'
-                              ? 'border-primary bg-primary'
-                              : 'border-gray-300'
-                          }`}
+                          className={`h-6 w-6 rounded-full border-2 flex items-center justify-center ${paymentMethod === 'cod'
+                            ? 'border-primary bg-primary'
+                            : 'border-gray-300'
+                            }`}
                         >
                           {paymentMethod === 'cod' && (
                             <CheckCircle2 className="h-4 w-4 text-white" />
@@ -445,11 +431,11 @@ const Checkout = () => {
                     {cart.map((item) => (
                       <div key={item.productId} className="flex gap-3">
                         <img
-                          src={
+                          src={getImageUrl(
                             item.product.images?.[0] ||
                             item.product.image_url ||
                             '/placeholder-product.png'
-                          }
+                          )}
                           alt={item.product.name}
                           className="h-16 w-16 rounded object-cover"
                         />
@@ -505,9 +491,8 @@ const Checkout = () => {
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Livraison</span>
                       <span
-                        className={`font-semibold ${
-                          shippingCost === 0 ? 'text-green-600' : ''
-                        }`}
+                        className={`font-semibold ${shippingCost === 0 ? 'text-green-600' : ''
+                          }`}
                       >
                         {shippingCost === 0
                           ? 'Gratuite'

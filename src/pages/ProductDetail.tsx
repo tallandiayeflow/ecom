@@ -524,7 +524,7 @@ const ProductDetail = () => {
                 <div className="flex gap-3">
                   <div className="h-20 w-20 rounded-lg overflow-hidden bg-muted flex-shrink-0">
                     <img
-                      src={p.images?.[0] || '/placeholder-product.png'}
+                      src={getImageUrl(p.images?.[0] || '/placeholder-product.png')}
                       alt={p.name}
                       className="h-full w-full object-cover"
                       onError={(e) => {
