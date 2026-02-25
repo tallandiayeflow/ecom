@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { getFlashSales } from '@/lib/api';
+import { getFlashSales, getImageUrl } from '@/lib/api';
 import type { FlashSale } from '@/types';
 
 export const FlashSaleSection = () => {
@@ -124,7 +124,7 @@ export const FlashSaleSection = () => {
                     </Badge>
 
                     <img
-                      src={sale.product?.images?.[0] || '/placeholder-product.png'}
+                      src={getImageUrl(sale.product?.images?.[0] || '/placeholder-product.png')}
                       alt={sale.product?.name}
                       className="w-full h-full object-cover"
                     />
