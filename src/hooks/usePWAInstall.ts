@@ -1,45 +1,42 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
+}
 
 export const usePWAInstall = () => {
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstallable, setIsInstallable] = useState(false);
 
   useEffect(() => {
-    const handleBeforeInstallPrompt = (e: any) => {
-      // Empêcher Chrome 67 et les versions antérieures d'afficher automatiquement l'invite
+    const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
-      // Enregistrer l'événement pour qu'il puisse être déclenché plus tard.
-      setDeferredPrompt(e);
+      setDeferredPrompt(e as BeforeInstallPromptEvent);
       setIsInstallable(true);
     };
 
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-
-    window.addEventListener('appinstalled', () => {
-      setIsInstallable(false);
+    const handleAppInstalled = () => {
       setDeferredPrompt(null);
-      console.log('PWA was installed');
-    });
+      setIsInstallable(false);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
     };
   }, []);
 
-  const installPWA = async () => {
+  const installPWA = useCallback(async () => {
     if (!deferredPrompt) return;
-    
-    // Afficher l'invite d'installation
     deferredPrompt.prompt();
-    
-    // Attendre que l'utilisateur réponde à l'invite
-    const { outcome } = await deferredPrompt.userChoice;
-    console.log(`User response to the install prompt: ${outcome}`);
-    
-    // Nous avons utilisé l'invite, nous ne pouvons plus l'utiliser
+    await deferredPrompt.userChoice;
     setDeferredPrompt(null);
     setIsInstallable(false);
-  };
+  }, [deferredPrompt]);
 
   return { isInstallable, installPWA };
 };
