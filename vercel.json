@@ -1,8 +1,2 @@
 {
-  "rewrites": [
-    {
-      "source": "/((?!assets|favicon.ico|logo.png|manifest.json|sw.js|robots.txt|sitemap.xml).*)",
-      "destination": "/"
-    }
-  ]
 }
