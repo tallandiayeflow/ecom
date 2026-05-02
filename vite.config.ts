@@ -2,9 +2,10 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
+import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig(({ mode }) => ({
-  base: "/", 
+  base: "/",
 
   server: {
     host: "::",
@@ -13,7 +14,38 @@ export default defineConfig(({ mode }) => ({
 
   plugins: [
     react(),
-    mode === "development" && componentTagger()
+    mode === "development" && componentTagger(),
+    VitePWA({
+      registerType: "autoUpdate",
+      includeAssets: ["logo.png", "favicon.ico"],
+      manifest: {
+        name: "NOOR POS",
+        short_name: "NOOR POS",
+        description: "Point de vente NOOR",
+        theme_color: "#000000",
+        background_color: "#ffffff",
+        display: "standalone",
+        orientation: "any",
+        start_url: "/pos",
+        icons: [
+          { src: "/logo.png", sizes: "192x192", type: "image/png" },
+          { src: "/logo.png", sizes: "512x512", type: "image/png" },
+        ],
+      },
+      workbox: {
+        globPatterns: ["**/*.{js,css,html,ico,png,svg}"],
+        runtimeCaching: [
+          {
+            urlPattern: /^https?.+\/api\/pos\/products/,
+            handler: "NetworkFirst",
+            options: {
+              cacheName: "pos-products-cache",
+              expiration: { maxEntries: 500, maxAgeSeconds: 300 },
+            },
+          },
+        ],
+      },
+    }),
   ].filter(Boolean),
 
   resolve: {

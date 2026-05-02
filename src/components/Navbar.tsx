@@ -16,8 +16,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import {
-  BaggageClaim,
-  Calendar,
   FileText,
   FolderTree,
   Image,
@@ -29,9 +27,7 @@ import {
   Package,
   PackageSearch,
   ShoppingBag,
-  ShoppingBagIcon,
   ShoppingCart,
-  Smartphone,
   Sun,
   Ticket,
   User,
@@ -69,13 +65,10 @@ export const Navbar = () => {
     { icon: Ticket, label: "Bons d'achat", path: '/admin/vouchers' },
     { icon: FileText, label: 'Factures', path: '/admin/invoices' },
     { icon: PackageSearch, label: 'Gestion Stock', path: '/admin/stock' },
-    //{ icon: Smartphone, label: 'Visites', path: '/admin/visits' },
-    //{ icon: Zap, label: 'Jobs', path: '/admin/jobs' },
-    //{ icon: Calendar, label: 'Rendez-vous', path: '/admin/appointments' },
     { icon: FolderTree, label: 'Rapports de ventes', path: '/admin/sales-reports' },
     { icon: Users, label: 'Utilisateurs', path: '/admin/users' },
-    { icon: MessageSquare, label: 'Messages Contact', path: '/admin/contacts-messages' }
-
+    { icon: MessageSquare, label: 'Messages Contact', path: '/admin/contacts-messages' },
+    { icon: Users, label: 'POS — Caissiers', path: '/admin/pos-cashiers' },
   ];
 
   const userMenuItems = [

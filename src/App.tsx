@@ -13,14 +13,12 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import InvoicePDF from "@/pages/admin/InvoicePdf";
 import AdminDashboard from "./pages/AdminDashboard";
 import Auth from "./pages/Auth";
-import BookAppointment from "./pages/BookAppointement";
 import Cart from "./pages/Cart";
 import Checkout from "./pages/Checkout";
 import FlashSales from "./pages/FlashSales";
 import FlashsDetails from "./pages/FlashsDetails";
 import ForgotPassword from "./pages/ForgotPassword";
 import Index from "./pages/Index";
-import JobApplicationForm from "./pages/JobsApplicationForm";
 import NotFound from "./pages/NotFound";
 import OrderSuccess from "./pages/OrderSuccess";
 import Orders from "./pages/Orders";
@@ -32,12 +30,10 @@ import Profile from "./pages/Profile";
 import ResetPassword from "./pages/ResetPassword";
 import LoyaltyRewards from "./pages/Rewards";
 import Search from "./pages/Search";
-import AppointmentsManagement from "./pages/admin/AppointManagement";
 import BannersManagement from "./pages/admin/BannersManagement";
 import CategoriesManagement from "./pages/admin/CategoriesManagement";
 import FlashSalesManagement from "./pages/admin/FlashSalesManagement";
 import InvoicesManagement from "./pages/admin/InvoicesManagement";
-import JobsManagement from "./pages/admin/JobsManagement";
 import OrderDetailUpdate from "./pages/admin/OrderUpdate";
 import OrdersManagement from "./pages/admin/OrdersManagement";
 import Overview from "./pages/admin/Overview";
@@ -50,6 +46,16 @@ import VouchersManagement from "./pages/admin/VouchersManagement";
 import Contact from "./pages/Contact";
 import ContactMessages from "./pages/admin/ContactMessages";
 import OrderDetails from "./pages/orderDetails";
+import { POSApp, POSRoute } from "./pos";
+import POSLogin from "./pos/pages/POSLogin";
+import POSOpenSession from "./pos/pages/POSOpenSession";
+import POSMain from "./pos/pages/POSMain";
+import POSCloseSession from "./pos/pages/POSCloseSession";
+import POSHistory from "./pos/pages/POSHistory";
+import POSReturn from "./pos/pages/POSReturn";
+import POSCashierManagement from "./pages/admin/POSCashierManagement";
+import POSReports from "./pages/admin/POSReports";
+import POSReceipt from "./pos/pages/POSReceipt";
 
 const queryClient = new QueryClient();
 
@@ -64,6 +70,17 @@ const App = () => (
             <BrowserRouter>
               <OrderNotificationWatcher />
               <Routes>
+                {/* POS Routes — isolated, no global Navbar */}
+                <Route path="/pos" element={<POSApp />}>
+                  <Route path="login" element={<POSLogin />} />
+                  <Route path="open-session" element={<POSRoute><POSOpenSession /></POSRoute>} />
+                  <Route path="main" element={<POSRoute><POSMain /></POSRoute>} />
+                  <Route path="close-session" element={<POSRoute><POSCloseSession /></POSRoute>} />
+                  <Route path="history" element={<POSRoute><POSHistory /></POSRoute>} />
+                  <Route path="return" element={<POSRoute><POSReturn /></POSRoute>} />
+                  <Route path="receipt" element={<POSRoute><POSReceipt /></POSRoute>} />
+                </Route>
+
                 {/* Auth Route (no navbar) */}
                 <Route path="/auth" element={<Auth />} />
 
@@ -82,10 +99,10 @@ const App = () => (
                   <Route path="invoices/:id" element={<InvoicePDF />} />
                   <Route path="stock" element={<StockManagement />} />
                   <Route path="visits" element={<AdminVisits />} />
-                  <Route path="jobs" element={<JobsManagement />} />
-                  <Route path="appointments" element={<AppointmentsManagement />} />
                   <Route path="sales-reports" element={<SalesReports />} />
                   <Route path="contacts-messages" element={<ContactMessages />} />
+                  <Route path="pos-cashiers" element={<POSCashierManagement />} />
+                  <Route path="pos-reports" element={<POSReports />} />
                 </Route>
 
                 {/* Public Routes with Navbar */}
@@ -114,8 +131,6 @@ const App = () => (
                           <Route path="/forgot-password" element={<ForgotPassword />} />
                           <Route path="/payment-success" element={<PaymentSuccess />} />
                           <Route path="/payment-cancel" element={<PaymentCancel />} />
-                          <Route path="/jobs-application" element={<JobApplicationForm />} />
-                          <Route path="/book-appointment" element={<BookAppointment />} />
                           <Route path="/contact" element={<Contact />} />
                         </Routes>
                       </main>

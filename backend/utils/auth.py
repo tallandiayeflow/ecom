@@ -62,6 +62,47 @@ def token_required(f):
     
     return decorated
 
+def generate_pos_token(user_id, email, role):
+    """Generate a 12-hour JWT token with scope=pos for POS login"""
+    payload = {
+        'user_id': user_id,
+        'email': email,
+        'role': role,
+        'scope': 'pos',
+        'exp': datetime.utcnow() + timedelta(hours=12)
+    }
+    return jwt.encode(payload, Config.JWT_SECRET_KEY, algorithm='HS256')
+
+def cashier_or_admin_required(f):
+    """Decorator for POS routes — accepts cashier or admin role"""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = None
+
+        if request.method == "OPTIONS":
+            return "", 200
+
+        if 'Authorization' in request.headers:
+            auth_header = request.headers['Authorization']
+            try:
+                token = auth_header.split(' ')[1]
+            except IndexError:
+                return jsonify({'error': 'Invalid token format'}), 401
+
+        if not token:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        payload = decode_token(token)
+        if not payload:
+            return jsonify({'error': 'Invalid or expired token'}), 401
+
+        if payload.get('role') not in ('cashier', 'admin'):
+            return jsonify({'error': 'POS access required'}), 403
+
+        return f(payload, *args, **kwargs)
+
+    return decorated
+
 def admin_required(f):
     """Decorator to require admin role"""
     @wraps(f)

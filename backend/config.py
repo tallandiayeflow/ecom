@@ -30,3 +30,8 @@ class Config:
     
     # Limite de taille pour les uploads (16 MB)
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024
+
+    # Twilio (SMS receipts)
+    TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID', '')
+    TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN', '')
+    TWILIO_FROM_NUMBER = os.getenv('TWILIO_FROM_NUMBER', '')  # e.g. +12125551234

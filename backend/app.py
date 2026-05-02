@@ -2,7 +2,7 @@ from utils.cache import cache
 from flask import Flask, jsonify
 from flask_cors import CORS
 from config import Config
-from routes import auth, appointements,products, categories, cart, orders, flash_sales, banners, vouchers, admin, user, factures, stock,loyalty,visits,payments, jobs, contacts
+from routes import auth, products, categories, cart, orders, flash_sales, banners, vouchers, admin, user, factures, stock, loyalty, visits, payments, contacts, pos
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -10,14 +10,14 @@ cache.init_app(app)
 
 
 # CORSssss
-"""CORS(app, resources={
+CORS(app, resources={
     r"/api/*": {
         "origins": Config.CORS_ORIGINS,
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization"],
         "supports_credentials": True
     }
-})"""
+})
 
 #CORS(app)
 # Blueprints tests
@@ -36,9 +36,8 @@ app.register_blueprint(stock.bp, url_prefix='/api/stock')
 app.register_blueprint(loyalty.bp, url_prefix='/api/loyalty')
 app.register_blueprint(visits.bp, url_prefix='/api/visits')
 app.register_blueprint(payments.bp, url_prefix='/api/payments')
-app.register_blueprint(jobs.bp, url_prefix='/api/jobs')
 app.register_blueprint(contacts.bp, url_prefix='/api/contacts')
-app.register_blueprint(appointements.bp, url_prefix='/api')
+app.register_blueprint(pos.bp, url_prefix='/api/pos')
 import os
 from flask import send_from_directory
 
