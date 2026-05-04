@@ -125,10 +125,10 @@ def get_active_flash_sales():
             fs.id,
             fs.product_id,
             fs.sale_price AS discountPrice,
-            ((p.price - fs.sale_price) / p.price * 100) AS discountPercentage,
+            ((fs.original_price - fs.sale_price) / fs.original_price * 100) AS discountPercentage,
             fs.start_time AS startDate,
             fs.end_time AS endDate,
-            fs.stock_limit AS stock,
+            fs.stock_limit AS flash_stock_limit,
             fs.sold_count AS soldCount,
             fs.is_active AS isActive,
             p.name,
@@ -140,7 +140,7 @@ def get_active_flash_sales():
             p.category_id,
             c.slug AS category_slug,
             p.brand,
-            p.stock
+            p.stock AS product_stock
         FROM flash_sales fs
         JOIN products p ON fs.product_id = p.id
         LEFT JOIN categories c ON p.category_id = c.id
@@ -177,18 +177,17 @@ def get_active_flash_sales():
                 'price': float(fs['price']),
                 'images': images_list,
                 'category': fs['category_slug'],
-                'inStock': fs['stock'] > 0,
-                'stockQuantity': fs['stock'],
+                'inStock': fs['product_stock'] > 0,
+                'stockQuantity': fs['product_stock'],
                 'brand': fs['brand'],
                 'colors': parse_json_list(fs.get('colors')),
                 'sizes': parse_json_list(fs.get('sizes'))
-
             },
             'discountPrice': float(fs['discountPrice']),
             'discountPercentage': round(float(fs['discountPercentage']), 2),
             'startDate': fs['startDate'].isoformat() if fs['startDate'] else None,
             'endDate': fs['endDate'].isoformat() if fs['endDate'] else None,
-            'stock': fs['stock'],
+            'stock': fs['flash_stock_limit'],
             'soldCount': fs['soldCount'],
             'isActive': bool(fs['isActive']),
         })

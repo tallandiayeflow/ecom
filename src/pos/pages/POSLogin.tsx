@@ -22,7 +22,7 @@ export default function POSLogin() {
     if (!email || !pin) return;
     setLoading(true);
     try {
-      const res = await fetch(`${API}/api/pos/auth/login`, {
+      const res = await fetch(`${API}/pos/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, pin }),
@@ -36,7 +36,7 @@ export default function POSLogin() {
 
       // Check for an existing open session
       const token = data.token;
-      const sessionRes = await fetch(`${API}/api/pos/sessions/current`, {
+      const sessionRes = await fetch(`${API}/pos/sessions/current`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const sessionData = await sessionRes.json();

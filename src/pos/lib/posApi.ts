@@ -1,7 +1,7 @@
 const BASE = import.meta.env.VITE_API_URL || '';
 
 function token() {
-  return localStorage.getItem('pos_token') || '';
+  return localStorage.getItem('pos_token') || localStorage.getItem('token') || '';
 }
 
 function headers() {
@@ -9,7 +9,7 @@ function headers() {
 }
 
 async function req<T>(method: string, path: string, body?: unknown): Promise<T> {
-  const res = await fetch(`${BASE}/api/pos${path}`, {
+  const res = await fetch(`${BASE}/pos${path}`, {
     method,
     headers: headers(),
     body: body !== undefined ? JSON.stringify(body) : undefined,

@@ -1,0 +1,42 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Remove-Item \"C:\\\\Dev\\\\E-commerce\\\\backend\\\\routes\\\\jobs.py\" -Force)",
+      "Bash(Remove-Item \"C:\\\\Dev\\\\E-commerce\\\\backend\\\\routes\\\\appointements.py\" -Force)",
+      "Bash(Remove-Item \"C:\\\\Dev\\\\E-commerce\\\\src\\\\pages\\\\BookAppointement.tsx\" -Force)",
+      "Bash(Remove-Item \"C:\\\\Dev\\\\E-commerce\\\\src\\\\pages\\\\JobsApplicationForm.tsx\" -Force)",
+      "Bash(Remove-Item \"C:\\\\Dev\\\\E-commerce\\\\src\\\\pages\\\\admin\\\\AppointManagement.tsx\" -Force)",
+      "PowerShell(New-Item *)",
+      "Bash(git add *)",
+      "Bash(git commit -m 'docs: add POS system design spec *)",
+      "Bash(npm install *)",
+      "Bash(npx tsc *)",
+      "Bash(git commit -m ' *)",
+      "Bash(python -c \"from routes import pos; print\\('pos import OK'\\)\")",
+      "Bash(python -c \"from app import app; print\\('app import OK'\\)\")",
+      "Bash(pip install *)",
+      "Bash(python app.py)",
+      "Bash(curl -s http://localhost:8000/api/health)",
+      "Bash(python -c ' *)",
+      "Bash(Get-Process -Name python* -ErrorAction SilentlyContinue)",
+      "Bash(Stop-Process -Force)",
+      "PowerShell(Get-Process *)",
+      "Bash(curl -s -X POST http://localhost:8000/api/pos/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"ret@gmail.com\",\"pin\":\"1234\"}')",
+      "Bash(python -m json.tool)",
+      "Bash(curl -s -X POST http://localhost:8000/api/pos/sessions -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiZWFkM2IwYzMtNTIzNy00NjIwLTk3ZjAtY2NjM2JiN2RkOTRhIiwiZW1haWwiOiJyZXRAZ21haWwuY29tIiwicm9sZSI6ImFkbWluIiwic2NvcGUiOiJwb3MiLCJleHAiOjE3Nzc3OTc2MTN9.oxUo8YsQ5EdGHWNzNgCDyCu4nBxIRiiLPG534hJavFk' -H 'Content-Type: application/json' -d '{\"openingBalance\":50000}')",
+      "Bash(curl -s http://localhost:8000/api/pos/products -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiZWFkM2IwYzMtNTIzNy00NjIwLTk3ZjAtY2NjM2JiN2RkOTRhIiwiZW1haWwiOiJyZXRAZ21haWwuY29tIiwicm9sZSI6ImFkbWluIiwic2NvcGUiOiJwb3MiLCJleHAiOjE3Nzc3OTc2MTN9.oxUo8YsQ5EdGHWNzNgCDyCu4nBxIRiiLPG534hJavFk')",
+      "Bash(curl -s -X GET \"http://127.0.0.1:8000/api/pos/products\" -H \"Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiZWFkM2IwYzMtNTIzNy00NjIwLTk3ZjAtY2NjM2JiN2RkOTRhIiwiZW1haWwiOiJyZXRAZ21haWwuY29tIiwicm9sZSI6ImFkbWluIiwic2NvcGUiOiJwb3MiLCJleHAiOjE3Nzc3OTc2MTN9.oxUo8YsQ5EdGHWNzNgCDyCu4nBxIRiiLPG534hJavFk\")",
+      "Bash(curl -s 'http://127.0.0.1:8000/api/pos/products?q=iphone' -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiZWFkM2IwYzMtNTIzNy00NjIwLTk3ZjAtY2NjM2JiN2RkOTRhIiwiZW1haWwiOiJyZXRAZ21haWwuY29tIiwicm9sZSI6ImFkbWluIiwic2NvcGUiOiJwb3MiLCJleHAiOjE3Nzc3OTc2MTN9.oxUo8YsQ5EdGHWNzNgCDyCu4nBxIRiiLPG534hJavFk')",
+      "Bash(curl -s -X POST http://127.0.0.1:8000/api/pos/transactions -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiZWFkM2IwYzMtNTIzNy00NjIwLTk3ZjAtY2NjM2JiN2RkOTRhIiwiZW1haWwiOiJyZXRAZ21haWwuY29tIiwicm9sZSI6ImFkbWluIiwic2NvcGUiOiJwb3MiLCJleHAiOjE3Nzc3OTc2MTN9.oxUo8YsQ5EdGHWNzNgCDyCu4nBxIRiiLPG534hJavFk' -H 'Content-Type: application/json' -d '{\"sessionId\": \"0503f397-fd7d-462e-8462-061d38adc666\", \"items\": [{\"product_id\": \"cfc19a6d-d287-4353-a2d2-bc1c5cf6a7f8\", \"quantity\": 1, \"unit_price\": 249.99, \"discount\": 0}], \"payment_method\": \"cash\", \"amount_paid\": 250, \"notes\": \"test sale\"}')",
+      "Bash(curl -s -X POST http://127.0.0.1:8000/api/pos/transactions -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiZWFkM2IwYzMtNTIzNy00NjIwLTk3ZjAtY2NjM2JiN2RkOTRhIiwiZW1haWwiOiJyZXRAZ21haWwuY29tIiwicm9sZSI6ImFkbWluIiwic2NvcGUiOiJwb3MiLCJleHAiOjE3Nzc3OTc2MTN9.oxUo8YsQ5EdGHWNzNgCDyCu4nBxIRiiLPG534hJavFk' -H 'Content-Type: application/json' --data-raw '{\"sessionId\":\"0503f397-fd7d-462e-8462-061d38adc666\",\"items\":[{\"productId\":\"cfc19a6d-d287-4353-a2d2-bc1c5cf6a7f8\",\"productName\":\"AirPods Pro 2\",\"unitPrice\":249.99,\"quantity\":1,\"discount\":0,\"lineTotal\":249.99}],\"subtotal\":249.99,\"discount\":0,\"total\":249.99,\"paymentMethod\":\"cash\",\"cashTendered\":300,\"changeGiven\":50.01,\"mobileTendered\":0}')",
+      "Bash(curl -v -X POST http://127.0.0.1:8000/api/pos/transactions -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiZWFkM2IwYzMtNTIzNy00NjIwLTk3ZjAtY2NjM2JiN2RkOTRhIiwiZW1haWwiOiJyZXRAZ21haWwuY29tIiwicm9sZSI6ImFkbWluIiwic2NvcGUiOiJwb3MiLCJleHAiOjE3Nzc3OTc2MTN9.oxUo8YsQ5EdGHWNzNgCDyCu4nBxIRiiLPG534hJavFk' -H 'Content-Type: application/json' --data-raw '{\"sessionId\":\"0503f397-fd7d-462e-8462-061d38adc666\",\"items\":[{\"productId\":\"cfc19a6d-d287-4353-a2d2-bc1c5cf6a7f8\",\"productName\":\"AirPods\",\"unitPrice\":249.99,\"quantity\":1,\"discount\":0,\"lineTotal\":249.99}],\"subtotal\":249.99,\"discount\":0,\"total\":249.99,\"paymentMethod\":\"cash\",\"cashTendered\":300,\"changeGiven\":50.01,\"mobileTendered\":0}')",
+      "PowerShell(Start-Process python -ArgumentList \"app.py\" -WorkingDirectory \"C:\\\\Dev\\\\E-commerce\\\\backend\" -WindowStyle Hidden)",
+      "PowerShell(Invoke-RestMethod -Uri \"http://127.0.0.1:8000/api/health\" -Method GET)",
+      "PowerShell(python -c \"import bcrypt; h = bcrypt.hashpw\\(b'Azerty1234', bcrypt.gensalt\\(\\)\\).decode\\(\\); print\\(h\\)\")",
+      "PowerShell(python C:\\\\Dev\\\\E-commerce\\\\backend\\\\reset_admin_pwd.py)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); deps={**d.get\\('dependencies',{}\\), **d.get\\('devDependencies',{}\\)}; [print\\(k,v\\) for k,v in deps.items\\(\\) if any\\(x in k for x in ['recharts','chart','sound','tone','howl','framer','motion']\\)]\")",
+      "Bash(Get-ChildItem *)",
+      "Bash(grep -E \"\\\\.\\(tsx|ts|jsx\\)$\")"
+    ]
+  }
+}

@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 from utils.database import execute_query
 from utils.auth import admin_required, hash_password
+from utils.stock_sync import increase_stock_from_return
 import json
 import uuid
 import random
@@ -17,10 +18,24 @@ def generate_unique_code(length=8):
 @admin_required
 def admin_list_users(current_user):
     users = execute_query(
-        "SELECT id, name, email, phone, address, role FROM users ORDER BY name ASC",
+        "SELECT id, name, email, phone, address, role, is_active, loyalty_points, created_at, code FROM users ORDER BY name ASC",
         fetch_all=True
     )
-    return jsonify(users), 200
+    formatted = []
+    for u in users:
+        formatted.append({
+            'id': u['id'],
+            'name': u['name'],
+            'email': u['email'],
+            'phone': u.get('phone'),
+            'address': u.get('address'),
+            'role': u['role'],
+            'isActive': bool(u['is_active']),
+            'loyaltyPoints': u.get('loyalty_points', 0),
+            'createdAt': u['created_at'].isoformat() if u.get('created_at') else None,
+            'code': u.get('code'),
+        })
+    return jsonify(formatted), 200
 
 @bp.route('/users', methods=['POST'])
 @admin_required
@@ -160,6 +175,7 @@ def admin_get_orders(current_user):
             'items': [{
                 'id': item['id'],
                 'productId': item.get('product_id'),
+                'name': item['product_name'],
                 'productName': item['product_name'],
                 'productImage': item.get('product_image', ''),
                 'price': float(item['price']),
@@ -206,6 +222,7 @@ def admin_get_order_detail(current_user, order_id):
         'items': [{
             'id': item['id'],
             'productId': item.get('product_id'),
+            'name': item['product_name'],
             'productName': item['product_name'],
             'productImage': item.get('product_image', ''),
             'price': float(item['price']),
@@ -263,6 +280,15 @@ def admin_update_order_status(current_user, order_id):
     params.append(order_id)
 
     execute_query(query, tuple(params), commit=True)
+
+    if new_status == 'cancelled':
+        order_items = execute_query(
+            "SELECT product_id, quantity FROM order_items WHERE order_id = %s",
+            (order_id,),
+            fetch_all=True
+        )
+        increase_stock_from_return(order_items, current_user['user_id'], reason=f"Annulation commande #{order_id[:8]}")
+
     return jsonify({'message': 'Commande mise à jour avec succès'}), 200
 
 

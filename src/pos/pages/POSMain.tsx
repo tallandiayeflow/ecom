@@ -16,12 +16,26 @@ import { useOfflineSync } from '../hooks/useOfflineSync';
 
 export default function POSMain() {
   const navigate = useNavigate();
-  const { state, addToCart, removeFromCart, setQuantity, clearCart, setOnline, setPendingCount } = usePOS();
+  const { state, addToCart, removeFromCart, setQuantity, clearCart, setOnline, setPendingCount, cartSubtotal, cartTotal } = usePOS();
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [lastTransaction, setLastTransaction] = useState<any>(null);
 
   // Start offline sync
   useOfflineSync();
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      // Don't fire when typing in an input
+      if ((e.target as HTMLElement).tagName === 'INPUT') return;
+      if (e.key === 'F2') { e.preventDefault(); if (state.cart.length > 0 && state.session) setPaymentOpen(true); }
+      if (e.key === 'Delete') { e.preventDefault(); clearCart(); }
+      if (e.key === 'F3') { e.preventDefault(); navigate('/pos/return'); }
+      if (e.key === 'F4') { e.preventDefault(); navigate('/pos/history'); }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [state.cart, state.session, clearCart, navigate]);
 
   // Online/offline listener
   useEffect(() => {
@@ -51,8 +65,8 @@ export default function POSMain() {
   const handlePaymentConfirm = useCallback(async (paymentData: PaymentData) => {
     const session = state.session!;
     const cart    = state.cart;
-    const subtotal = state.cartSubtotal;
-    const total    = state.cartTotal;
+    const subtotal = cartSubtotal;
+    const total    = cartTotal;
 
     const txnId = crypto.randomUUID();
     const txnNumber = state.isOnline
@@ -176,7 +190,7 @@ export default function POSMain() {
           <div className="flex-1 overflow-hidden">
             <CartPanel
               cart={state.cart}
-              total={state.cartTotal}
+              total={cartTotal}
               onQtyChange={setQuantity}
               onRemove={removeFromCart}
               onClear={clearCart}
@@ -189,7 +203,7 @@ export default function POSMain() {
       {/* Payment modal */}
       <POSPayment
         open={paymentOpen}
-        total={state.cartTotal}
+        total={cartTotal}
         cart={state.cart}
         onClose={() => setPaymentOpen(false)}
         onConfirm={handlePaymentConfirm}

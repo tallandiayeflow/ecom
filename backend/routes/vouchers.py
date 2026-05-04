@@ -166,7 +166,7 @@ def validate_voucher():
 
     now = datetime.now()
     if voucher['valid_from'] and voucher['valid_from'] > now:
-        return jsonify({'error': 'Ce code promo n’est pas encore actif'}), 400
+        return jsonify({'error': "Ce code promo n'est pas encore actif"}), 400
 
     if voucher['valid_until'] and voucher['valid_until'] < now:
         return jsonify({'error': 'Ce code promo a expiré'}), 400
@@ -175,7 +175,7 @@ def validate_voucher():
         return jsonify({'error': f'Montant minimum de {voucher["min_order_amount"]} requis'}), 400
 
     if voucher['max_uses'] and voucher['used_count'] >= voucher['max_uses']:
-        return jsonify({'error': 'Ce code promo a atteint sa limite d’utilisation'}), 400
+        return jsonify({'error': "Ce code promo a atteint sa limite d'utilisation"}), 400
 
     discount = 0
     if voucher['type'] == 'percentage':

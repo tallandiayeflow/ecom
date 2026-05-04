@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/AuthContext';
-import { getOrderPubic } from '@/lib/api';
+import { getOrderPublic } from '@/lib/api';
 import confetti from 'canvas-confetti';
 import { motion } from 'framer-motion';
 import { jsPDF } from 'jspdf';
@@ -78,7 +78,7 @@ const OrderSuccess = () => {
   const loadOrderDetails = async () => {
     try {
       setLoading(true);
-      const data = await getOrderPubic(orderId);
+      const data = await getOrderPublic(orderId);
       setOrder(data);
 
       try {

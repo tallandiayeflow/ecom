@@ -329,21 +329,16 @@ def pos_products(payload):
     q = (request.args.get('q') or '').strip()
     if q:
         products = execute_query(
-            """SELECT p.id, p.name, p.price, p.stock, p.barcode,
-                      (SELECT image_url FROM product_images
-                       WHERE product_id = p.id ORDER BY is_primary DESC LIMIT 1) AS image
-               FROM products p
-               WHERE p.is_active = 1
-                 AND (p.name LIKE %s OR p.barcode = %s)
-               LIMIT 50""",
+            """SELECT id, name, price, stock, barcode, image_url AS image
+               FROM products
+               WHERE (name LIKE %s OR barcode = %s)
+               ORDER BY name LIMIT 50""",
             (f'%{q}%', q), fetch_all=True
         ) or []
     else:
         products = execute_query(
-            """SELECT p.id, p.name, p.price, p.stock, p.barcode,
-                      (SELECT image_url FROM product_images
-                       WHERE product_id = p.id ORDER BY is_primary DESC LIMIT 1) AS image
-               FROM products p WHERE p.is_active = 1 ORDER BY p.name LIMIT 200""",
+            """SELECT id, name, price, stock, barcode, image_url AS image
+               FROM products ORDER BY name LIMIT 200""",
             fetch_all=True
         ) or []
 
@@ -354,10 +349,8 @@ def pos_products(payload):
 @cashier_or_admin_required
 def pos_product_by_barcode(payload, code):
     product = execute_query(
-        """SELECT p.id, p.name, p.price, p.stock, p.barcode,
-                  (SELECT image_url FROM product_images
-                   WHERE product_id = p.id ORDER BY is_primary DESC LIMIT 1) AS image
-           FROM products p WHERE p.barcode = %s AND p.is_active = 1""",
+        """SELECT id, name, price, stock, barcode, image_url AS image
+           FROM products WHERE barcode = %s""",
         (code,), fetch_one=True
     )
     if not product:
@@ -954,11 +947,14 @@ def create_cashier(payload):
 
     user_id = str(uuid.uuid4())
     pin_hash = bcrypt.hashpw(pin.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    # Generate unique 8-char code for the users.code NOT NULL column
+    import secrets, string
+    code = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(8))
 
     execute_query(
-        """INSERT INTO users (id, name, email, phone, role, pos_pin_hash, is_active, password)
-           VALUES (%s,%s,%s,%s,%s,%s,1,'')""",
-        (user_id, name, email, phone, role, pin_hash), commit=True
+        """INSERT INTO users (id, name, email, phone, role, pos_pin_hash, password_hash, is_active, code)
+           VALUES (%s,%s,%s,%s,%s,%s,'',1,%s)""",
+        (user_id, name, email, phone, role, pin_hash, code), commit=True
     )
 
     user = execute_query("SELECT id, name, email, role FROM users WHERE id = %s", (user_id,), fetch_one=True)

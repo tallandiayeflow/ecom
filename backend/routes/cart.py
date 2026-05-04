@@ -65,16 +65,19 @@ def add_to_cart(current_user):
     if not product_id or quantity < 1:
         return jsonify({'error': 'Invalid product or quantity'}), 400
     
-    # Vérifier le stock
+    # Vérifier l'existence du produit et le stock disponible
     product = execute_query(
-        "SELECT stock FROM products WHERE id = %s",
+        "SELECT id, stock FROM products WHERE id = %s",
         (product_id,),
         fetch_one=True
     )
-    
+
     if not product:
         return jsonify({'error': 'Product not found'}), 404
-    
+
+    if product['stock'] < quantity:
+        return jsonify({'error': 'Stock insuffisant'}), 400
+
     # Check if item already in cart
     existing = execute_query(
         "SELECT id, quantity FROM cart_items WHERE user_id = %s AND product_id = %s",
@@ -86,19 +89,13 @@ def add_to_cart(current_user):
         # Update quantity
         new_quantity = existing['quantity'] + quantity
         
-        # Vérifier le stock disponible
-        if new_quantity > product['stock']:
-            return jsonify({'error': f'Stock insuffisant. Disponible: {product["stock"]}'}), 400
-        
         execute_query(
             "UPDATE cart_items SET quantity = %s WHERE id = %s",
             (new_quantity, existing['id']),
             commit=True
         )
     else:
-        # Vérifier le stock disponible
-        if quantity > product['stock']:
-            return jsonify({'error': f'Stock insuffisant. Disponible: {product["stock"]}'}), 400
+
         
         # Insert new item
         cart_item_id = str(uuid.uuid4())
@@ -123,19 +120,25 @@ def update_cart_item(current_user, product_id):
     if quantity < 1:
         return jsonify({'error': 'Invalid quantity'}), 400
     
-    # Vérifier le stock
+    # Vérifier stock disponible
     product = execute_query(
         "SELECT stock FROM products WHERE id = %s",
         (product_id,),
         fetch_one=True
     )
-    
-    if not product:
-        return jsonify({'error': 'Product not found'}), 404
-    
-    if quantity > product['stock']:
-        return jsonify({'error': f'Stock insuffisant. Disponible: {product["stock"]}'}), 400
-    
+    if product and product['stock'] < quantity:
+        return jsonify({'error': 'Stock insuffisant'}), 400
+
+    # Vérifier l'existence de l'article dans le panier
+    existing = execute_query(
+        "SELECT id FROM cart_items WHERE user_id = %s AND product_id = %s",
+        (current_user['user_id'], product_id),
+        fetch_one=True
+    )
+
+    if not existing:
+        return jsonify({'error': 'Item not found in cart'}), 404
+
     execute_query(
         "UPDATE cart_items SET quantity = %s WHERE user_id = %s AND product_id = %s",
         (quantity, current_user['user_id'], product_id),

@@ -205,28 +205,3 @@ export interface UpdateOrderPayload {
 }
 
 
-export interface JobApplication {
-  id: string
-  full_name: string
-  phone: string
-  email: string
-  desired_position: string
-  cv_filename: string
-  status: 'pending' | 'accepted' | 'rejected'
-  admin_notes?: string
-  created_at: string
-}
-
- // Appointments types
-export interface Appointment {
-  id: string
-  user_name: string
-  user_phone: string
-  service: string
-  service_name: string
-  appointment_date: string
-  appointment_time: string
-  status: 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'no_show'
-  notes?: string
-  created_at: string
-}

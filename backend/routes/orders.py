@@ -39,6 +39,7 @@ def get_user_orders(current_user):
             'items': [{
                 'id': item['id'],
                 'productId': item.get('product_id'),
+                'name': item['product_name'],
                 'productName': item['product_name'],
                 'productImage': item.get('product_image', ''),
                 'price': float(item['price']),
@@ -129,8 +130,9 @@ def create_order():
 
         if voucher_code:
             execute_query("UPDATE vouchers SET used_count = used_count + 1 WHERE code=%s", (voucher_code,), commit=True)
-            # Décrémenter automatiquement le stock
-            # decrease_stock_from_order(items, user_id, reason=f"Commande #{order_id[:8]}")
+            
+        # Décrémenter automatiquement le stock pour chaque commande
+        decrease_stock_from_order(items, user_id, reason=f"Commande #{order_id[:8]}")
         
         if user_id and loyalty_points > 0:
             execute_query("UPDATE users SET loyalty_points = loyalty_points + %s WHERE id=%s", (loyalty_points,user_id), commit=True)
@@ -164,6 +166,7 @@ def get_order(current_user, order_id):
         'items': [{
             'id': item['id'],
             'productId': item.get('product_id'),
+            'name': item['product_name'],
             'productName': item['product_name'],
             'productImage': item.get('product_image', ''),
             'price': float(item['price']),
@@ -210,6 +213,7 @@ def get_order_public(order_id):
             'items': [{
                 'id': item['id'],
                 'productId': item['product_id'],
+                'name': item['product_name'],
                 'productName': item['product_name'],
                 'productImage': item['product_image'],
                 'price': float(item['price']),
@@ -243,7 +247,7 @@ def update_order_status(current_user, order_id):
             (order_id,),
             fetch_all=True
         )
-        # increase_stock_from_return(order_items, current_user['user_id'], reason=f"Annulation commande #{order_id[:8]}")
+        increase_stock_from_return(order_items, current_user['user_id'], reason=f"Annulation commande #{order_id[:8]}")
     return jsonify({'message': 'Statut mis à jour'}), 200
 
 

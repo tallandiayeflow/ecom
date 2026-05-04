@@ -110,12 +110,13 @@ export interface ApiError {
 
 
 export interface CreateOrderData {
-  order_id: 'temp';
   items: {
     productId: string;
     quantity: number;
     price: number;
     name: string;
+    selectedColor?: string;
+    selectedSize?: string;
   }[];
   shippingAddress: {
     name: string;
@@ -125,9 +126,8 @@ export interface CreateOrderData {
   };
   voucherCode?: string;
   discount?: number;
-  total?: number,
-  finalTotal?: number,
-
+  total?: number;
+  finalTotal?: number;
 }
 
 export interface VoucherValidationResult {
@@ -361,7 +361,7 @@ export const getCart = async (): Promise<CartItem[]> => {
 export const addToCart = async (
   productId: string,
   quantity: number
-): Promise<CartItem> => {
+): Promise<CartItem[]> => {
   const response = await api.post('/cart', {
     productId,
     quantity,
@@ -372,7 +372,7 @@ export const addToCart = async (
 export const updateCartItem = async (
   productId: string,
   quantity: number
-): Promise<CartItem> => {
+): Promise<CartItem[]> => {
   const response = await api.put(`/cart/${productId}`, {
     quantity,
   });
@@ -381,7 +381,7 @@ export const updateCartItem = async (
 
 export const removeCartItem = async (
   productId: string
-): Promise<{ message: string }> => {
+): Promise<CartItem[]> => {
   const response = await api.delete(`/cart/${productId}`);
   return response.data;
 };
@@ -413,7 +413,7 @@ export const deleteOrder = async (orderId: string): Promise<Order> => {
   return response.data;
 };
 
-export const getOrderPubic = async (orderId: string): Promise<Order> => {
+export const getOrderPublic = async (orderId: string): Promise<Order> => {
   const response = await api.get(`/orders/public/order/${orderId}`);
   return response.data;
 };
@@ -780,7 +780,6 @@ export interface InventoryItem {
 
 export interface InventoryResponse {
   inventory: InventoryItem[];
-  items: InventoryItem[];
   total: number;
   page: number;
   totalPages: number;
@@ -990,7 +989,7 @@ export const getVisitsStats = async (): Promise<VisitsStats> => {
 //=================== ENDPOINTS Paytech====================
 
 
-import type { JobApplication, PaytechPaymentRequest, PaytechPaymentResponse } from '@/types';
+import type { PaytechPaymentRequest, PaytechPaymentResponse } from '@/types';
 
 /**
  * Initialise la demande de paiement PayTech
@@ -1021,64 +1020,6 @@ export const logout = (): void => {
   localStorage.removeItem('user');
 };
 
-export const submitJobApplication = async (formData: FormData) => {
-  const response = await api.post('/jobs/apply', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
-  });
-  return response.data;
-};
-
-export const getAllJobs = async (params?: {
-  status?: string;
-  search?: string;
-  page?: number;
-  limit?: number;
-}): Promise<{
-  jobs: JobApplication[];
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
-}> => {
-  const searchParams = new URLSearchParams();
-  Object.entries(params || {}).forEach(([key, value]) => {
-    if (value !== undefined && value !== '') {
-      searchParams.append(key, value.toString());
-    }
-  });
-  const response = await api.get(`/jobs/admin/jobs?${searchParams.toString()}`);
-  return response.data;
-};
-
-export const downloadJobCV = async (jobId: string) => {
-  const response = await api.get(`/jobs/admin/jobs/${jobId}/download`, {
-    responseType: 'blob'
-  });
-  const blob = response.data;
-  const url = window.URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `CV_${jobId.slice(0, 8)}.pdf`;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  window.URL.revokeObjectURL(url);
-  return blob;
-};
-
-export const updateJobStatus = async (
-  jobId: string,
-  status: 'accepted' | 'rejected',
-  notes?: string
-): Promise<{ message: string }> => {
-  const response = await api.put(`/admin/jobs/${jobId}/status`, { status, admin_notes: notes });
-  return response.data;
-};
-
-export const deleteJob = async (jobId: string): Promise<{ message: string }> => {
-  const response = await api.delete(`/jobs/admin/jobs/${jobId}`);
-  return response.data;
-};
 
 
 
@@ -1228,53 +1169,6 @@ export const facturesAPI = {
 
 
 
-// ==================== APPOINTMENTS ====================
-
-
-
-
-// Book appointment
-export const bookAppointment = async (data: {
-  user_name: string
-  user_phone: string
-  service: string
-  appointment_date: string
-  appointment_time: string
-  notes?: string
-}) => {
-  const response = await api.post('/appointments/book', data)
-  return response.data
-}
-
-export const getPublicSlots = async (date: string) => {
-  const response = await api.get(`/appointments/public?date=${date}`)
-  return response.data
-}
-
-// Appointments Admin
-export const getAdminAppointments = async (params: {
-  page?: number
-  limit?: number
-  status?: string
-  date?: string
-  search?: string
-}) => {
-  const response = await api.get('/admin/appointments', { params })
-  return response.data
-}
-
-export const updateAppointmentStatus = async (
-  id: string,
-  data: { status: string; notes?: string }
-) => {
-  const response = await api.put(`/admin/appointments/${id}/status`, data)
-  return response.data
-}
-
-export const deleteAppointment = async (id: string) => {
-  const response = await api.delete(`/admin/appointments/${id}`)
-  return response.data
-}
 
 
 // ==================== CONTACTS ====================

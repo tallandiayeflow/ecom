@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { getImageUrl, getOrderPubic } from '@/lib/api';
+import { getImageUrl, getOrderPublic } from '@/lib/api';
 import { ArrowLeft, Loader2, Package, Tag } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -31,7 +31,7 @@ export default function OrderDetails() {
   const loadOrderDetails = async () => {
     try {
       setLoading(true);
-      const data = await getOrderPubic(id!);
+      const data = await getOrderPublic(id!);
       setOrder(data);
     } catch {
       toast.error('Erreur lors du chargement de la commande');
