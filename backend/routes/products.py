@@ -329,7 +329,7 @@ def update_product(current_user, product_id):
         'description': 'description',
         'price': 'price',
         'originalPrice': 'original_price',
-        'stock': 'stock',
+        'stockQuantity': 'stock',
         'brand': 'brand',
         'featured': 'is_featured'
     }

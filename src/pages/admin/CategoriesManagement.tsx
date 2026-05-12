@@ -278,7 +278,7 @@ const CategoriesManagement = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-orange-500">
-              {categories.reduce((sum, c) => sum + (c.productCount || 0), 0)}
+              {categories.reduce((sum, c) => sum + (c.productCount || 0) + (c.subcategories ?? []).reduce((s, sub) => s + (sub.productCount || 0), 0), 0)}
             </div>
             <p className="text-xs text-muted-foreground">Dans toutes catégories</p>
           </CardContent>
@@ -297,7 +297,7 @@ const CategoriesManagement = () => {
                 Gestion des Catégories
               </CardTitle>
               <CardDescription className="text-sm">
-                {categories.length} catégorie(s) • {categories.reduce((sum, c) => sum + (c.productCount || 0), 0)} produit(s)
+                {categories.length} catégorie(s) • {categories.reduce((sum, c) => sum + (c.productCount || 0) + (c.subcategories ?? []).reduce((s, sub) => s + (sub.productCount || 0), 0), 0)} produit(s)
               </CardDescription>
             </div>
             <div className="flex gap-2 flex-wrap">
@@ -505,7 +505,7 @@ const CategoriesManagement = () => {
 
                 {/* Mobile Cards */}
                 <div className="md:hidden p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {categories.map((cat, index) => {
+                  {categories.flatMap(c => [c, ...(c.subcategories ?? [])]).map((cat, index) => {
                     const IconComponent = getIconComponent(cat.icon || "Folder");
                     const hasProducts = (cat.productCount || 0) > 0;
 
@@ -535,7 +535,10 @@ const CategoriesManagement = () => {
                             </div>
 
                             <div>
-                              <h3 className="font-semibold text-lg">{cat.name}</h3>
+                              <h3 className="font-semibold text-lg">
+                                {cat.parentId && <span className="text-muted-foreground mr-1">↳</span>}
+                                {cat.name}
+                              </h3>
                               <p className="text-xs text-muted-foreground">
                                 {cat.slug}
                               </p>
