@@ -195,6 +195,7 @@ export interface PaytechPaymentResponse {
   success: number;
   redirect_url?: string;
   message?: string;
+  order_id?: string;
 }
 
 export type PaymentStatus = "pending" | "paid" | "failed";
