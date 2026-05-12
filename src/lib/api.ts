@@ -257,6 +257,7 @@ export const resetPassword = async (
 // ==================== PRODUCTS ====================
 export interface ProductFilters {
   category?: string;
+  subcategory?: string;
   minPrice?: number;
   maxPrice?: number;
   search?: string;
@@ -270,6 +271,7 @@ export const getProducts = async (
 ): Promise<ProductsResponse> => {
   const params = new URLSearchParams();
   if (filters?.category) params.append('category', filters.category);
+  if (filters?.subcategory) params.append('subcategory', filters.subcategory);
   if (filters?.minPrice !== undefined)
     params.append('minPrice', filters.minPrice.toString());
   if (filters?.maxPrice !== undefined)

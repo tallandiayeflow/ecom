@@ -33,6 +33,7 @@ export interface Product {
   brand: string;
   colors?: string[];
   sizes?: string[];
+  subcategories?: { id: string; name: string; slug: string }[];
 }
 
 // ==================== CATEGORY ====================
@@ -42,7 +43,8 @@ export interface Category {
   slug: string;
   icon?: string;
   productCount?: number;
-  
+  parentId?: string;
+  subcategories?: Category[];
 }
 
 // ==================== CART ====================
