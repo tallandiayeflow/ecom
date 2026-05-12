@@ -14,76 +14,7 @@ PAYTECH_API_SECRET = os.getenv('PAYTECH_API_SECRET')
 PAYTECH_API_URL = 'https://paytech.sn/api/payment/request-payment'
 FRONTEND_URL = os.getenv('CORS_ORIGINS', 'https://talla-phone.vercel.app')
 BACKEND_URL = os.getenv('BACKEND_URL', 'https://phone-backend.duckdns.org')
-
-def create_order_from_data(data):
-    user_id = data.get('user_id')
-    items = data.get('items')
-    
-    shipping_address_obj = data.get('shippingAddress')
-    json_shipping_address = json.dumps(shipping_address_obj)
-
-    voucher_code = data.get('voucherCode')
-    discount = float(data.get('discount', 0))
-    total = float(data.get('total', 0))
-    final_total = float(data.get('finalTotal', total))
-
-    loyalty_points = int(final_total / 5000) if user_id else 0
-    order_id = str(uuid.uuid4())
-
-    execute_query(
-        """
-        INSERT INTO orders (id, user_id, total, discount, final_total,
-                            status, shipping_address, voucher_code, loyalty_points_earned, created_at)
-        VALUES (%s, %s, %s, %s, %s, 'pending', %s, %s, %s, NOW())
-        """,
-        (order_id, user_id, total, discount, final_total,
-         json_shipping_address, voucher_code, loyalty_points),
-        commit=True
-    )
-
-    for item in items:
-        item_id = str(uuid.uuid4())
-        product_name = item.get('name', '')
-        product_image = ''
-        selected_color = item.get('selectedColor')
-        selected_size = item.get('selectedSize')
-        product = execute_query(
-            "SELECT image_url, images FROM products WHERE id=%s",
-            (item['productId'],),
-            fetch_one=True
-        )
-        if product:
-            try:
-                images = json.loads(product.get('images', '[]'))
-                product_image = images[0] if images else product.get('image_url', '')
-            except Exception:
-                product_image = product.get('image_url', '')
-        execute_query(
-            """
-            INSERT INTO order_items (id, order_id, product_id, product_name, product_image, price, quantity, selected_color, selected_size)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """,
-            (item_id, order_id, item['productId'], product_name, product_image, item['price'], item['quantity'], selected_color, selected_size),
-            commit=True
-        )
-
-    if voucher_code:
-        execute_query(
-            "UPDATE vouchers SET used_count = used_count + 1 WHERE code=%s",
-            (voucher_code,),
-            commit=True
-        )
-
-    decrease_stock_from_order(items, user_id, reason=f"Commande #{order_id[:8]}")
-
-    if user_id and loyalty_points > 0:
-        execute_query(
-            "UPDATE users SET loyalty_points = loyalty_points + %s WHERE id=%s",
-            (loyalty_points, user_id),
-            commit=True
-        )
-
-    return order_id
+PAYTECH_ENV = os.getenv('PAYTECH_ENV', 'test')
 
 
 @bp.route('/request-payment', methods=['POST'])
@@ -107,8 +38,6 @@ def request_payment():
     discount = float(data.get('discount', 0))
     total = float(data.get('total', 0))
     final_total = float(data.get('finalTotal', total))
-    payment_method = data.get('payment_method', 'paytech')
-
     if not items or not shipping_address:
         return jsonify({'success': 0, 'message': 'Champs manquants'}), 400
 
@@ -187,7 +116,7 @@ def request_payment():
         "currency": "XOF",
         "ref_command": ref_command,
         "command_name": item_name,
-        "env": "test",
+        "env": PAYTECH_ENV,
         "ipn_url": f"{BACKEND_URL}/api/payments/ipn",
         "success_url": f"{FRONTEND_URL}/payment-success",
         "cancel_url": f"{FRONTEND_URL}/payment-cancel",
@@ -209,7 +138,7 @@ def request_payment():
     if resp_json.get('success') == 1:
         execute_query(
             'INSERT INTO payments (order_id, payment_ref, payment_method, amount, currency, status) VALUES (%s, %s, %s, %s, %s, %s)',
-            (order_id, ref_command, payment_method, final_total, 'XOF', 'pending'),
+            (order_id, ref_command, 'paytech', final_total, 'XOF', 'pending'),
             commit=True
         )
         return jsonify({'success': 1, 'redirect_url': resp_json['redirect_url'], 'order_id': order_id})
@@ -252,7 +181,7 @@ def payment_ipn():
         execute_query(
             """UPDATE orders
                SET status='cancelled', payment_status='failed'
-               WHERE id=%s""",
+               WHERE id=%s AND status='pending'""",
             (order_id,),
             commit=True
         )
