@@ -292,8 +292,12 @@ export const getProduct = async (id: string): Promise<Product> => {
   return response.data;
 };
 
+export interface ProductPayload extends Partial<Product> {
+  subcategory_ids?: string[];
+}
+
 export const createProduct = async (
-  productData: Partial<Product>
+  productData: ProductPayload
 ): Promise<Product> => {
   const response = await api.post('/products', productData);
   return response.data;
@@ -301,7 +305,7 @@ export const createProduct = async (
 
 export const updateProduct = async (
   id: string,
-  productData: Partial<Product>
+  productData: ProductPayload
 ): Promise<Product> => {
   const response = await api.put(`/products/${id}`, productData);
   return response.data;

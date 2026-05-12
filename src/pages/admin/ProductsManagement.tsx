@@ -54,6 +54,7 @@ import {
   updateProduct,
   uploadProductImage,
   getImageUrl,
+  ProductPayload,
 } from "@/lib/api";
 import type { Category, Product } from "@/types";
 import { motion } from "framer-motion";
@@ -107,6 +108,7 @@ const ProductsManagement = () => {
     specifications: "{}",
     colors: '',
     sizes: '',
+    subcategoryIds: [] as string[],
   });
 
   useEffect(() => {
@@ -164,6 +166,7 @@ const ProductsManagement = () => {
         specifications: JSON.stringify(product.specifications, null, 2),
         colors: (product.colors ?? []).join(', '),
         sizes: (product.sizes ?? []).join(', '),
+        subcategoryIds: (product.subcategories ?? []).map((s) => s.id),
       });
     } else {
       setEditingProduct(null);
@@ -179,6 +182,7 @@ const ProductsManagement = () => {
         specifications: "{}",
         colors: "",
         sizes: "",
+        subcategoryIds: [],
       });
     }
     setIsDialogOpen(true);
@@ -193,7 +197,7 @@ const ProductsManagement = () => {
 
     try {
       setSubmitting(true);
-      const productData = {
+      const productData: ProductPayload = {
         name: formData.name.trim(),
         description: formData.description.trim(),
         price: parseFloat(formData.price),
@@ -205,9 +209,9 @@ const ProductsManagement = () => {
           .split(",")
           .map((img) => img.trim())
           .filter((img) => img),
-        image: formData.images.split(",")[0]?.trim() || "",
-        stock: parseInt(formData.stockQuantity),
-        brand: formData.brand.trim() || undefined,
+        image_url: formData.images.split(",")[0]?.trim() || "",
+        stockQuantity: parseInt(formData.stockQuantity),
+        brand: formData.brand.trim() || "",
         specifications: JSON.parse(formData.specifications),
         colors: formData.colors
           ? formData.colors.split(",").map((c) => c.trim()).filter(Boolean)
@@ -215,6 +219,7 @@ const ProductsManagement = () => {
         sizes: formData.sizes
           ? formData.sizes.split(",").map((s) => s.trim()).filter(Boolean)
           : undefined,
+        subcategory_ids: formData.subcategoryIds,
       };
 
       if (editingProduct) {
@@ -748,7 +753,7 @@ const ProductsManagement = () => {
                   <Label htmlFor="category">Catégorie *</Label>
                   <Select
                     value={formData.category}
-                    onValueChange={(value) => setFormData({ ...formData, category: value })}
+                    onValueChange={(v) => setFormData((prev) => ({ ...prev, category: v, subcategoryIds: [] }))}
                     disabled={submitting}
                     required
                   >
@@ -764,6 +769,46 @@ const ProductsManagement = () => {
                     </SelectContent>
                   </Select>
                 </div>
+
+                {/* Subcategory multi-select — only shown when selected category has subcategories */}
+                {(() => {
+                  const activeCat = categories.find(
+                    (c) => c.slug === formData.category
+                  );
+                  const subs = activeCat?.subcategories ?? [];
+                  if (subs.length === 0) return null;
+                  return (
+                    <div className="space-y-2">
+                      <Label>Sous-catégories</Label>
+                      <div className="flex flex-wrap gap-2 p-3 border rounded-md min-h-[44px]">
+                        {subs.map((sub) => {
+                          const selected = formData.subcategoryIds.includes(sub.id);
+                          return (
+                            <button
+                              key={sub.id}
+                              type="button"
+                              onClick={() =>
+                                setFormData((prev) => ({
+                                  ...prev,
+                                  subcategoryIds: selected
+                                    ? prev.subcategoryIds.filter((id) => id !== sub.id)
+                                    : [...prev.subcategoryIds, sub.id],
+                                }))
+                              }
+                              className={`px-3 py-1 rounded-full text-xs border transition-colors ${
+                                selected
+                                  ? 'bg-primary text-primary-foreground border-primary'
+                                  : 'bg-background border-border hover:bg-muted'
+                              }`}
+                            >
+                              {sub.name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 <div className="space-y-2">
                   <Label htmlFor="brand">Marque</Label>
