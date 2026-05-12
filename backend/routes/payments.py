@@ -116,12 +116,12 @@ def request_payment():
     order_id = str(uuid.uuid4())
 
     try:
-        # Créer commande temporaire pour respecter la contrainte FK
         execute_query(
             """
             INSERT INTO orders (id, user_id, total, discount, final_total,
-                                status, shipping_address, voucher_code, loyalty_points_earned, created_at)
-            VALUES (%s, %s, %s, %s, %s, 'pending', %s, %s, %s, NOW())
+                                status, shipping_address, voucher_code,
+                                loyalty_points_earned, payment_method, created_at)
+            VALUES (%s, %s, %s, %s, %s, 'pending', %s, %s, %s, 'paytech', NOW())
             """,
             (order_id, user_id, total, discount, final_total,
              shipping_address, voucher_code, loyalty_points),
@@ -147,10 +147,12 @@ def request_payment():
                     product_image = product.get('image_url', '')
             execute_query(
                 """
-                INSERT INTO order_items (id, order_id, product_id, product_name, product_image, price, quantity, selected_color, selected_size)
+                INSERT INTO order_items (id, order_id, product_id, product_name,
+                    product_image, price, quantity, selected_color, selected_size)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """,
-                (item_id, order_id, item['productId'], product_name, product_image, item['price'], item['quantity'], selected_color, selected_size),
+                (item_id, order_id, item['productId'], product_name, product_image,
+                 item['price'], item['quantity'], selected_color, selected_size),
                 commit=True
             )
 
@@ -174,9 +176,10 @@ def request_payment():
         print(f"Erreur création commande PayTech : {e}")
         return jsonify({'success': 0, 'message': 'Erreur création commande'}), 500
 
-    # Préparer appel PayTech
     item_name = f"Commande {order_id}"
     ref_command = f'ORDER_{order_id}_{int(time.time())}'
+
+    custom_field_data = {**data, "order_id": order_id}
 
     payload = {
         "item_name": item_name,
@@ -184,12 +187,11 @@ def request_payment():
         "currency": "XOF",
         "ref_command": ref_command,
         "command_name": item_name,
-        "env": "test",  # changer en "prod" en production
+        "env": "test",
         "ipn_url": f"{BACKEND_URL}/api/payments/ipn",
         "success_url": f"{FRONTEND_URL}/payment-success",
-        "cancel_url": f"{FRONTEND_URL}/payment-cancel/{order_id}",
-        "custom_field": json.dumps(data),  # transmet toutes les données utiles
-        
+        "cancel_url": f"{FRONTEND_URL}/payment-cancel",
+        "custom_field": json.dumps(custom_field_data),
     }
 
     headers = {
@@ -233,23 +235,74 @@ def payment_ipn():
 
     if type_event == 'sale_complete':
         execute_query(
-            'UPDATE payments SET status=%s WHERE payment_ref=%s',
-            ('paid', ref_command),
+            """UPDATE orders
+               SET status='confirmed', payment_status='paid', payment_method='paytech'
+               WHERE id=%s""",
+            (order_id,),
             commit=True
         )
-        try:
-            create_order_from_data(custom_field)
-        except Exception as e:
-            print(f"Erreur création commande via IPN : {e}")
-            return "IPN KO - Erreur serveur", 500
+        execute_query(
+            "UPDATE payments SET status='paid' WHERE payment_ref=%s",
+            (ref_command,),
+            commit=True
+        )
         return "IPN OK", 200
 
     elif type_event == 'sale_canceled':
         execute_query(
-            'UPDATE payments SET status=%s WHERE payment_ref=%s',
-            ('canceled', ref_command),
+            """UPDATE orders
+               SET status='cancelled', payment_status='failed'
+               WHERE id=%s""",
+            (order_id,),
             commit=True
         )
+        execute_query(
+            "UPDATE payments SET status='canceled' WHERE payment_ref=%s",
+            (ref_command,),
+            commit=True
+        )
+        items_to_restore = execute_query(
+            "SELECT product_id, quantity FROM order_items WHERE order_id=%s",
+            (order_id,),
+            fetch_all=True
+        )
+        for item in (items_to_restore or []):
+            execute_query(
+                "UPDATE products SET stock = stock + %s WHERE id=%s",
+                (item['quantity'], item['product_id']),
+                commit=True
+            )
         return "IPN OK", 200
 
     return "IPN KO - Unknown event", 400
+
+
+@bp.route('/cancel-order/<order_id>', methods=['POST'])
+def cancel_order(order_id):
+    order = execute_query(
+        "SELECT id, status FROM orders WHERE id=%s",
+        (order_id,),
+        fetch_one=True
+    )
+    if not order or order['status'] in ('cancelled', 'confirmed', 'shipped', 'delivered'):
+        return jsonify({'success': True})
+
+    execute_query(
+        "UPDATE orders SET status='cancelled', payment_status='failed' WHERE id=%s",
+        (order_id,),
+        commit=True
+    )
+
+    items_to_restore = execute_query(
+        "SELECT product_id, quantity FROM order_items WHERE order_id=%s",
+        (order_id,),
+        fetch_all=True
+    )
+    for item in (items_to_restore or []):
+        execute_query(
+            "UPDATE products SET stock = stock + %s WHERE id=%s",
+            (item['quantity'], item['product_id']),
+            commit=True
+        )
+
+    return jsonify({'success': True})
