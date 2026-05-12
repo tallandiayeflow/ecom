@@ -332,8 +332,14 @@ export const getCategories = async (): Promise<Category[]> => {
   return response.data;
 };
 
+export interface CategoryPayload {
+  name: string;
+  icon?: string;
+  parent_id?: string | null;
+}
+
 export const createCategory = async (
-  categoryData: Partial<Category>
+  categoryData: CategoryPayload
 ): Promise<Category> => {
   const response = await api.post('/categories', categoryData);
   return response.data;
@@ -341,7 +347,7 @@ export const createCategory = async (
 
 export const updateCategory = async (
   id: string,
-  categoryData: Partial<Category>
+  categoryData: CategoryPayload
 ): Promise<Category> => {
   const response = await api.put(`/categories/${id}`, categoryData);
   return response.data;
