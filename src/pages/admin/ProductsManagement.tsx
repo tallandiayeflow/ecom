@@ -788,12 +788,15 @@ const ProductsManagement = () => {
                               key={sub.id}
                               type="button"
                               onClick={() =>
-                                setFormData((prev) => ({
-                                  ...prev,
-                                  subcategoryIds: selected
-                                    ? prev.subcategoryIds.filter((id) => id !== sub.id)
-                                    : [...prev.subcategoryIds, sub.id],
-                                }))
+                                setFormData((prev) => {
+                                  const isSelected = prev.subcategoryIds.includes(sub.id);
+                                  return {
+                                    ...prev,
+                                    subcategoryIds: isSelected
+                                      ? prev.subcategoryIds.filter((id) => id !== sub.id)
+                                      : [...prev.subcategoryIds, sub.id],
+                                  };
+                                })
                               }
                               className={`px-3 py-1 rounded-full text-xs border transition-colors ${
                                 selected
