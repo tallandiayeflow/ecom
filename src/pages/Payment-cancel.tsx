@@ -13,7 +13,7 @@ const PaymentCancel = () => {
       try {
         const { orderId } = JSON.parse(raw);
         if (orderId) {
-          api.post(`/payments/cancel-order/${orderId}`).catch(() => {});
+          api.post(`/payments/cancel-order/${orderId}`).catch((err) => console.error('cancel-order failed', err));
         }
       } catch {
         // malformed — ignore
