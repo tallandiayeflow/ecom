@@ -37,6 +37,7 @@ def get_products():
     max_price = request.args.get('maxPrice', type=float)
     search = request.args.get('search', '').strip()
     in_stock = request.args.get('inStock', '').lower() == 'true'
+    subcategory = request.args.get('subcategory')
     page = request.args.get('page', 1, type=int)
     limit = request.args.get('limit', 12, type=int)
     offset = (page - 1) * limit
@@ -65,6 +66,14 @@ def get_products():
     if in_stock:
         conditions.append("p.stock > 0")
 
+    if subcategory:
+        conditions.append("""p.id IN (
+            SELECT ps.product_id FROM product_subcategories ps
+            JOIN categories sc ON ps.subcategory_id = sc.id
+            WHERE sc.slug = %s
+        )""")
+        params.append(subcategory)
+
     where_clause = "WHERE " + " AND ".join(conditions) if conditions else ""
 
     # Get total count
@@ -88,6 +97,26 @@ def get_products():
     """
     params.extend([limit, offset])
     products = execute_query(products_query, tuple(params), fetch_all=True)
+
+    # Bulk fetch subcategories for all products on this page (avoids N+1)
+    product_ids = [p['id'] for p in products]
+    subcategories_by_product = {}
+    if product_ids:
+        placeholders = ', '.join(['%s'] * len(product_ids))
+        sub_rows = execute_query(
+            f"""SELECT ps.product_id, c.id, c.name, c.slug
+                FROM product_subcategories ps
+                JOIN categories c ON ps.subcategory_id = c.id
+                WHERE ps.product_id IN ({placeholders})""",
+            tuple(product_ids),
+            fetch_all=True
+        )
+        for row in (sub_rows or []):
+            subcategories_by_product.setdefault(row['product_id'], []).append({
+                'id': row['id'],
+                'name': row['name'],
+                'slug': row['slug']
+            })
 
     formatted_products = []
     for p in products:
@@ -115,7 +144,8 @@ def get_products():
 
             # ✅ NEW
             'colors': colors_list,
-            'sizes': sizes_list
+            'sizes': sizes_list,
+            'subcategories': subcategories_by_product.get(p['id'], []),
         })
 
     total_pages = (total + limit - 1) // limit
@@ -150,6 +180,15 @@ def get_product(product_id):
     colors_list = json.loads(product['colors']) if product.get('colors') else []
     sizes_list = json.loads(product['sizes']) if product.get('sizes') else []
 
+    subcategories = execute_query(
+        """SELECT c.id, c.name, c.slug
+           FROM categories c
+           JOIN product_subcategories ps ON c.id = ps.subcategory_id
+           WHERE ps.product_id = %s""",
+        (product_id,),
+        fetch_all=True
+    )
+
     return jsonify({
         'id': product['id'],
         'name': product['name'],
@@ -167,7 +206,8 @@ def get_product(product_id):
 
         # ✅ NEW
         'colors': colors_list,
-        'sizes': sizes_list
+        'sizes': sizes_list,
+        'subcategories': [{'id': s['id'], 'name': s['name'], 'slug': s['slug']} for s in (subcategories or [])],
     }), 200
 
 
@@ -229,40 +269,50 @@ def create_product(current_user):
     colors = _parse_list_field(data.get('colors'))
     sizes = _parse_list_field(data.get('sizes'))
 
-    execute_query(
-        """INSERT INTO products
-           (id, name, description, price, original_price, category_id,
-            image_url, images, stock, brand, specifications, is_featured,
-            colors, sizes)
-           VALUES (%s, %s, %s, %s, %s,
-                  (SELECT id FROM categories WHERE slug = %s),
-                  %s, %s, %s, %s, %s, %s,
-                  %s, %s)""",
-        (
-            product_id,
-            data['name'],
-            data.get('description', ''),
-            data['price'],
-            data.get('originalPrice'),
-            data['category'],
-            image_url,
-            json.dumps(images),
-            data.get('stock', 0),
-            data.get('brand'),
-            json.dumps(specifications),
-            data.get('featured', False),
+    from utils.database import get_db_connection
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """INSERT INTO products
+                   (id, name, description, price, original_price, category_id,
+                    image_url, images, stock, brand, specifications, is_featured,
+                    colors, sizes)
+                   VALUES (%s, %s, %s, %s, %s,
+                          (SELECT id FROM categories WHERE slug = %s),
+                          %s, %s, %s, %s, %s, %s,
+                          %s, %s)""",
+                (
+                    product_id,
+                    data['name'],
+                    data.get('description', ''),
+                    data['price'],
+                    data.get('originalPrice'),
+                    data['category'],
+                    image_url,
+                    json.dumps(images),
+                    data.get('stock', 0),
+                    data.get('brand'),
+                    json.dumps(specifications),
+                    data.get('featured', False),
+                    json.dumps(colors) if colors else None,
+                    json.dumps(sizes) if sizes else None
+                )
+            )
+            subcategory_ids = data.get('subcategory_ids') or []
+            if subcategory_ids:
+                cur.executemany(
+                    "INSERT IGNORE INTO product_subcategories (product_id, subcategory_id) VALUES (%s, %s)",
+                    [(product_id, sid) for sid in subcategory_ids]
+                )
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        conn.close()
 
-            # ✅ NEW: stocker NULL si vide
-            json.dumps(colors) if colors else None,
-            json.dumps(sizes) if sizes else None
-        ),
-        commit=True
-    )
-
-    return jsonify({
-        'id': product_id,
-        'message': 'Product created successfully'
-    }), 201
+    return jsonify({'id': product_id, 'message': 'Product created successfully'}), 201
 
 
 @bp.route('/<product_id>', methods=['PUT'])
@@ -326,12 +376,39 @@ def update_product(current_user, product_id):
         updates.append("category_id = (SELECT id FROM categories WHERE slug = %s)")
         params.append(data['category'])
 
-    if not updates:
+    if not updates and 'subcategory_ids' not in data:
         return jsonify({'error': 'No fields to update'}), 400
 
-    params.append(product_id)
-    query = f"UPDATE products SET {', '.join(updates)} WHERE id = %s"
-    execute_query(query, tuple(params), commit=True)
+    from utils.database import get_db_connection
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            # Verify product exists
+            cur.execute("SELECT id FROM products WHERE id = %s", (product_id,))
+            if not cur.fetchone():
+                return jsonify({'error': 'Product not found'}), 404
+
+            # Update product fields
+            if updates:
+                params.append(product_id)
+                query = f"UPDATE products SET {', '.join(updates)} WHERE id = %s"
+                cur.execute(query, tuple(params))
+
+            # Replace subcategory links atomically in the same transaction
+            if 'subcategory_ids' in data:
+                cur.execute("DELETE FROM product_subcategories WHERE product_id = %s", (product_id,))
+                subcategory_ids = data['subcategory_ids']
+                if subcategory_ids:
+                    cur.executemany(
+                        "INSERT INTO product_subcategories (product_id, subcategory_id) VALUES (%s, %s)",
+                        [(product_id, sid) for sid in subcategory_ids]
+                    )
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        conn.close()
 
     return jsonify({'message': 'Product updated successfully'}), 200
 
