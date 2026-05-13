@@ -10,7 +10,10 @@ def get_db_connection():
         database=Config.DATABASE_NAME,
         port=Config.DATABASE_PORT,
         cursorclass=pymysql.cursors.DictCursor,
-        autocommit=False
+        autocommit=False,
+        connect_timeout=10,
+        read_timeout=30,
+        write_timeout=30,
     )
 
 def execute_query(query, params=None, fetch_one=False, fetch_all=False, commit=False):

@@ -1,24 +1,27 @@
 from flask import Blueprint, request, jsonify
 from utils.database import execute_query
-from utils.auth import hash_password, verify_password, generate_token,token_required
+from utils.auth import hash_password, verify_password, generate_token, token_required
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 import uuid
 import random
-import time
 import string
 import os
 import secrets
 import smtplib
 from email.message import EmailMessage
 from datetime import datetime, timedelta
-from utils.cache import cache  # Importer le cache
-
+from utils.cache import cache
 
 bp = Blueprint('auth', __name__)
+
+limiter = Limiter(key_func=get_remote_address, default_limits=[])
 
 def generate_unique_code(length=8):
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=length))
 
 @bp.route('/register', methods=['POST'])
+@limiter.limit("5 per minute")
 def register():
     data = request.get_json()
 
@@ -78,6 +81,7 @@ def register():
     }), 201
 
 @bp.route('/login', methods=['POST'])
+@limiter.limit("10 per minute")
 def login():
     data = request.get_json()
     identifier = data.get('identifier', '').strip().lower()  # email ou téléphone
@@ -249,6 +253,7 @@ def logout(current_user):
     return jsonify({'message': 'Logged out successfully'}), 200
 
 @bp.route('/forgot-password', methods=['POST'])
+@limiter.limit("5 per hour")
 def forgot_password():
     """Handle forgot password: create a one-hour token and send reset email."""
     data = request.get_json() or {}

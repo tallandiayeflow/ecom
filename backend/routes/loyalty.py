@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from utils.database import execute_query
+from utils.database import execute_query, get_db_connection
 from utils.auth import token_required
 import uuid
 from datetime import datetime, timedelta
@@ -65,37 +65,24 @@ def redeem_loyalty_points(current_user):
     
     voucher_id = str(uuid.uuid4())
     
+    new_points = current_points - points_cost
+    conn = get_db_connection()
     try:
-        # Créer le voucher
-        execute_query(
-            """INSERT INTO vouchers
-            (id, code, type, value, min_order_amount, max_uses,
-            valid_from, valid_until, is_active, created_at, used_count)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), 0)""",
-            (
-                voucher_id,
-                code,
-                'fixed',  # Type fixe car montant en FCFA
-                voucher_value,
-                0,  # Pas de montant minimum
-                1,  # Utilisable une seule fois
-                valid_from,
-                valid_until,
-                1  # Actif
-            ),
-            commit=True
-        )
-        
-        # Déduire les points de l'utilisateur
-        new_points = current_points - points_cost
-        execute_query(
-            "UPDATE users SET loyalty_points = %s WHERE id = %s",
-            (new_points, user_id),
-            commit=True
-        )
-        
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """INSERT INTO vouchers
+                (id, code, type, value, min_order_amount, max_uses,
+                valid_from, valid_until, is_active, created_at, used_count)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), 0)""",
+                (voucher_id, code, 'fixed', voucher_value, 0, 1, valid_from, valid_until, 1)
+            )
+            cursor.execute(
+                "UPDATE users SET loyalty_points = %s WHERE id = %s",
+                (new_points, user_id)
+            )
+        conn.commit()
         return jsonify({
-            'message': 'Bon d\'achat généré avec succès',
+            'message': "Bon d'achat généré avec succès",
             'voucher': {
                 'id': voucher_id,
                 'code': code,
@@ -106,9 +93,11 @@ def redeem_loyalty_points(current_user):
             'pointsDeducted': points_cost,
             'remainingPoints': new_points
         }), 201
-        
     except Exception as e:
+        conn.rollback()
         return jsonify({'error': f'Erreur lors de la création du voucher: {str(e)}'}), 500
+    finally:
+        conn.close()
 
 
 # ==================== GET USER VOUCHERS ====================

@@ -1,12 +1,17 @@
 from utils.cache import cache
 from flask import Flask, jsonify
 from flask_cors import CORS
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from config import Config
 from routes import auth, products, categories, cart, orders, flash_sales, banners, vouchers, admin, user, factures, stock, loyalty, visits, payments, contacts, pos
 
 app = Flask(__name__)
 app.config.from_object(Config)
 cache.init_app(app)
+
+limiter = Limiter(app=app, key_func=get_remote_address, default_limits=["200 per minute"])
+auth.limiter.init_app(app)
 
 
 # CORSssss
