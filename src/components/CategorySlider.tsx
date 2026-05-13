@@ -66,12 +66,12 @@ export const CategorySlider = () => {
     sliderRef.current?.scrollBy({ left: x, behavior: 'smooth' });
 
   const items = useMemo(() => {
-    const flat: (Category & { Icon: LucideIcon })[] = [];
+    const flat: (Category & { Icon: LucideIcon; parentSlug?: string })[] = [];
     for (const cat of categories) {
       flat.push({ ...cat, Icon: getIcon(cat.name) });
-      if ((cat as any).subcategories?.length) {
-        for (const sub of (cat as any).subcategories) {
-          flat.push({ ...sub, Icon: getIcon(sub.name) });
+      if (cat.subcategories?.length) {
+        for (const sub of cat.subcategories) {
+          flat.push({ ...sub, Icon: getIcon(sub.name), parentSlug: cat.slug });
         }
       }
     }
@@ -98,10 +98,14 @@ export const CategorySlider = () => {
         className="flex gap-4 overflow-x-auto scroll-smooth py-2 px-1"
         style={{ scrollbarWidth: 'none' }}
       >
-        {items.map(({ id, name, slug, productCount, Icon }) => (
+        {items.map(({ id, name, slug, productCount, Icon, parentSlug }) => (
           <div
             key={id}
-            onClick={() => navigate(`/products?category=${slug}`)}
+            onClick={() =>
+              parentSlug
+                ? navigate(`/products?category=${parentSlug}&subcategory=${slug}`)
+                : navigate(`/products?category=${slug}`)
+            }
             className="min-w-[150px] cursor-pointer rounded-xl border bg-card p-5 text-center hover:shadow-md transition"
           >
             <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">

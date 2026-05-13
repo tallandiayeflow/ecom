@@ -4,13 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Sheet,
   SheetContent,
@@ -55,7 +49,7 @@ const Products = () => {
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 500000]);
   const [inStockOnly, setInStockOnly] = useState(false);
   const [sortBy, setSortBy] = useState<string>('newest');
-  const [selectedSubcategory, setSelectedSubcategory] = useState('');
+  const [selectedSubcategory, setSelectedSubcategory] = useState(searchParams.get('subcategory') || '');
 
   useEffect(() => {
     loadCategories();
@@ -73,6 +67,22 @@ const Products = () => {
       console.error('Error loading categories:', error);
     }
   };
+
+  // Resolve subcategory slugs from URL (e.g. CategorySlider navigates with sub slug)
+  useEffect(() => {
+    if (categories.length === 0) return;
+    const urlCategory = searchParams.get('category');
+    if (!urlCategory) return;
+    if (categories.find(c => c.slug === urlCategory)) return; // already a parent slug
+    for (const cat of categories) {
+      const sub = cat.subcategories?.find(s => s.slug === urlCategory);
+      if (sub) {
+        setSelectedCategory(cat.slug);
+        setSelectedSubcategory(sub.slug);
+        return;
+      }
+    }
+  }, [categories]);
 
   const loadProducts = async () => {
     setLoading(true);
@@ -165,53 +175,63 @@ const Products = () => {
 
   const FilterContent = () => (
     <div className="space-y-6">
-      {/* Category Filter */}
+      {/* Category Tree */}
       <div className="space-y-2">
         <Label className="text-sm font-semibold">Catégorie</Label>
-        <Select value={selectedCategory} onValueChange={handleCategoryChange}>
-          <SelectTrigger>
-            <SelectValue placeholder="Toutes les catégories" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Toutes les catégories</SelectItem>
-            {categories.map((cat) => (
-              <SelectItem key={cat.id} value={cat.slug}>
-                {cat.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Subcategory Pills */}
-      {selectedCategory !== 'all' && (() => {
-        const activeCat = categories.find(c => c.slug === selectedCategory);
-        const subs = activeCat?.subcategories ?? [];
-        if (subs.length === 0) return null;
-        return (
-          <div className="space-y-2">
-            <Label className="text-sm font-medium text-muted-foreground">Sous-catégorie</Label>
-            <div className="flex flex-wrap gap-2">
-              {subs.map((sub) => (
-                <button
-                  key={sub.id}
-                  onClick={() => {
-                    setSelectedSubcategory(selectedSubcategory === sub.slug ? '' : sub.slug);
-                    setCurrentPage(1);
-                  }}
-                  className={`px-3 py-1 rounded-full text-xs border transition-colors ${
-                    selectedSubcategory === sub.slug
-                      ? 'bg-primary text-primary-foreground border-primary'
-                      : 'bg-background border-border hover:bg-muted'
-                  }`}
-                >
-                  {sub.name}
-                </button>
-              ))}
+        <div className="space-y-0.5">
+          <button
+            onClick={() => { setSelectedCategory('all'); setSelectedSubcategory(''); setCurrentPage(1); }}
+            className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
+              selectedCategory === 'all'
+                ? 'bg-primary text-primary-foreground font-medium'
+                : 'hover:bg-muted'
+            }`}
+          >
+            Toutes les catégories
+          </button>
+          {categories.map((cat) => (
+            <div key={cat.id}>
+              <button
+                onClick={() => handleCategoryChange(cat.slug)}
+                className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center justify-between ${
+                  selectedCategory === cat.slug
+                    ? 'bg-primary text-primary-foreground font-medium'
+                    : 'hover:bg-muted'
+                }`}
+              >
+                <span>{cat.name}</span>
+                {(cat.productCount ?? 0) > 0 && (
+                  <span className={`text-xs ${selectedCategory === cat.slug ? 'opacity-70' : 'text-muted-foreground'}`}>
+                    {cat.productCount}
+                  </span>
+                )}
+              </button>
+              {(cat.subcategories?.length ?? 0) > 0 && (
+                <div className="ml-3 pl-3 border-l border-border/60 space-y-0.5 mt-0.5 mb-1">
+                  {cat.subcategories!.map((sub) => (
+                    <button
+                      key={sub.id}
+                      onClick={() => {
+                        setSelectedCategory(cat.slug);
+                        setSelectedSubcategory(selectedSubcategory === sub.slug ? '' : sub.slug);
+                        setCurrentPage(1);
+                      }}
+                      className={`w-full text-left px-2 py-1.5 rounded-md text-xs transition-colors flex items-center gap-1.5 ${
+                        selectedSubcategory === sub.slug && selectedCategory === cat.slug
+                          ? 'bg-primary/15 text-primary font-medium'
+                          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                      }`}
+                    >
+                      <span className="w-1 h-1 rounded-full bg-current opacity-60 shrink-0" />
+                      {sub.name}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
-          </div>
-        );
-      })()}
+          ))}
+        </div>
+      </div>
 
       {/* Price Filter */}
       <div className="space-y-3">
@@ -344,12 +364,15 @@ const Products = () => {
             </Badge>
           )}
           {selectedSubcategory && (() => {
-            const activeCat = categories.find(c => c.slug === selectedCategory);
-            const subName = activeCat?.subcategories?.find(s => s.slug === selectedSubcategory)?.name;
+            let subName = selectedSubcategory;
+            for (const cat of categories) {
+              const sub = cat.subcategories?.find(s => s.slug === selectedSubcategory);
+              if (sub) { subName = sub.name; break; }
+            }
             return (
               <Badge variant="secondary" className="gap-2">
-                Sous-cat: {subName}
-                <button onClick={() => setSelectedSubcategory('')}>
+                {subName}
+                <button onClick={() => { setSelectedSubcategory(''); setCurrentPage(1); }}>
                   <X className="h-3 w-3" />
                 </button>
               </Badge>
