@@ -27,10 +27,72 @@ interface RegisterData {
   countryCode: string;
   password: string;
   confirmPassword: string;
+  showEmail: boolean;
 }
 
 const countries = [
-  { code: '+221', name: 'Sénégal', flag: '🇸🇳' },
+  // Afrique de l'Ouest
+  { code: '+221', name: 'Sénégal',        flag: '🇸🇳' },
+  { code: '+223', name: 'Mali',            flag: '🇲🇱' },
+  { code: '+225', name: 'Côte d\'Ivoire',  flag: '🇨🇮' },
+  { code: '+224', name: 'Guinée',          flag: '🇬🇳' },
+  { code: '+222', name: 'Mauritanie',      flag: '🇲🇷' },
+  { code: '+226', name: 'Burkina Faso',    flag: '🇧🇫' },
+  { code: '+227', name: 'Niger',           flag: '🇳🇪' },
+  { code: '+229', name: 'Bénin',           flag: '🇧🇯' },
+  { code: '+228', name: 'Togo',            flag: '🇹🇬' },
+  { code: '+233', name: 'Ghana',           flag: '🇬🇭' },
+  { code: '+234', name: 'Nigeria',         flag: '🇳🇬' },
+  { code: '+245', name: 'Guinée-Bissau',   flag: '🇬🇼' },
+  { code: '+238', name: 'Cap-Vert',        flag: '🇨🇻' },
+  { code: '+220', name: 'Gambie',          flag: '🇬🇲' },
+  { code: '+232', name: 'Sierra Leone',    flag: '🇸🇱' },
+  { code: '+231', name: 'Liberia',         flag: '🇱🇷' },
+  // Afrique Centrale
+  { code: '+237', name: 'Cameroun',        flag: '🇨🇲' },
+  { code: '+241', name: 'Gabon',           flag: '🇬🇦' },
+  { code: '+242', name: 'Congo',           flag: '🇨🇬' },
+  { code: '+243', name: 'RD Congo',        flag: '🇨🇩' },
+  { code: '+236', name: 'Centrafrique',    flag: '🇨🇫' },
+  { code: '+235', name: 'Tchad',           flag: '🇹🇩' },
+  // Afrique du Nord
+  { code: '+212', name: 'Maroc',           flag: '🇲🇦' },
+  { code: '+213', name: 'Algérie',         flag: '🇩🇿' },
+  { code: '+216', name: 'Tunisie',         flag: '🇹🇳' },
+  { code: '+218', name: 'Libye',           flag: '🇱🇾' },
+  { code: '+20',  name: 'Égypte',          flag: '🇪🇬' },
+  // Afrique de l'Est
+  { code: '+254', name: 'Kenya',           flag: '🇰🇪' },
+  { code: '+251', name: 'Éthiopie',        flag: '🇪🇹' },
+  { code: '+255', name: 'Tanzanie',        flag: '🇹🇿' },
+  { code: '+256', name: 'Ouganda',         flag: '🇺🇬' },
+  { code: '+250', name: 'Rwanda',          flag: '🇷🇼' },
+  { code: '+252', name: 'Somalie',         flag: '🇸🇴' },
+  // Afrique du Sud
+  { code: '+27',  name: 'Afrique du Sud',  flag: '🇿🇦' },
+  { code: '+244', name: 'Angola',          flag: '🇦🇴' },
+  { code: '+258', name: 'Mozambique',      flag: '🇲🇿' },
+  { code: '+261', name: 'Madagascar',      flag: '🇲🇬' },
+  { code: '+230', name: 'Maurice',         flag: '🇲🇺' },
+  // Europe
+  { code: '+33',  name: 'France',          flag: '🇫🇷' },
+  { code: '+32',  name: 'Belgique',        flag: '🇧🇪' },
+  { code: '+41',  name: 'Suisse',          flag: '🇨🇭' },
+  { code: '+34',  name: 'Espagne',         flag: '🇪🇸' },
+  { code: '+351', name: 'Portugal',        flag: '🇵🇹' },
+  { code: '+39',  name: 'Italie',          flag: '🇮🇹' },
+  { code: '+49',  name: 'Allemagne',       flag: '🇩🇪' },
+  { code: '+44',  name: 'Royaume-Uni',     flag: '🇬🇧' },
+  // Amérique
+  { code: '+1',   name: 'USA / Canada',    flag: '🇺🇸' },
+  { code: '+55',  name: 'Brésil',          flag: '🇧🇷' },
+  // Moyen-Orient
+  { code: '+966', name: 'Arabie Saoudite', flag: '🇸🇦' },
+  { code: '+971', name: 'Émirats arabes',  flag: '🇦🇪' },
+  { code: '+974', name: 'Qatar',           flag: '🇶🇦' },
+  // Asie
+  { code: '+91',  name: 'Inde',            flag: '🇮🇳' },
+  { code: '+86',  name: 'Chine',           flag: '🇨🇳' },
 ];
 
 const Auth = () => {
@@ -54,6 +116,7 @@ const Auth = () => {
     countryCode: '+221',
     password: '',
     confirmPassword: '',
+    showEmail: false,
   });
 
   useEffect(() => {
@@ -87,19 +150,26 @@ const Auth = () => {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    const { name, email, phone, countryCode, password, confirmPassword } = registerData;
-    if (!name || !email || !phone || !password || !confirmPassword) {
-      toast.error('Veuillez remplir tous les champs');
+    const { name, email, phone, countryCode, password, confirmPassword, showEmail } = registerData;
+    if (!name || !phone || !password || !confirmPassword) {
+      toast.error('Veuillez remplir tous les champs obligatoires');
       return;
     }
     if (name.trim().length < 2) {
       toast.error('Le nom doit contenir au moins 2 caractères');
       return;
     }
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      toast.error('Veuillez entrer un email valide');
+    const fullPhone = `${countryCode}${phone.trim()}`;
+    if (phone.trim().length < 6) {
+      toast.error('Numéro de téléphone invalide');
       return;
+    }
+    if (showEmail && email) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        toast.error('Veuillez entrer un email valide');
+        return;
+      }
     }
     if (password.length < 6) {
       toast.error('Le mot de passe doit contenir au moins 6 caractères');
@@ -111,7 +181,7 @@ const Auth = () => {
     }
     setLoading(true);
     try {
-      await register(email.trim(), password, name.trim(), `${countryCode}${phone.trim()}`);
+      await register(email.trim() || '', password, name.trim(), fullPhone);
     } catch (err: any) {
       console.error(err);
     } finally {
@@ -302,7 +372,7 @@ const Auth = () => {
                   <div className="relative">
                     <User className="absolute left-3 top-3.5 h-4 w-4 text-gray-400" />
                     <Input
-                      placeholder="Jean Dupont"
+                      placeholder="Prénom Nom"
                       className="pl-10 h-12 rounded-xl"
                       value={registerData.name}
                       onChange={(e) => setRegisterData({ ...registerData, name: e.target.value })}
@@ -313,45 +383,65 @@ const Auth = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium">Email</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-3.5 h-4 w-4 text-gray-400" />
-                    <Input
-                      placeholder="email@example.com"
-                      type="email"
-                      className="pl-10 h-12 rounded-xl"
-                      value={registerData.email}
-                      onChange={(e) => setRegisterData({ ...registerData, email: e.target.value })}
-                      disabled={loading}
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Téléphone</Label>
+                  <Label className="text-sm font-medium">
+                    Téléphone <span className="text-red-500">*</span>
+                  </Label>
                   <div className="flex gap-2">
                     <select
-                      className="border rounded-xl px-3 py-2 bg-white dark:bg-gray-800 text-sm min-w-[120px] h-12"
+                      className="border rounded-xl px-2 py-2 bg-white dark:bg-gray-800 text-sm h-12 min-w-[110px] max-w-[130px]"
                       value={registerData.countryCode}
                       onChange={(e) => setRegisterData({ ...registerData, countryCode: e.target.value })}
                     >
                       {countries.map((c) => (
-                        <option key={c.code} value={c.code}>
-                          {c.flag} {c.code}
+                        <option key={c.code + c.name} value={c.code}>
+                          {c.flag} {c.code} {c.name}
                         </option>
                       ))}
                     </select>
-                    <Input
-                      placeholder="771234567"
-                      className="flex-1 h-12 rounded-xl"
-                      type="tel"
-                      value={registerData.phone}
-                      onChange={(e) => setRegisterData({ ...registerData, phone: e.target.value })}
-                      disabled={loading}
-                      required
-                    />
+                    <div className="relative flex-1">
+                      <Phone className="absolute left-3 top-3.5 h-4 w-4 text-gray-400" />
+                      <Input
+                        placeholder="771234567"
+                        className="pl-10 h-12 rounded-xl"
+                        type="tel"
+                        value={registerData.phone}
+                        onChange={(e) => setRegisterData({ ...registerData, phone: e.target.value.replace(/\D/g, '') })}
+                        disabled={loading}
+                        required
+                      />
+                    </div>
                   </div>
+                  <p className="text-xs text-gray-400">
+                    Ce numéro sera votre identifiant de connexion
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-medium text-gray-500">
+                      Email <span className="text-gray-400 font-normal">(optionnel)</span>
+                    </Label>
+                    <button
+                      type="button"
+                      onClick={() => setRegisterData({ ...registerData, showEmail: !registerData.showEmail, email: '' })}
+                      className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                    >
+                      {registerData.showEmail ? 'Retirer' : '+ Ajouter un email'}
+                    </button>
+                  </div>
+                  {registerData.showEmail && (
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-3.5 h-4 w-4 text-gray-400" />
+                      <Input
+                        placeholder="email@example.com"
+                        type="email"
+                        className="pl-10 h-12 rounded-xl"
+                        value={registerData.email}
+                        onChange={(e) => setRegisterData({ ...registerData, email: e.target.value })}
+                        disabled={loading}
+                      />
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-2">

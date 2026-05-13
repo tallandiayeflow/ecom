@@ -27,21 +27,32 @@ def register():
     password = data.get('password', '')
     name = data.get('name', '').strip()
 
-    if not email or not phone or not password or not name:
-        return jsonify({'error': 'Email, téléphone, mot de passe et nom sont requis'}), 400
+    if not phone or not password or not name:
+        return jsonify({'error': 'Téléphone, mot de passe et nom sont requis'}), 400
+
+    if len(password) < 6:
+        return jsonify({'error': 'Le mot de passe doit contenir au moins 6 caractères'}), 400
+
+    # Email optionnel — générer un placeholder si absent
+    if not email:
+        email = f"user_{phone.replace('+', '')}@noor.local"
 
     existing_user = execute_query(
-        "SELECT id FROM users WHERE email = %s OR phone = %s",
-        (email, phone),
+        "SELECT id FROM users WHERE phone = %s",
+        (phone,),
         fetch_one=True
     )
+    if not existing_user and email and not email.endswith('@noor.local'):
+        existing_user = execute_query(
+            "SELECT id FROM users WHERE email = %s",
+            (email,),
+            fetch_one=True
+        )
 
     if existing_user:
-        return jsonify({'error': 'Email ou téléphone déjà utilisé'}), 409
+        return jsonify({'error': 'Ce numéro de téléphone est déjà utilisé'}), 409
 
-    # Générer un code unique 8 caractères. Vous pouvez contrôler l'unicité par boucle si nécessaire.
     unique_code = generate_unique_code()
-
     user_id = str(uuid.uuid4())
     password_hash = hash_password(password)
 
