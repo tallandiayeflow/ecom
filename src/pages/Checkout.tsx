@@ -169,6 +169,7 @@ const Checkout = () => {
             'pendingPayment',
             JSON.stringify({ orderId: response.order_id, amount: finalTotal })
           );
+          await clearCart();
           window.location.href = response.redirect_url;
         } else {
           toast.error(

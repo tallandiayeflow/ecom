@@ -5,7 +5,7 @@ import json
 import time
 import uuid
 from utils.database import execute_query
-from utils.stock_sync import decrease_stock_from_order
+from utils.stock_sync import decrease_stock_from_order, increase_stock_from_return
 
 bp = Blueprint('payments', __name__)
 
@@ -195,12 +195,7 @@ def payment_ipn():
             (order_id,),
             fetch_all=True
         )
-        for item in (items_to_restore or []):
-            execute_query(
-                "UPDATE products SET stock = stock + %s WHERE id=%s",
-                (item['quantity'], item['product_id']),
-                commit=True
-            )
+        increase_stock_from_return(items_to_restore or [], user_id=None, reason=f"Paiement annulé #{order_id[:8]}")
         return "IPN OK", 200
 
     return "IPN KO - Unknown event", 400
@@ -227,11 +222,6 @@ def cancel_order(order_id):
         (order_id,),
         fetch_all=True
     )
-    for item in (items_to_restore or []):
-        execute_query(
-            "UPDATE products SET stock = stock + %s WHERE id=%s",
-            (item['quantity'], item['product_id']),
-            commit=True
-        )
+    increase_stock_from_return(items_to_restore or [], user_id=None, reason=f"Paiement annulé #{order_id[:8]}")
 
     return jsonify({'success': True})
