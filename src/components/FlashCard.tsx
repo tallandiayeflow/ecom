@@ -44,12 +44,13 @@ export const FlashCard = ({
 
   if (!flashSale) {
     return (
-      <div className="rounded-2xl overflow-hidden border border-orange-100 dark:border-orange-900/40 bg-white dark:bg-card">
+      <div className="rounded-2xl overflow-hidden border-2 border-border bg-card">
         <Skeleton className="h-52 w-full" />
         <div className="p-4 space-y-3">
+          <Skeleton className="h-4 w-1/3" />
           <Skeleton className="h-4 w-full" />
           <Skeleton className="h-4 w-2/3" />
-          <Skeleton className="h-8 w-1/2" />
+          <Skeleton className="h-8 w-1/2 mt-2" />
           <Skeleton className="h-10 w-full" />
         </div>
       </div>
@@ -87,48 +88,37 @@ export const FlashCard = ({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05, duration: 0.35, ease: 'easeOut' }}
-      whileHover={{ y: -4 }}
-      className="h-full"
+      className="h-full group"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
       <div
-        className={`h-full flex flex-col rounded-2xl overflow-hidden bg-white dark:bg-card border-2 transition-all duration-300 cursor-pointer ${
+        className={`h-full flex flex-col rounded-2xl overflow-hidden bg-card border-2 transition-all duration-300 cursor-pointer ${
           isExpired
-            ? 'border-gray-200 dark:border-gray-700 opacity-60 grayscale'
-            : urgencyLevel === 'critical'
-            ? 'border-red-400 shadow-lg shadow-red-500/10 hover:shadow-xl hover:shadow-red-500/20'
-            : 'border-orange-200 dark:border-orange-900/40 hover:border-orange-400 hover:shadow-xl hover:shadow-orange-500/10'
+            ? 'border-border opacity-60 grayscale'
+            : 'border-border hover:border-primary/50 hover:shadow-xl hover:shadow-primary/10'
         }`}
         onClick={() => navigate(`/flash/${flashSale.id}`)}
       >
-        {/* Top urgency strip */}
-        {!isExpired && (
-          <div
-            className={`h-1 w-full ${
-              urgencyLevel === 'critical'
-                ? 'bg-gradient-to-r from-red-600 via-red-500 to-orange-500 animate-pulse'
-                : urgencyLevel === 'urgent'
-                ? 'bg-gradient-to-r from-orange-500 to-red-500'
-                : 'bg-gradient-to-r from-orange-400 via-red-400 to-pink-400'
-            }`}
-          />
+        {/* Urgency top strip — stays red, it signals time pressure */}
+        {!isExpired && urgencyLevel !== 'normal' && (
+          <div className={`h-1 w-full ${urgencyLevel === 'critical' ? 'bg-gradient-to-r from-red-600 to-orange-500 animate-pulse' : 'bg-gradient-to-r from-orange-500 to-amber-400'}`} />
         )}
 
         {/* Image zone */}
-        <div className="relative h-52 bg-gradient-to-br from-orange-50 to-red-50 dark:from-orange-950/30 dark:to-red-950/20 overflow-hidden">
+        <div className="relative h-56 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 overflow-hidden">
           {!imageLoaded && <Skeleton className="absolute inset-0" />}
 
           <img
             src={imageSrc}
             alt={product.name}
-            className={`w-full h-full object-contain p-2 transition-all duration-500 ${isHovered ? 'scale-110' : 'scale-100'} ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
+            className={`w-full h-full object-contain p-3 transition-all duration-500 ${isHovered ? 'scale-110' : 'scale-100'} ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
             loading="lazy"
             onLoad={() => setImageLoaded(true)}
             onError={() => { setImageError(true); setImageLoaded(true); }}
           />
 
-          {/* Badges top-left */}
+          {/* Badges top-left — discount stays red */}
           <div className="absolute top-3 left-3 flex flex-col gap-1.5">
             <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-white text-xs font-bold shadow-lg ${urgencyLevel === 'critical' ? 'bg-gradient-to-r from-red-600 to-red-700 animate-bounce' : 'bg-gradient-to-r from-red-500 to-orange-500'}`}>
               <Zap className="h-3 w-3 fill-white" />-{pct}%
@@ -150,9 +140,9 @@ export const FlashCard = ({
 
           {/* Quick view overlay */}
           {showQuickView && !isExpired && (
-            <div className={`absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-center justify-center transition-all duration-300 ${isHovered ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+            <div className={`absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center transition-all duration-300 ${isHovered ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
               <button
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/90 text-gray-900 text-sm font-semibold shadow-xl hover:bg-white transition active:scale-95"
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white text-gray-900 text-sm font-semibold shadow-xl hover:bg-gray-50 transition active:scale-95"
                 onClick={(e) => { e.stopPropagation(); navigate(`/flash/${flashSale.id}`); }}
               >
                 <Eye className="h-4 w-4" /> Voir détails
@@ -172,7 +162,7 @@ export const FlashCard = ({
             <div className="absolute bottom-0 left-0 right-0 px-3 pb-2 pt-4 bg-gradient-to-t from-black/30 to-transparent">
               <div className="h-1.5 w-full bg-white/30 rounded-full overflow-hidden">
                 <div
-                  className={`h-full rounded-full transition-all duration-700 ${progress > 75 ? 'bg-red-400' : progress > 50 ? 'bg-orange-400' : 'bg-green-400'}`}
+                  className={`h-full rounded-full transition-all duration-700 ${progress > 75 ? 'bg-red-400' : progress > 40 ? 'bg-amber-400' : 'bg-primary/70'}`}
                   style={{ width: `${progress}%` }}
                 />
               </div>
@@ -182,26 +172,23 @@ export const FlashCard = ({
 
         {/* Content */}
         <div className="flex flex-col flex-1 p-4 gap-3">
-          {/* Category & Brand */}
+          {/* Category & Brand — use primary like ProductCard */}
           {(product.category || product.brand) && (
             <div className="flex items-center gap-2 text-xs flex-wrap">
               {product.category && (
-                <span className="px-2 py-0.5 rounded-md bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 font-medium">
-                  {product.category}
-                </span>
+                <span className="px-2 py-1 rounded-md bg-muted text-muted-foreground">{product.category}</span>
               )}
               {product.brand && (
-                <span className="font-semibold text-orange-600 dark:text-orange-400">{product.brand}</span>
+                <span className="font-semibold text-primary">{product.brand}</span>
               )}
             </div>
           )}
 
-          {/* Name */}
-          <h3 className="font-bold text-base line-clamp-2 leading-snug group-hover:text-orange-600 transition-colors flex-1">
+          <h3 className="font-semibold text-lg line-clamp-2 min-h-[3.5rem] group-hover:text-primary transition-colors">
             {product.name}
           </h3>
 
-          {/* Stock urgency warning */}
+          {/* Urgency stock warning — stays orange/red */}
           {urgencyLevel !== 'normal' && remaining > 0 && !isExpired && (
             <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold ${urgencyLevel === 'critical' ? 'bg-red-50 dark:bg-red-950/40 text-red-600 border border-red-200 dark:border-red-800/40 animate-pulse' : 'bg-orange-50 dark:bg-orange-950/40 text-orange-600 border border-orange-200 dark:border-orange-800/40'}`}>
               <Flame className="h-3.5 w-3.5 fill-current shrink-0" />
@@ -209,34 +196,31 @@ export const FlashCard = ({
             </div>
           )}
 
-          {/* Prices */}
-          <div className="flex flex-col gap-0.5 pt-2 border-t border-dashed border-gray-100 dark:border-gray-700">
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-extrabold bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent">
-                {discountPrice.toLocaleString('fr-FR')}
-                <span className="text-sm font-bold ml-1">FCFA</span>
+          {/* Price — use primary like ProductCard */}
+          <div className="flex items-center justify-between pt-2 border-t">
+            <div className="flex flex-col gap-0.5">
+              <span className="text-2xl font-bold bg-gradient-to-r from-primary to-purple-500 bg-clip-text text-transparent">
+                {discountPrice.toLocaleString('fr-FR')} FCFA
               </span>
-            </div>
-            <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground line-through">
                 {originalPrice.toLocaleString('fr-FR')} FCFA
               </span>
-              <span className="text-xs px-1.5 py-0.5 rounded bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 font-semibold">
-                −{(originalPrice - discountPrice).toLocaleString('fr-FR')} FCFA
-              </span>
             </div>
+            <span className="text-xs px-2 py-1 rounded-lg bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 font-semibold">
+              −{(originalPrice - discountPrice).toLocaleString('fr-FR')} F
+            </span>
           </div>
 
           {/* Actions */}
           <div className="flex gap-2 mt-auto">
             <button
-              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border-2 border-orange-300 dark:border-orange-700 text-orange-600 dark:text-orange-400 text-sm font-semibold hover:bg-orange-50 dark:hover:bg-orange-900/20 transition active:scale-95"
+              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border-2 border-border hover:border-primary/50 text-muted-foreground hover:text-primary text-sm font-semibold transition active:scale-95"
               onClick={(e) => { e.stopPropagation(); navigate(`/flash/${flashSale.id}`); }}
             >
               <Eye className="h-4 w-4" /> Voir
             </button>
             <button
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold text-white shadow transition active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${!product.inStock || isExpired ? 'bg-gray-400' : 'bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 shadow-orange-500/30'}`}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold transition active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${!product.inStock || isExpired ? 'bg-muted text-muted-foreground' : 'bg-primary hover:bg-primary/90 text-primary-foreground shadow-md shadow-primary/20'}`}
               onClick={handleAddToCart}
               disabled={!product.inStock || isExpired}
             >
