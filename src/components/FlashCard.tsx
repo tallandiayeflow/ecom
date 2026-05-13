@@ -1,6 +1,4 @@
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCart } from '@/contexts/CartContext';
 import { getImageUrl } from '@/lib/api';
@@ -17,6 +15,8 @@ interface FlashCardProps {
   index?: number;
 }
 
+const fmt = (n: number) => String(n).padStart(2, '0');
+
 export const FlashCard = ({
   flashSale,
   showQuickView = true,
@@ -24,349 +24,228 @@ export const FlashCard = ({
 }: FlashCardProps) => {
   const navigate = useNavigate();
   const { addToCart } = useCart();
-  const [timeRemaining, setTimeRemaining] = useState('');
-  const [isExpired, setIsExpired] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [isExpired, setIsExpired] = useState(false);
+  const [t, setT] = useState({ h: 0, m: 0, s: 0 });
 
-  // Calcul du temps restant
-  const getTimeRemaining = () => {
-    if (!flashSale?.endDate) return '';
-
-    const now = new Date();
-    const endDate = new Date(flashSale.endDate);
-    const diff = endDate.getTime() - now.getTime();
-
-    if (diff <= 0) {
-      setIsExpired(true);
-      return 'Terminée';
-    }
-
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-
-    if (days > 0) return `${days}j ${hours}h`;
-    if (hours > 0) return `${hours}h ${minutes}min`;
-    return `${minutes}min`;
-  };
-
-  // Mise à jour du temps restant toutes les minutes
   useEffect(() => {
     if (!flashSale?.endDate) return;
-
-    const updateTimer = () => {
-      const remaining = getTimeRemaining();
-      setTimeRemaining(remaining);
+    const tick = () => {
+      const diff = new Date(flashSale.endDate).getTime() - Date.now();
+      if (diff <= 0) { setIsExpired(true); return; }
+      setT({ h: Math.floor(diff / 3_600_000), m: Math.floor((diff / 60_000) % 60), s: Math.floor((diff / 1_000) % 60) });
     };
-
-    updateTimer();
-    const interval = setInterval(updateTimer, 60000);
-
-    return () => clearInterval(interval);
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
   }, [flashSale?.endDate]);
 
-  // Skeleton pendant le chargement
   if (!flashSale) {
     return (
-      <Card className="h-full flex flex-col overflow-hidden border-2 border-orange-200">
-        <CardContent className="p-0 flex-1">
-          <Skeleton className="h-64 w-full rounded-t-lg" />
-          <div className="p-4 space-y-3">
-            <Skeleton className="h-3 w-1/3" />
-            <Skeleton className="h-5 w-full" />
-            <Skeleton className="h-4 w-2/3" />
-            <div className="flex items-baseline gap-2 pt-2">
-              <Skeleton className="h-7 w-24" />
-              <Skeleton className="h-4 w-16" />
-            </div>
-          </div>
-        </CardContent>
-        <CardFooter className="p-4 flex gap-2 border-t">
-          <Skeleton className="h-10 flex-1" />
-          <Skeleton className="h-10 flex-1" />
-        </CardFooter>
-      </Card>
+      <div className="rounded-2xl overflow-hidden border border-orange-100 dark:border-orange-900/40 bg-white dark:bg-card">
+        <Skeleton className="h-52 w-full" />
+        <div className="p-4 space-y-3">
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-2/3" />
+          <Skeleton className="h-8 w-1/2" />
+          <Skeleton className="h-10 w-full" />
+        </div>
+      </div>
     );
   }
 
-  // Vérifier que product existe
-  if (!flashSale.product) {
-    return null;
-  }
+  if (!flashSale.product) return null;
 
   const product = flashSale.product;
   const discountPrice = flashSale.discountPrice;
   const originalPrice = product.price;
-  const discountPercentage = flashSale.discountPrice || flashSale.discountPercentage || 0;
+  const pct = flashSale.discountPercentage || 0;
+  const stock = flashSale.stock || 0;
+  const sold = flashSale.soldCount || 0;
+  const remaining = Math.max(stock - sold, 0);
+  const progress = stock ? Math.min((sold / stock) * 100, 100) : 0;
+  const urgencyLevel = remaining <= 5 ? 'critical' : remaining <= 15 ? 'urgent' : 'normal';
+  const imageSrc = imageError ? '/placeholder-product.png' : getImageUrl(product.images?.[0] || '/placeholder-product.png');
 
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.stopPropagation();
-
-    if (!product.inStock) {
-      toast.error('Ce produit est en rupture de stock');
-      return;
-    }
-
-    if (isExpired) {
-      toast.error('Cette vente flash est terminée');
-      return;
-    }
-
+    if (!product.inStock) { toast.error('Ce produit est en rupture de stock'); return; }
+    if (isExpired) { toast.error('Cette vente flash est terminée'); return; }
     try {
-      // Créer un produit avec le prix de la vente flash
-      const flashProduct: Product = {
-        ...product,
-        price: discountPrice,
-        originalPrice: originalPrice,
-      };
-
-      await addToCart(
-        flashProduct,
-        1,
-        product.colors?.[0],
-        product.sizes?.[0]
-      );
-      toast.success(`${product.name} ajouté au panier ! 🛒🔥`);
-    } catch (error) {
-      console.error('Error adding to cart:', error);
+      const flashProduct: Product = { ...product, price: discountPrice, originalPrice };
+      await addToCart(flashProduct, 1, product.colors?.[0], product.sizes?.[0]);
+      toast.success(`${product.name} ajouté au panier !`);
+    } catch {
       toast.error("Erreur lors de l'ajout au panier");
     }
   };
 
-  const handleViewProduct = () => {
-    navigate(`/product/${flashSale.productId}`);
-  };
-
-  // ---------- GESTION D'IMAGE ----------
-  const imageSrc = imageError
-    ? '/placeholder-product.png'
-    : getImageUrl(product.images?.[0] || '/placeholder-product.png');
-
-  // Déterminer l'urgence du temps restant
-  const getUrgencyLevel = () => {
-    if (isExpired) return 'expired';
-    if (!flashSale.endDate) return 'normal';
-
-    const now = new Date();
-    const endDate = new Date(flashSale.endDate);
-    const diff = endDate.getTime() - now.getTime();
-    const hours = diff / (1000 * 60 * 60);
-
-    if (hours <= 2) return 'critical'; // Moins de 2h
-    if (hours <= 24) return 'urgent'; // Moins de 24h
-    return 'normal';
-  };
-
-  const urgencyLevel = getUrgencyLevel();
-
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ delay: index * 0.05, duration: 0.3 }}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.05, duration: 0.35, ease: 'easeOut' }}
+      whileHover={{ y: -4 }}
       className="h-full"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
-      <Card
-        className={`group cursor-pointer hover:shadow-2xl transition-all duration-300 h-full flex flex-col overflow-hidden border-2 ${isExpired
-          ? 'border-gray-300 opacity-60'
-          : 'border-orange-300 hover:border-orange-500 hover:scale-[1.02]'
-          } relative`}
-        onClick={handleViewProduct}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
+      <div
+        className={`h-full flex flex-col rounded-2xl overflow-hidden bg-white dark:bg-card border-2 transition-all duration-300 cursor-pointer ${
+          isExpired
+            ? 'border-gray-200 dark:border-gray-700 opacity-60 grayscale'
+            : urgencyLevel === 'critical'
+            ? 'border-red-400 shadow-lg shadow-red-500/10 hover:shadow-xl hover:shadow-red-500/20'
+            : 'border-orange-200 dark:border-orange-900/40 hover:border-orange-400 hover:shadow-xl hover:shadow-orange-500/10'
+        }`}
+        onClick={() => navigate(`/flash/${flashSale.id}`)}
       >
-        {/* Barre "En direct" animée */}
+        {/* Top urgency strip */}
         {!isExpired && (
           <div
-            className={`absolute top-0 left-0 right-0 h-1 z-20 ${urgencyLevel === 'critical'
-              ? 'bg-gradient-to-r from-red-600 via-red-500 to-orange-500 animate-pulse'
-              : urgencyLevel === 'urgent'
-                ? 'bg-gradient-to-r from-orange-500 via-red-500 to-orange-500 animate-pulse'
-                : 'bg-gradient-to-r from-red-500 via-orange-500 to-yellow-500'
-              }`}
+            className={`h-1 w-full ${
+              urgencyLevel === 'critical'
+                ? 'bg-gradient-to-r from-red-600 via-red-500 to-orange-500 animate-pulse'
+                : urgencyLevel === 'urgent'
+                ? 'bg-gradient-to-r from-orange-500 to-red-500'
+                : 'bg-gradient-to-r from-orange-400 via-red-400 to-pink-400'
+            }`}
           />
         )}
 
-        <CardContent className="p-0 relative flex-1">
-          {/* Badges */}
-          <div className="absolute top-3 left-3 z-10 flex flex-col gap-2">
-            <Badge
-              variant="destructive"
-              className={`font-bold shadow-lg ${urgencyLevel === 'critical'
-                ? 'bg-gradient-to-r from-red-600 to-red-700 animate-bounce'
-                : 'bg-gradient-to-r from-red-500 to-orange-500 animate-pulse'
-                }`}
-            >
-              <Flame className="h-3 w-3 mr-1 fill-white" />
-              -{discountPercentage}%
-            </Badge>
+        {/* Image zone */}
+        <div className="relative h-52 bg-gradient-to-br from-orange-50 to-red-50 dark:from-orange-950/30 dark:to-red-950/20 overflow-hidden">
+          {!imageLoaded && <Skeleton className="absolute inset-0" />}
 
-            {!product.inStock && (
-              <Badge variant="secondary" className="shadow-lg">
-                Rupture
-              </Badge>
-            )}
+          <img
+            src={imageSrc}
+            alt={product.name}
+            className={`w-full h-full object-contain p-2 transition-all duration-500 ${isHovered ? 'scale-110' : 'scale-100'} ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
+            loading="lazy"
+            onLoad={() => setImageLoaded(true)}
+            onError={() => { setImageError(true); setImageLoaded(true); }}
+          />
 
+          {/* Badges top-left */}
+          <div className="absolute top-3 left-3 flex flex-col gap-1.5">
+            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-white text-xs font-bold shadow-lg ${urgencyLevel === 'critical' ? 'bg-gradient-to-r from-red-600 to-red-700 animate-bounce' : 'bg-gradient-to-r from-red-500 to-orange-500'}`}>
+              <Zap className="h-3 w-3 fill-white" />-{pct}%
+            </span>
             {product.featured && (
-              <Badge className="bg-yellow-500 hover:bg-yellow-600 shadow-lg">
-                <Star className="h-3 w-3 mr-1 fill-white" /> Vedette
-              </Badge>
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-yellow-400 text-yellow-900 text-[10px] font-bold shadow">
+                <Star className="h-3 w-3 fill-yellow-900" /> Vedette
+              </span>
             )}
           </div>
 
-          {/* Compteur temps restant */}
-          <div className="absolute top-3 right-3 z-10">
-            <Badge
-              className={`font-semibold shadow-lg ${isExpired
-                ? 'bg-gray-500'
-                : urgencyLevel === 'critical'
-                  ? 'bg-red-600 animate-pulse'
-                  : urgencyLevel === 'urgent'
-                    ? 'bg-orange-600 animate-pulse'
-                    : 'bg-gradient-to-r from-black/80 to-gray-900/80 backdrop-blur-sm'
-                }`}
-            >
-              <Clock className="h-3 w-3 mr-1" />
-              {timeRemaining || getTimeRemaining()}
-            </Badge>
-          </div>
+          {/* Timer top-right */}
+          {!isExpired && (
+            <div className={`absolute top-3 right-3 flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-mono font-bold shadow-lg ${urgencyLevel === 'critical' ? 'bg-red-600 text-white animate-pulse' : urgencyLevel === 'urgent' ? 'bg-orange-600 text-white' : 'bg-black/70 text-white backdrop-blur-sm'}`}>
+              <Clock className="h-3 w-3 shrink-0" />
+              {t.h > 0 ? `${fmt(t.h)}h${fmt(t.m)}` : `${fmt(t.m)}:${fmt(t.s)}`}
+            </div>
+          )}
 
-          {/* Image */}
-          <div className="relative overflow-hidden bg-gradient-to-br from-orange-50 to-red-50 h-64">
-            {!imageLoaded && <Skeleton className="absolute inset-0 w-full h-full" />}
-            <img
-              src={imageSrc}
-              alt={product.name}
-              className={`w-full h-full object-cover transition-all duration-500 ${isHovered ? 'scale-110' : 'scale-100'
-                } ${imageLoaded ? 'opacity-100' : 'opacity-0'} ${isExpired ? 'grayscale' : ''
-                }`}
-              loading="lazy"
-              onLoad={() => setImageLoaded(true)}
-              onError={() => {
-                setImageError(true);
-                setImageLoaded(true);
-              }}
-            />
-
-            {/* Overlay Quick View */}
-            {showQuickView && !isExpired && (
-              <div
-                className={`absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent backdrop-blur-sm flex items-center justify-center transition-all duration-300 ${isHovered ? 'opacity-100' : 'opacity-0 pointer-events-none'
-                  }`}
+          {/* Quick view overlay */}
+          {showQuickView && !isExpired && (
+            <div className={`absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-center justify-center transition-all duration-300 ${isHovered ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+              <button
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/90 text-gray-900 text-sm font-semibold shadow-xl hover:bg-white transition active:scale-95"
+                onClick={(e) => { e.stopPropagation(); navigate(`/flash/${flashSale.id}`); }}
               >
-                <Button
-                  variant="secondary"
-                  size="lg"
-                  className="shadow-xl"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleViewProduct();
-                  }}
-                >
-                  <Eye className="h-4 w-4 mr-2" /> Voir détails
-                </Button>
-              </div>
-            )}
+                <Eye className="h-4 w-4" /> Voir détails
+              </button>
+            </div>
+          )}
 
-            {/* Badge "Terminée" overlay */}
-            {isExpired && (
-              <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                <Badge variant="destructive" className="text-lg px-4 py-2">
-                  Vente Flash Terminée
-                </Badge>
-              </div>
-            )}
-          </div>
+          {/* Expired overlay */}
+          {isExpired && (
+            <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+              <Badge variant="destructive" className="text-base px-4 py-2">Vente terminée</Badge>
+            </div>
+          )}
 
-          {/* Infos produit */}
-          <div className="p-4 space-y-2 flex-1 flex flex-col">
-            {/* Catégorie & Marque */}
-            {(product.category || product.brand) && (
-              <div className="flex items-center gap-2 text-xs flex-wrap">
-                {product.category && (
-                  <span className="px-2 py-1 rounded-md bg-orange-100 text-orange-700 font-medium">
-                    {product.category}
-                  </span>
-                )}
-                {product.brand && (
-                  <span className="font-semibold text-orange-600">{product.brand}</span>
-                )}
-              </div>
-            )}
-
-            {/* Titre */}
-            <h3 className="font-bold text-lg line-clamp-2 min-h-[3.5rem] group-hover:text-orange-600 transition-colors">
-              {product.name}
-            </h3>
-
-            {/* Description */}
-            {product.description && (
-              <p className="text-sm text-muted-foreground line-clamp-2 flex-1">
-                {product.description}
-              </p>
-            )}
-
-            {/* Prix */}
-            <div className="flex flex-col gap-1 pt-2 border-t">
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-bold bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent">
-                  {discountPrice.toLocaleString('fr-FR')} FCFA
-                </span>
-                <span className="text-sm text-muted-foreground line-through">
-                  {originalPrice.toLocaleString('fr-FR')} FCFA
-                </span>
-              </div>
-
-              <div className="inline-flex items-center gap-2 px-2 py-1 bg-green-500/10 rounded-md border border-green-500/20 w-fit">
-                <Zap className="h-3 w-3 text-green-600" />
-                <span className="text-xs text-green-600 font-semibold">
-                  Économisez {(originalPrice - discountPrice).toLocaleString('fr-FR')}{' '}
-                  FCFA
-                </span>
+          {/* Stock bar */}
+          {stock > 0 && !isExpired && (
+            <div className="absolute bottom-0 left-0 right-0 px-3 pb-2 pt-4 bg-gradient-to-t from-black/30 to-transparent">
+              <div className="h-1.5 w-full bg-white/30 rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-700 ${progress > 75 ? 'bg-red-400' : progress > 50 ? 'bg-orange-400' : 'bg-green-400'}`}
+                  style={{ width: `${progress}%` }}
+                />
               </div>
             </div>
+          )}
+        </div>
 
-            {/* Stock warning */}
-            {product.inStock &&
-              product.stockQuantity &&
-              product.stockQuantity <= 5 &&
-              !isExpired && (
-                <div className="flex items-center gap-2 p-2 bg-orange-500/10 rounded-md border border-orange-500/20 animate-pulse">
-                  <Flame className="h-4 w-4 text-orange-600" />
-                  <p className="text-xs text-orange-600 font-medium">
-                    Plus que {product.stockQuantity} en stock !
-                  </p>
-                </div>
+        {/* Content */}
+        <div className="flex flex-col flex-1 p-4 gap-3">
+          {/* Category & Brand */}
+          {(product.category || product.brand) && (
+            <div className="flex items-center gap-2 text-xs flex-wrap">
+              {product.category && (
+                <span className="px-2 py-0.5 rounded-md bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 font-medium">
+                  {product.category}
+                </span>
               )}
+              {product.brand && (
+                <span className="font-semibold text-orange-600 dark:text-orange-400">{product.brand}</span>
+              )}
+            </div>
+          )}
+
+          {/* Name */}
+          <h3 className="font-bold text-base line-clamp-2 leading-snug group-hover:text-orange-600 transition-colors flex-1">
+            {product.name}
+          </h3>
+
+          {/* Stock urgency warning */}
+          {urgencyLevel !== 'normal' && remaining > 0 && !isExpired && (
+            <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold ${urgencyLevel === 'critical' ? 'bg-red-50 dark:bg-red-950/40 text-red-600 border border-red-200 dark:border-red-800/40 animate-pulse' : 'bg-orange-50 dark:bg-orange-950/40 text-orange-600 border border-orange-200 dark:border-orange-800/40'}`}>
+              <Flame className="h-3.5 w-3.5 fill-current shrink-0" />
+              Plus que {remaining} en stock !
+            </div>
+          )}
+
+          {/* Prices */}
+          <div className="flex flex-col gap-0.5 pt-2 border-t border-dashed border-gray-100 dark:border-gray-700">
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-extrabold bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent">
+                {discountPrice.toLocaleString('fr-FR')}
+                <span className="text-sm font-bold ml-1">FCFA</span>
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground line-through">
+                {originalPrice.toLocaleString('fr-FR')} FCFA
+              </span>
+              <span className="text-xs px-1.5 py-0.5 rounded bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 font-semibold">
+                −{(originalPrice - discountPrice).toLocaleString('fr-FR')} FCFA
+              </span>
+            </div>
           </div>
-        </CardContent>
 
-        {/* Footer avec boutons */}
-        <CardFooter className="p-4 pt-0 gap-2 border-t bg-gradient-to-r from-orange-50/50 to-red-50/50">
-          <Button
-            variant="outline"
-            className="flex-1 border-orange-400 text-orange-600 hover:bg-orange-50 group/btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleViewProduct();
-            }}
-          >
-            <Eye className="h-4 w-4 mr-2 group-hover/btn:scale-110 transition-transform" />
-            Voir
-          </Button>
-
-          <Button
-            className="flex-1 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 shadow-lg group/btn disabled:from-gray-400 disabled:to-gray-500"
-            onClick={handleAddToCart}
-            disabled={!product.inStock || isExpired}
-          >
-            <ShoppingCart className="h-4 w-4 mr-2 group-hover/btn:scale-110 transition-transform" />
-            {isExpired ? 'Terminée' : product.inStock ? 'Ajouter' : 'Épuisé'}
-          </Button>
-        </CardFooter>
-      </Card>
+          {/* Actions */}
+          <div className="flex gap-2 mt-auto">
+            <button
+              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border-2 border-orange-300 dark:border-orange-700 text-orange-600 dark:text-orange-400 text-sm font-semibold hover:bg-orange-50 dark:hover:bg-orange-900/20 transition active:scale-95"
+              onClick={(e) => { e.stopPropagation(); navigate(`/flash/${flashSale.id}`); }}
+            >
+              <Eye className="h-4 w-4" /> Voir
+            </button>
+            <button
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold text-white shadow transition active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${!product.inStock || isExpired ? 'bg-gray-400' : 'bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 shadow-orange-500/30'}`}
+              onClick={handleAddToCart}
+              disabled={!product.inStock || isExpired}
+            >
+              <ShoppingCart className="h-4 w-4" />
+              {isExpired ? 'Terminée' : product.inStock ? 'Ajouter' : 'Épuisé'}
+            </button>
+          </div>
+        </div>
+      </div>
     </motion.div>
   );
 };
