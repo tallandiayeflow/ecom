@@ -73,6 +73,7 @@ import {
   Plus,
   RefreshCw,
   Search,
+  Settings2,
   Tag,
   Trash2,
   X,
@@ -105,11 +106,17 @@ const ProductsManagement = () => {
     images: "",
     stockQuantity: "",
     brand: "",
-    specifications: "{}",
     colors: '',
     sizes: '',
     subcategoryIds: [] as string[],
   });
+
+  const [specs, setSpecs] = useState<{ key: string; value: string }[]>([]);
+
+  const addSpec = () => setSpecs(prev => [...prev, { key: '', value: '' }]);
+  const removeSpec = (idx: number) => setSpecs(prev => prev.filter((_, i) => i !== idx));
+  const updateSpec = (idx: number, field: 'key' | 'value', val: string) =>
+    setSpecs(prev => prev.map((s, i) => i === idx ? { ...s, [field]: val } : s));
 
   useEffect(() => {
     loadInitialData();
@@ -163,11 +170,13 @@ const ProductsManagement = () => {
         images: product.images.join(", "),
         stockQuantity: product.stockQuantity.toString(),
         brand: product.brand || "",
-        specifications: JSON.stringify(product.specifications, null, 2),
         colors: (product.colors ?? []).join(', '),
         sizes: (product.sizes ?? []).join(', '),
         subcategoryIds: (product.subcategories ?? []).map((s) => s.id),
       });
+      setSpecs(
+        Object.entries(product.specifications || {}).map(([key, value]) => ({ key, value: String(value) }))
+      );
     } else {
       setEditingProduct(null);
       setFormData({
@@ -179,11 +188,11 @@ const ProductsManagement = () => {
         images: "",
         stockQuantity: "",
         brand: "",
-        specifications: "{}",
         colors: "",
         sizes: "",
         subcategoryIds: [],
       });
+      setSpecs([]);
     }
     setIsDialogOpen(true);
   };
@@ -212,7 +221,9 @@ const ProductsManagement = () => {
         image_url: formData.images.split(",")[0]?.trim() || "",
         stockQuantity: parseInt(formData.stockQuantity),
         brand: formData.brand.trim() || "",
-        specifications: JSON.parse(formData.specifications),
+        specifications: Object.fromEntries(
+          specs.filter(s => s.key.trim()).map(s => [s.key.trim(), s.value.trim()])
+        ),
         colors: formData.colors
           ? formData.colors.split(",").map((c) => c.trim()).filter(Boolean)
           : undefined,
@@ -932,6 +943,61 @@ const ProductsManagement = () => {
                     Sépare par des virgules. Laisse vide si non applicable.
                   </p>
                 </div>
+              </div>
+            </div>
+
+            {/* Spécifications techniques */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                <Settings2 className="h-4 w-4" />
+                Caractéristiques techniques
+              </h3>
+
+              <div className="space-y-2">
+                {specs.length === 0 && (
+                  <p className="text-xs text-muted-foreground italic">
+                    Aucune caractéristique. Clique sur le bouton ci-dessous pour en ajouter.
+                  </p>
+                )}
+                {specs.map((spec, idx) => (
+                  <div key={idx} className="flex gap-2 items-center">
+                    <Input
+                      placeholder="Nom (ex : RAM)"
+                      value={spec.key}
+                      onChange={(e) => updateSpec(idx, 'key', e.target.value)}
+                      disabled={submitting}
+                      className="h-9 w-2/5"
+                    />
+                    <Input
+                      placeholder="Valeur (ex : 8 Go)"
+                      value={spec.value}
+                      onChange={(e) => updateSpec(idx, 'value', e.target.value)}
+                      disabled={submitting}
+                      className="h-9 flex-1"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-9 w-9 shrink-0 text-muted-foreground hover:text-destructive"
+                      onClick={() => removeSpec(idx)}
+                      disabled={submitting}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 mt-1"
+                  onClick={addSpec}
+                  disabled={submitting}
+                >
+                  <Plus className="h-4 w-4" />
+                  Ajouter une caractéristique
+                </Button>
               </div>
             </div>
 
