@@ -41,9 +41,19 @@ app.register_blueprint(pos.bp, url_prefix='/api/pos')
 import os
 from flask import send_from_directory
 
+# On Vercel the Lambda FS is read-only; use /tmp for new uploads.
+# Committed files in uploads/ are still served from app.root_path.
+UPLOAD_FOLDER = '/tmp/uploads' if os.getenv('VERCEL') else os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
 @app.route('/api/uploads/<path:filename>')
 def uploaded_file(filename):
-    return send_from_directory(os.path.join(app.root_path, 'uploads'), filename)
+    # Try committed uploads dir first, then UPLOAD_FOLDER (tmp on Vercel)
+    static_dir = os.path.join(app.root_path, 'uploads')
+    if os.path.exists(os.path.join(static_dir, filename)):
+        return send_from_directory(static_dir, filename)
+    return send_from_directory(UPLOAD_FOLDER, filename)
 
 
 # Health check
