@@ -15,27 +15,18 @@ import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Popover,
   PopoverContent,
@@ -44,14 +35,6 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
   createCategory,
   deleteCategory,
   getCategories,
@@ -59,7 +42,7 @@ import {
   CategoryPayload,
 } from "@/lib/api";
 import type { Category } from "@/types";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   AlertCircle,
   Apple,
@@ -67,6 +50,7 @@ import {
   Bluetooth,
   Box,
   Camera,
+  ChevronRight,
   Cpu,
   Folder,
   FolderOpen,
@@ -99,7 +83,6 @@ import {
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-// Collection d'icônes disponibles
 const AVAILABLE_ICONS = [
   { name: "Smartphone", icon: Smartphone },
   { name: "Laptop", icon: Laptop },
@@ -129,26 +112,37 @@ const AVAILABLE_ICONS = [
   { name: "Lightbulb", icon: Lightbulb },
 ];
 
+type DialogMode = "category" | "subcategory";
+
 const CategoriesManagement = () => {
   const [categories, setCategories] = useState<Category[]>([]);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
-  const [deletingCategory, setDeletingCategory] = useState<Category | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [iconSearchTerm, setIconSearchTerm] = useState("");
+
+  // Selection
+  const [selectedCatId, setSelectedCatId] = useState<string | null>(null);
+
+  // Dialog
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [dialogMode, setDialogMode] = useState<DialogMode>("category");
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [formData, setFormData] = useState({ name: "", icon: "Folder", parentId: "" });
+  const [iconSearch, setIconSearch] = useState("");
   const [iconPopoverOpen, setIconPopoverOpen] = useState(false);
 
-  const [formData, setFormData] = useState({
-    name: "",
-    icon: "Folder",
-    parentId: '',
-  });
+  // Delete
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [deletingCategory, setDeletingCategory] = useState<Category | null>(null);
 
+  useEffect(() => { loadCategories(); }, []);
+
+  // Auto-select first parent on load
   useEffect(() => {
-    loadCategories();
-  }, []);
+    if (categories.length > 0 && !selectedCatId) {
+      const first = categories.find(c => !c.parentId);
+      if (first) setSelectedCatId(first.id);
+    }
+  }, [categories]);
 
   const loadCategories = async () => {
     try {
@@ -156,614 +150,501 @@ const CategoriesManagement = () => {
       const data = await getCategories();
       setCategories(data);
     } catch {
-      toast.error("Erreur lors du chargement des catégories");
+      toast.error("Erreur chargement catégories");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleOpenDialog = (category?: Category) => {
-    if (category) {
-      setEditingCategory(category);
-      setFormData({
-        name: category.name,
-        icon: category.icon || "Folder",
-        parentId: category.parentId || '',
-      });
-    } else {
-      setEditingCategory(null);
-      setFormData({ name: "", icon: "Folder", parentId: '' });
-    }
-    setIconSearchTerm("");
+  // ── Derived data ─────────────────────────────────────────────
+  const parentCats = categories.filter(c => !c.parentId);
+  const selectedCat = parentCats.find(c => c.id === selectedCatId) ?? null;
+  const selectedSubs = selectedCat?.subcategories ?? [];
+  const totalSubcategories = categories.reduce((sum, c) => sum + (c.subcategories?.length ?? 0), 0);
+  const totalProducts = categories.reduce(
+    (sum, c) => sum + (c.productCount || 0) + (c.subcategories ?? []).reduce((s, sub) => s + (sub.productCount || 0), 0), 0
+  );
+
+  // ── Dialog helpers ────────────────────────────────────────────
+  const openNewCategory = () => {
+    setEditingCategory(null);
+    setDialogMode("category");
+    setFormData({ name: "", icon: "Folder", parentId: "" });
+    setIconSearch("");
+    setIsDialogOpen(true);
+  };
+
+  const openNewSubcategory = () => {
+    if (!selectedCatId) { toast.error("Sélectionne d'abord une catégorie"); return; }
+    setEditingCategory(null);
+    setDialogMode("subcategory");
+    setFormData({ name: "", icon: "Folder", parentId: selectedCatId });
+    setIconSearch("");
+    setIsDialogOpen(true);
+  };
+
+  const openEdit = (cat: Category) => {
+    setEditingCategory(cat);
+    setDialogMode(cat.parentId ? "subcategory" : "category");
+    setFormData({ name: cat.name, icon: cat.icon ?? "Folder", parentId: cat.parentId ?? "" });
+    setIconSearch("");
     setIsDialogOpen(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!formData.name.trim()) {
-      toast.error("Le nom est requis");
-      return;
-    }
-
+    if (!formData.name.trim()) { toast.error("Le nom est requis"); return; }
     try {
       setSubmitting(true);
-
-      const categoryData: CategoryPayload = {
-        name: formData.name,
+      const payload: CategoryPayload = {
+        name: formData.name.trim(),
         icon: formData.icon,
         parent_id: formData.parentId || null,
       };
-
       if (editingCategory) {
-        await updateCategory(editingCategory.id, categoryData);
-        toast.success("Catégorie modifiée avec succès ! ✅");
+        await updateCategory(editingCategory.id, payload);
+        toast.success("Catégorie modifiée ✅");
       } else {
-        await createCategory(categoryData);
-        toast.success("Catégorie ajoutée avec succès ! 🎉");
+        await createCategory(payload);
+        toast.success(dialogMode === "subcategory" ? "Sous-catégorie créée 🎉" : "Catégorie créée 🎉");
       }
-
       setIsDialogOpen(false);
       loadCategories();
     } catch (err: any) {
-      toast.error(err.response?.data?.error || "Erreur lors de l'enregistrement");
+      toast.error(err.response?.data?.error ?? "Erreur d'enregistrement");
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const handleOpenDeleteDialog = (category: Category) => {
-    setDeletingCategory(category);
-    setIsDeleteDialogOpen(true);
   };
 
   const handleDelete = async () => {
     if (!deletingCategory) return;
-
     try {
       setSubmitting(true);
       await deleteCategory(deletingCategory.id);
-      toast.success("Catégorie supprimée 🗑️");
+      toast.success("Supprimé 🗑️");
       setIsDeleteDialogOpen(false);
+      if (deletingCategory.id === selectedCatId) setSelectedCatId(null);
       setDeletingCategory(null);
       loadCategories();
     } catch (err: any) {
-      toast.error(err.response?.data?.error || "Erreur lors de la suppression");
+      toast.error(err.response?.data?.error ?? "Erreur suppression");
     } finally {
       setSubmitting(false);
     }
   };
 
-  const getIconComponent = (iconName: string) => {
-    const iconData = AVAILABLE_ICONS.find((i) => i.name === iconName);
-    return iconData?.icon || Folder;
-  };
+  const getIcon = (name: string) => AVAILABLE_ICONS.find(i => i.name === name)?.icon ?? Folder;
+  const filteredIcons = AVAILABLE_ICONS.filter(i => i.name.toLowerCase().includes(iconSearch.toLowerCase()));
 
-  const filteredIcons = AVAILABLE_ICONS.filter((icon) =>
-    icon.name.toLowerCase().includes(iconSearchTerm.toLowerCase())
+  // ── Icon picker (shared) ──────────────────────────────────────
+  const IconPicker = () => (
+    <Popover open={iconPopoverOpen} onOpenChange={setIconPopoverOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full h-12 justify-start gap-3 font-normal"
+          disabled={submitting}
+        >
+          {(() => { const I = getIcon(formData.icon); return <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center"><I className="h-5 w-5 text-primary" /></div>; })()}
+          <span>{formData.icon}</span>
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[360px] p-0" align="start">
+        <div className="p-3 border-b">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Rechercher…"
+              value={iconSearch}
+              onChange={e => setIconSearch(e.target.value)}
+              className="pl-9 h-9"
+            />
+            {iconSearch && (
+              <Button variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setIconSearch("")}>
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        </div>
+        <ScrollArea className="h-64">
+          <div className="grid grid-cols-4 gap-2 p-3">
+            {filteredIcons.map(({ name, icon: I }) => {
+              const sel = formData.icon === name;
+              return (
+                <button
+                  key={name}
+                  type="button"
+                  onClick={() => { setFormData(f => ({ ...f, icon: name })); setIconPopoverOpen(false); setIconSearch(""); }}
+                  className={`flex flex-col items-center gap-1 p-2.5 rounded-lg border-2 transition-all hover:scale-105 ${sel ? "border-primary bg-primary/10" : "border-transparent hover:border-primary/40 hover:bg-accent"}`}
+                >
+                  <I className={`h-5 w-5 ${sel ? "text-primary" : "text-muted-foreground"}`} />
+                  <span className={`text-[9px] truncate w-full text-center ${sel ? "text-primary" : "text-muted-foreground"}`}>{name}</span>
+                </button>
+              );
+            })}
+            {filteredIcons.length === 0 && (
+              <div className="col-span-4 py-8 text-center text-muted-foreground text-sm">Aucune icône trouvée</div>
+            )}
+          </div>
+        </ScrollArea>
+        <p className="text-xs text-muted-foreground text-center py-2 border-t">{filteredIcons.length} icône(s)</p>
+      </PopoverContent>
+    </Popover>
   );
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom duration-500">
-      {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card className="transition-all duration-300 hover:shadow-lg hover:scale-[1.02] border-primary/20">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Catégories</CardTitle>
-            <Layers className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{categories.length}</div>
-            <p className="text-xs text-muted-foreground">Catégories actives</p>
+
+      {/* ── STATS ── */}
+      <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
+        <Card className="border-primary/20">
+          <CardContent className="pt-5">
+            <p className="text-xs text-muted-foreground">Catégories</p>
+            <p className="text-3xl font-bold">{parentCats.length}</p>
           </CardContent>
         </Card>
-
-        <Card className="transition-all duration-300 hover:shadow-lg hover:scale-[1.02] border-green-500/20">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avec Produits</CardTitle>
-            <Package className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-500">
-              {categories.filter((c) => (c.productCount || 0) > 0).length}
-            </div>
-            <p className="text-xs text-muted-foreground">Catégories utilisées</p>
+        <Card className="border-violet-500/20">
+          <CardContent className="pt-5">
+            <p className="text-xs text-muted-foreground">Sous-catégories</p>
+            <p className="text-3xl font-bold text-violet-600">{totalSubcategories}</p>
           </CardContent>
         </Card>
-
-        <Card className="transition-all duration-300 hover:shadow-lg hover:scale-[1.02] border-orange-500/20">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Produits</CardTitle>
-            <Box className="h-4 w-4 text-orange-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-orange-500">
-              {categories.reduce((sum, c) => sum + (c.productCount || 0) + (c.subcategories ?? []).reduce((s, sub) => s + (sub.productCount || 0), 0), 0)}
-            </div>
-            <p className="text-xs text-muted-foreground">Dans toutes catégories</p>
+        <Card className="border-green-500/20">
+          <CardContent className="pt-5">
+            <p className="text-xs text-muted-foreground">Total produits</p>
+            <p className="text-3xl font-bold text-green-600">{totalProducts}</p>
+          </CardContent>
+        </Card>
+        <Card className="border-orange-500/20">
+          <CardContent className="pt-5">
+            <p className="text-xs text-muted-foreground">Niveaux</p>
+            <p className="text-3xl font-bold text-orange-600">2</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Main Card */}
-      <Card className="border-primary/10 shadow-lg">
-        <CardHeader className="bg-gradient-to-r from-primary/5 via-transparent to-transparent">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="space-y-1">
-              <CardTitle className="text-2xl flex items-center gap-2">
-                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg">
-                  <Layers className="h-5 w-5 text-primary-foreground" />
-                </div>
-                Gestion des Catégories
-              </CardTitle>
-              <CardDescription className="text-sm">
-                {categories.length} catégorie(s) • {categories.reduce((sum, c) => sum + (c.productCount || 0) + (c.subcategories ?? []).reduce((s, sub) => s + (sub.productCount || 0), 0), 0)} produit(s)
-              </CardDescription>
-            </div>
-            <div className="flex gap-2 flex-wrap">
-              <Button
-                onClick={() => handleOpenDialog()}
-                className="transition-all duration-300 hover:scale-105 hover:shadow-lg"
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Nouvelle Catégorie
-              </Button>
-              <Button
-                variant="outline"
-                onClick={loadCategories}
-                disabled={loading}
-                className="transition-all duration-300 hover:scale-105"
-              >
-                <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-                Actualiser
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
+      {/* ── SPLIT VIEW ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-[2fr_3fr] gap-5">
 
-        <CardContent className="space-y-4 p-6">
-          <div className="rounded-lg border overflow-hidden bg-card">
+        {/* ── LEFT : Categories ── */}
+        <Card className="border-primary/10">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base flex items-center gap-2">
+                <div className="h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Layers className="h-4 w-4 text-primary" />
+                </div>
+                Catégories
+                <Badge variant="secondary" className="ml-1">{parentCats.length}</Badge>
+              </CardTitle>
+              <div className="flex gap-1.5">
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={loadCategories} disabled={loading}>
+                  <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+                </Button>
+                <Button size="sm" className="gap-1.5 h-8" onClick={openNewCategory}>
+                  <Plus className="h-3.5 w-3.5" />
+                  Nouvelle
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+
+          <CardContent className="p-0">
             {loading ? (
-              <div className="p-8 space-y-4">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="flex items-center gap-4">
-                    <Skeleton className="h-12 w-12 rounded-lg" />
-                    <div className="space-y-2 flex-1">
-                      <Skeleton className="h-4 w-1/4" />
-                      <Skeleton className="h-3 w-1/6" />
+              <div className="p-4 space-y-2">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="flex items-center gap-3 p-3">
+                    <Skeleton className="h-11 w-11 rounded-xl" />
+                    <div className="flex-1 space-y-1.5">
+                      <Skeleton className="h-4 w-1/2" />
+                      <Skeleton className="h-3 w-1/3" />
                     </div>
                   </div>
                 ))}
               </div>
-            ) : categories.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-center">
-                <div className="h-20 w-20 rounded-full bg-muted flex items-center justify-center mb-4">
-                  <Layers className="h-10 w-10 text-muted-foreground" />
-                </div>
-                <h3 className="text-lg font-semibold mb-2">Aucune catégorie</h3>
-                <p className="text-muted-foreground mb-6 max-w-md">
-                  Commencez par créer votre première catégorie pour organiser vos produits
-                </p>
-                <Button onClick={() => handleOpenDialog()}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Créer une catégorie
+            ) : parentCats.length === 0 ? (
+              <div className="py-12 text-center text-muted-foreground">
+                <Layers className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                <p className="text-sm">Aucune catégorie</p>
+                <Button size="sm" variant="outline" className="mt-3 gap-1.5" onClick={openNewCategory}>
+                  <Plus className="h-3.5 w-3.5" />Créer la première
                 </Button>
               </div>
             ) : (
-              <>
-                {/* Desktop Table */}
-                <div className="hidden md:block">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="hover:bg-transparent border-b-2">
-                        <TableHead className="font-semibold">Icône</TableHead>
-                        <TableHead className="font-semibold">Nom</TableHead>
-                        <TableHead className="font-semibold">Produits</TableHead>
-                        <TableHead className="font-semibold text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {categories
-                        .filter((c) => !c.parentId)
-                        .map((rootCat, index) => {
-                          const RootIconComponent = getIconComponent(rootCat.icon || "Folder");
-                          const rootHasProducts = (rootCat.productCount || 0) > 0;
+              <div className="divide-y">
+                {parentCats.map((cat, idx) => {
+                  const Icon = getIcon(cat.icon ?? "Folder");
+                  const isSelected = selectedCatId === cat.id;
+                  const subCount = cat.subcategories?.length ?? 0;
+                  return (
+                    <motion.div
+                      key={cat.id}
+                      initial={{ opacity: 0, x: -12 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: idx * 0.04 }}
+                      onClick={() => setSelectedCatId(cat.id)}
+                      className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition-all group ${
+                        isSelected
+                          ? "bg-primary/8 border-l-2 border-primary"
+                          : "hover:bg-muted/50 border-l-2 border-transparent"
+                      }`}
+                    >
+                      {/* Icon */}
+                      <div className={`h-11 w-11 rounded-xl flex items-center justify-center shrink-0 transition-all ${
+                        isSelected ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary"
+                      }`}>
+                        <Icon className="h-5 w-5" />
+                      </div>
 
-                          return (
-                            <React.Fragment key={rootCat.id}>
-                              <motion.tr
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: index * 0.05 }}
-                                className="group hover:bg-accent/50 transition-all duration-200 border-b"
-                              >
-                                <TableCell>
-                                  <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center ring-2 ring-border transition-all duration-300 group-hover:ring-primary group-hover:scale-110">
-                                    <RootIconComponent className="h-6 w-6 text-primary" />
-                                  </div>
-                                </TableCell>
-                                <TableCell>
-                                  <p className="font-semibold group-hover:text-primary transition-colors">
-                                    {rootCat.name}
-                                  </p>
-                                  <p className="text-xs text-muted-foreground">
-                                    Slug: {rootCat.slug}
-                                  </p>
-                                </TableCell>
-                                <TableCell>
-                                  <Badge
-                                    variant={rootHasProducts ? "default" : "secondary"}
-                                    className={
-                                      rootHasProducts
-                                        ? "bg-green-500/10 text-green-500 hover:bg-green-500/20"
-                                        : ""
-                                    }
-                                  >
-                                    {rootCat.productCount || 0} produit(s)
-                                  </Badge>
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  <div className="flex justify-end gap-1">
-                                    <Button
-                                      size="icon"
-                                      variant="ghost"
-                                      onClick={() => handleOpenDialog(rootCat)}
-                                      className="h-9 w-9 transition-all duration-300 hover:scale-110 hover:bg-primary/10 hover:text-primary"
-                                    >
-                                      <Pencil className="h-4 w-4" />
-                                    </Button>
-                                    <Button
-                                      size="icon"
-                                      variant="ghost"
-                                      onClick={() => handleOpenDeleteDialog(rootCat)}
-                                      disabled={rootHasProducts}
-                                      className="h-9 w-9 text-destructive transition-all duration-300 hover:scale-110 hover:bg-destructive/10 disabled:opacity-50"
-                                      title={
-                                        rootHasProducts
-                                          ? "Impossible de supprimer (contient des produits)"
-                                          : "Supprimer la catégorie"
-                                      }
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </div>
-                                </TableCell>
-                              </motion.tr>
-                              {(rootCat.subcategories ?? []).map((sub, subIndex) => {
-                                const SubIconComponent = getIconComponent(sub.icon || "Folder");
-                                const subHasProducts = (sub.productCount || 0) > 0;
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+                        <p className={`font-semibold text-sm truncate ${isSelected ? "text-primary" : ""}`}>{cat.name}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-xs text-muted-foreground">{cat.productCount ?? 0} produit(s)</span>
+                          {subCount > 0 && (
+                            <span className="text-xs text-violet-600 font-medium">· {subCount} sous-cat.</span>
+                          )}
+                        </div>
+                      </div>
 
-                                return (
-                                  <motion.tr
-                                    key={sub.id}
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: (index * 0.05) + (subIndex * 0.03) }}
-                                    className="group hover:bg-accent/50 transition-all duration-200 border-b bg-muted/30"
-                                  >
-                                    <TableCell>
-                                      <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center ring-2 ring-border transition-all duration-300 group-hover:ring-primary group-hover:scale-110">
-                                        <SubIconComponent className="h-6 w-6 text-primary" />
-                                      </div>
-                                    </TableCell>
-                                    <TableCell>
-                                      <p className="font-semibold group-hover:text-primary transition-colors">
-                                        <span className="text-muted-foreground mr-1">↳</span>
-                                        {sub.name}
-                                      </p>
-                                      <p className="text-xs text-muted-foreground">
-                                        Slug: {sub.slug}
-                                      </p>
-                                    </TableCell>
-                                    <TableCell>
-                                      <Badge
-                                        variant={subHasProducts ? "default" : "secondary"}
-                                        className={
-                                          subHasProducts
-                                            ? "bg-green-500/10 text-green-500 hover:bg-green-500/20"
-                                            : ""
-                                        }
-                                      >
-                                        {sub.productCount || 0} produit(s)
-                                      </Badge>
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                      <div className="flex justify-end gap-1">
-                                        <Button
-                                          size="icon"
-                                          variant="ghost"
-                                          onClick={() => handleOpenDialog(sub)}
-                                          className="h-9 w-9 transition-all duration-300 hover:scale-110 hover:bg-primary/10 hover:text-primary"
-                                        >
-                                          <Pencil className="h-4 w-4" />
-                                        </Button>
-                                        <Button
-                                          size="icon"
-                                          variant="ghost"
-                                          onClick={() => handleOpenDeleteDialog(sub)}
-                                          disabled={subHasProducts}
-                                          className="h-9 w-9 text-destructive transition-all duration-300 hover:scale-110 hover:bg-destructive/10 disabled:opacity-50"
-                                          title={
-                                            subHasProducts
-                                              ? "Impossible de supprimer (contient des produits)"
-                                              : "Supprimer la catégorie"
-                                          }
-                                        >
-                                          <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                      </div>
-                                    </TableCell>
-                                  </motion.tr>
-                                );
-                              })}
-                            </React.Fragment>
-                          );
-                        })}
-                    </TableBody>
-                  </Table>
+                      {/* Actions */}
+                      <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 hover:bg-primary/10 hover:text-primary"
+                          onClick={e => { e.stopPropagation(); openEdit(cat); }}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 text-destructive hover:bg-destructive/10 disabled:opacity-30"
+                          onClick={e => { e.stopPropagation(); setDeletingCategory(cat); setIsDeleteDialogOpen(true); }}
+                          disabled={(cat.productCount ?? 0) > 0 || subCount > 0}
+                          title={(cat.productCount ?? 0) > 0 || subCount > 0 ? "Contient des produits ou sous-catégories" : "Supprimer"}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+
+                      {isSelected && <ChevronRight className="h-4 w-4 text-primary shrink-0" />}
+                    </motion.div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* ── RIGHT : Subcategories ── */}
+        <Card className="border-violet-500/10">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <CardTitle className="text-base flex items-center gap-2">
+                <div className="h-7 w-7 rounded-lg bg-violet-500/10 flex items-center justify-center">
+                  <Layers className="h-4 w-4 text-violet-600" />
                 </div>
+                Sous-catégories
+                {selectedCat && (
+                  <span className="text-muted-foreground font-normal text-sm">
+                    — <span className="text-foreground font-semibold">{selectedCat.name}</span>
+                  </span>
+                )}
+                {selectedSubs.length > 0 && (
+                  <Badge variant="secondary" className="bg-violet-500/10 text-violet-600">{selectedSubs.length}</Badge>
+                )}
+              </CardTitle>
+              {selectedCat && (
+                <Button size="sm" variant="outline" className="gap-1.5 h-8 border-violet-500/30 text-violet-700 hover:bg-violet-500/10" onClick={openNewSubcategory}>
+                  <Plus className="h-3.5 w-3.5" />
+                  Ajouter
+                </Button>
+              )}
+            </div>
+          </CardHeader>
 
-                {/* Mobile Cards */}
-                <div className="md:hidden p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {categories.flatMap(c => [c, ...(c.subcategories ?? [])]).map((cat, index) => {
-                    const IconComponent = getIconComponent(cat.icon || "Folder");
-                    const hasProducts = (cat.productCount || 0) > 0;
-
+          <CardContent className="p-0">
+            {!selectedCat ? (
+              <div className="py-16 text-center text-muted-foreground">
+                <div className="h-16 w-16 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-3">
+                  <ChevronRight className="h-8 w-8 opacity-30" />
+                </div>
+                <p className="text-sm font-medium">Sélectionne une catégorie</p>
+                <p className="text-xs mt-1">Les sous-catégories apparaîtront ici</p>
+              </div>
+            ) : loading ? (
+              <div className="p-4 space-y-2">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="flex items-center gap-3 p-3">
+                    <Skeleton className="h-10 w-10 rounded-lg" />
+                    <div className="flex-1 space-y-1.5">
+                      <Skeleton className="h-4 w-1/3" />
+                      <Skeleton className="h-3 w-1/4" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : selectedSubs.length === 0 ? (
+              <div className="py-12 text-center">
+                <div className="h-14 w-14 rounded-2xl bg-violet-500/10 flex items-center justify-center mx-auto mb-3">
+                  <Plus className="h-7 w-7 text-violet-400" />
+                </div>
+                <p className="text-sm text-muted-foreground font-medium">Aucune sous-catégorie</p>
+                <p className="text-xs text-muted-foreground mt-1 mb-4">
+                  Ajoute des sous-catégories à <strong>{selectedCat.name}</strong>
+                </p>
+                <Button size="sm" variant="outline" className="gap-1.5 border-violet-500/30 text-violet-700 hover:bg-violet-500/10" onClick={openNewSubcategory}>
+                  <Plus className="h-3.5 w-3.5" />
+                  Première sous-catégorie
+                </Button>
+              </div>
+            ) : (
+              <div className="divide-y">
+                <AnimatePresence>
+                  {selectedSubs.map((sub, idx) => {
+                    const Icon = getIcon(sub.icon ?? "Folder");
+                    const hasProducts = (sub.productCount ?? 0) > 0;
                     return (
                       <motion.div
-                        key={cat.id}
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ delay: index * 0.05 }}
+                        key={sub.id}
+                        initial={{ opacity: 0, x: 12 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 12 }}
+                        transition={{ delay: idx * 0.04 }}
+                        className="flex items-center gap-3 px-4 py-3 group hover:bg-muted/40 transition-colors"
                       >
-                        <Card className="overflow-hidden transition-all duration-300 hover:shadow-lg border-primary/20">
-                          <CardContent className="p-4 space-y-3">
-                            <div className="flex items-center justify-between">
-                              <div className="h-14 w-14 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center ring-2 ring-border">
-                                <IconComponent className="h-7 w-7 text-primary" />
-                              </div>
-                              <Badge
-                                variant={hasProducts ? "default" : "secondary"}
-                                className={
-                                  hasProducts
-                                    ? "bg-green-500/10 text-green-500 hover:bg-green-500/20"
-                                    : ""
-                                }
-                              >
-                                {cat.productCount || 0}
-                              </Badge>
-                            </div>
+                        {/* Icon */}
+                        <div className="h-10 w-10 rounded-xl bg-violet-500/10 flex items-center justify-center shrink-0 group-hover:bg-violet-500/20 transition-colors">
+                          <Icon className="h-4.5 w-4.5 text-violet-600" />
+                        </div>
 
-                            <div>
-                              <h3 className="font-semibold text-lg">
-                                {cat.parentId && <span className="text-muted-foreground mr-1">↳</span>}
-                                {cat.name}
-                              </h3>
-                              <p className="text-xs text-muted-foreground">
-                                {cat.slug}
-                              </p>
-                            </div>
+                        {/* Info */}
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-sm truncate">{sub.name}</p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-xs text-muted-foreground">{sub.productCount ?? 0} produit(s)</span>
+                            <span className="text-xs text-muted-foreground">· {sub.slug}</span>
+                          </div>
+                        </div>
 
-                            <div className="flex gap-2 pt-2 border-t">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleOpenDialog(cat)}
-                                className="flex-1 transition-all duration-300 hover:scale-105"
-                              >
-                                <Pencil className="h-4 w-4 mr-2" />
-                                Modifier
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleOpenDeleteDialog(cat)}
-                                disabled={hasProducts}
-                                className="flex-1 text-destructive hover:bg-destructive/10 transition-all duration-300 hover:scale-105 disabled:opacity-50"
-                              >
-                                <Trash2 className="h-4 w-4 mr-2" />
-                                Supprimer
-                              </Button>
-                            </div>
-                          </CardContent>
-                        </Card>
+                        {/* Stock badge */}
+                        {hasProducts && (
+                          <Badge variant="secondary" className="bg-green-500/10 text-green-600 text-[10px] shrink-0">
+                            {sub.productCount}
+                          </Badge>
+                        )}
+
+                        {/* Actions */}
+                        <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7 hover:bg-primary/10 hover:text-primary"
+                            onClick={() => openEdit(sub)}
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7 text-destructive hover:bg-destructive/10 disabled:opacity-30"
+                            onClick={() => { setDeletingCategory(sub); setIsDeleteDialogOpen(true); }}
+                            disabled={hasProducts}
+                            title={hasProducts ? "Contient des produits" : "Supprimer"}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
                       </motion.div>
                     );
                   })}
-                </div>
-              </>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+                </AnimatePresence>
 
-      {/* Dialog Ajouter / Modifier */}
+                {/* Footer CTA */}
+                <div className="p-4">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full gap-1.5 border-dashed border-violet-500/40 text-violet-700 hover:bg-violet-500/10"
+                    onClick={openNewSubcategory}
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Ajouter une sous-catégorie à {selectedCat.name}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ── DIALOG CREATE / EDIT ── */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-2xl flex items-center gap-2">
+            <DialogTitle className="flex items-center gap-2">
               {editingCategory ? (
-                <>
-                  <Pencil className="h-5 w-5 text-primary" />
-                  Modifier la Catégorie
-                </>
+                <><Pencil className="h-4 w-4 text-primary" />Modifier</>
+              ) : dialogMode === "category" ? (
+                <><Plus className="h-4 w-4 text-primary" />Nouvelle catégorie</>
               ) : (
-                <>
-                  <Plus className="h-5 w-5 text-primary" />
-                  Ajouter une Catégorie
-                </>
+                <><Plus className="h-4 w-4 text-violet-600" />Nouvelle sous-catégorie</>
               )}
             </DialogTitle>
-            <DialogDescription>
-              Définissez le nom et sélectionnez une icône pour la catégorie.
-            </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="name">Nom de la catégorie *</Label>
+          <form onSubmit={handleSubmit} className="space-y-4 pt-1">
+            {/* Parent info for subcategory */}
+            {dialogMode === "subcategory" && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-violet-500/8 border border-violet-500/20">
+                <Layers className="h-4 w-4 text-violet-600 shrink-0" />
+                <span className="text-sm">
+                  Sous-catégorie de{" "}
+                  <strong className="text-violet-700">
+                    {parentCats.find(c => c.id === formData.parentId)?.name ?? "…"}
+                  </strong>
+                </span>
+              </div>
+            )}
+
+            {/* Name */}
+            <div className="space-y-1.5">
+              <Label htmlFor="cat-name">Nom *</Label>
               <Input
-                id="name"
+                id="cat-name"
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                onChange={e => setFormData(f => ({ ...f, name: e.target.value }))}
+                placeholder={dialogMode === "subcategory" ? "Ex: iPhone, Samsung…" : "Ex: Téléphones, Informatique…"}
                 required
-                placeholder="Ex: Smartphones, Tablettes..."
-                className="h-11"
                 disabled={submitting}
+                className="h-11"
+                autoFocus
               />
             </div>
 
-            <div className="space-y-2">
-              <Label>Icône *</Label>
-              <Popover open={iconPopoverOpen} onOpenChange={setIconPopoverOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    role="combobox"
-                    className="w-full h-14 justify-start text-left font-normal"
-                    disabled={submitting}
-                  >
-                    {(() => {
-                      const IconComponent = getIconComponent(formData.icon);
-                      return (
-                        <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                            <IconComponent className="h-6 w-6 text-primary" />
-                          </div>
-                          <span>{formData.icon}</span>
-                        </div>
-                      );
-                    })()}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[400px] p-0" align="start">
-                  <div className="p-3 border-b">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Rechercher une icône..."
-                        value={iconSearchTerm}
-                        onChange={(e) => setIconSearchTerm(e.target.value)}
-                        className="pl-9 h-9"
-                      />
-                      {iconSearchTerm && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
-                          onClick={() => setIconSearchTerm("")}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                  <ScrollArea className="h-[320px]">
-                    <div className="grid grid-cols-4 gap-2 p-3">
-                      {filteredIcons.length > 0 ? (
-                        filteredIcons.map((iconData) => {
-                          const IconComponent = iconData.icon;
-                          const isSelected = formData.icon === iconData.name;
-
-                          return (
-                            <button
-                              key={iconData.name}
-                              type="button"
-                              onClick={() => {
-                                setFormData({ ...formData, icon: iconData.name });
-                                setIconPopoverOpen(false);
-                                setIconSearchTerm("");
-                              }}
-                              className={`flex flex-col items-center gap-1 p-3 rounded-lg border-2 transition-all duration-200 hover:scale-105 hover:shadow-md ${isSelected
-                                  ? "border-primary bg-primary/10"
-                                  : "border-transparent hover:border-primary/50 hover:bg-accent"
-                                }`}
-                              title={iconData.name}
-                            >
-                              <IconComponent
-                                className={`h-6 w-6 ${isSelected ? "text-primary" : "text-muted-foreground"
-                                  }`}
-                              />
-                              <span
-                                className={`text-[10px] font-medium truncate w-full text-center ${isSelected ? "text-primary" : "text-muted-foreground"
-                                  }`}
-                              >
-                                {iconData.name}
-                              </span>
-                            </button>
-                          );
-                        })
-                      ) : (
-                        <div className="col-span-4 flex flex-col items-center justify-center py-8 text-muted-foreground">
-                          <Search className="h-8 w-8 mb-2" />
-                          <p className="text-sm">Aucune icône trouvée</p>
-                        </div>
-                      )}
-                    </div>
-                  </ScrollArea>
-                  <div className="p-3 border-t bg-muted/30 text-xs text-muted-foreground">
-                    {filteredIcons.length} icône(s) disponible(s)
-                  </div>
-                </PopoverContent>
-              </Popover>
-              <p className="text-xs text-muted-foreground">
-                Sélectionnez une icône pour représenter cette catégorie
-              </p>
+            {/* Icon */}
+            <div className="space-y-1.5">
+              <Label>Icône</Label>
+              <IconPicker />
             </div>
 
-                <div className="space-y-2">
-                  <Label>Catégorie parente (optionnel)</Label>
-                  <Select
-                    value={formData.parentId || 'none'}
-                    onValueChange={(v) =>
-                      setFormData((prev) => ({ ...prev, parentId: v === 'none' ? '' : v }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Aucune (catégorie racine)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Aucune (catégorie racine)</SelectItem>
-                      {categories
-                        .filter((c) => !c.parentId && c.id !== editingCategory?.id)
-                        .map((c) => (
-                          <SelectItem key={c.id} value={c.id}>
-                            {c.name}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-            <DialogFooter className="gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsDialogOpen(false)}
-                disabled={submitting}
-              >
+            <DialogFooter className="pt-2">
+              <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} disabled={submitting}>
                 Annuler
               </Button>
-              <Button type="submit" disabled={submitting} className="min-w-[120px]">
+              <Button
+                type="submit"
+                disabled={submitting}
+                className={dialogMode === "subcategory" ? "bg-violet-600 hover:bg-violet-700" : ""}
+              >
                 {submitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {editingCategory ? "Modification..." : "Ajout..."}
-                  </>
+                  <><Loader2 className="h-4 w-4 animate-spin mr-2" />{editingCategory ? "Enregistrement…" : "Création…"}</>
                 ) : (
-                  <>
-                    {editingCategory ? (
-                      <>
-                        <Pencil className="mr-2 h-4 w-4" />
-                        Modifier
-                      </>
-                    ) : (
-                      <>
-                        <Plus className="mr-2 h-4 w-4" />
-                        Ajouter
-                      </>
-                    )}
-                  </>
+                  <>{editingCategory ? "Enregistrer" : "Créer"}</>
                 )}
               </Button>
             </DialogFooter>
@@ -771,7 +652,7 @@ const CategoriesManagement = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog Suppression */}
+      {/* ── DIALOG DELETE ── */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -779,15 +660,14 @@ const CategoriesManagement = () => {
               <AlertCircle className="h-5 w-5 text-destructive" />
               Confirmer la suppression
             </AlertDialogTitle>
-            <AlertDialogDescription className="space-y-2">
-              <p>
-                Voulez-vous supprimer la catégorie{" "}
-                <span className="font-semibold text-foreground">"{deletingCategory?.name}"</span> ?
-              </p>
-              {(deletingCategory?.productCount || 0) > 0 && (
-                <p className="text-destructive font-medium">
-                  ⚠️ Cette catégorie contient {deletingCategory?.productCount} produit(s) et ne peut pas être supprimée.
-                </p>
+            <AlertDialogDescription>
+              Supprimer{" "}
+              <strong className="text-foreground">"{deletingCategory?.name}"</strong>{" "}
+              définitivement ?
+              {((deletingCategory?.productCount ?? 0) > 0 || (deletingCategory?.subcategories?.length ?? 0) > 0) && (
+                <span className="block mt-2 text-destructive font-medium">
+                  ⚠️ Impossible : contient des produits ou sous-catégories.
+                </span>
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -795,20 +675,10 @@ const CategoriesManagement = () => {
             <AlertDialogCancel disabled={submitting}>Annuler</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
-              disabled={submitting || (deletingCategory?.productCount || 0) > 0}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={submitting || (deletingCategory?.productCount ?? 0) > 0 || (deletingCategory?.subcategories?.length ?? 0) > 0}
+              className="bg-destructive hover:bg-destructive/90"
             >
-              {submitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Suppression...
-                </>
-              ) : (
-                <>
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Supprimer
-                </>
-              )}
+              {submitting ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Suppression…</> : <><Trash2 className="h-4 w-4 mr-2" />Supprimer</>}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
