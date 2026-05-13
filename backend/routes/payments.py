@@ -15,6 +15,7 @@ PAYTECH_API_URL = 'https://paytech.sn/api/payment/request-payment'
 FRONTEND_URL = os.getenv('CORS_ORIGINS', 'https://talla-phone.vercel.app')
 BACKEND_URL = os.getenv('BACKEND_URL', 'https://phone-backend.duckdns.org')
 PAYTECH_ENV = os.getenv('PAYTECH_ENV', 'test')
+PAYTECH_IPN_URL = os.getenv('PAYTECH_IPN_URL', f'{BACKEND_URL}/api/payments/ipn')
 
 
 @bp.route('/request-payment', methods=['POST'])
@@ -112,12 +113,12 @@ def request_payment():
 
     payload = {
         "item_name": item_name,
-        "item_price": final_total,
+        "item_price": int(final_total),
         "currency": "XOF",
         "ref_command": ref_command,
         "command_name": item_name,
         "env": PAYTECH_ENV,
-        "ipn_url": f"{BACKEND_URL}/api/payments/ipn",
+        "ipn_url": PAYTECH_IPN_URL,
         "success_url": f"{FRONTEND_URL}/payment-success",
         "cancel_url": f"{FRONTEND_URL}/payment-cancel",
         "custom_field": json.dumps(custom_field_data),
@@ -132,6 +133,7 @@ def request_payment():
     try:
         response = requests.post(PAYTECH_API_URL, json=payload, headers=headers)
         resp_json = response.json()
+        print("PayTech response:", resp_json)
     except Exception as e:
         return jsonify({'success': 0, 'message': f'Erreur API PayTech: {str(e)}'}), 500
 
@@ -144,6 +146,40 @@ def request_payment():
         return jsonify({'success': 1, 'redirect_url': resp_json['redirect_url'], 'order_id': order_id})
     else:
         return jsonify({'success': 0, 'message': resp_json.get('message', 'Erreur PayTech')}), 400
+
+
+def _delete_pending_paytech_order(order_id):
+    """Fully removes a pending PayTech order: restores stock, reverses voucher/loyalty, deletes rows."""
+    order = execute_query(
+        "SELECT id, status, voucher_code, user_id, loyalty_points_earned FROM orders WHERE id=%s",
+        (order_id,),
+        fetch_one=True
+    )
+    if not order or order['status'] not in ('pending',):
+        return
+
+    items = execute_query(
+        "SELECT product_id, quantity FROM order_items WHERE order_id=%s",
+        (order_id,),
+        fetch_all=True
+    )
+    increase_stock_from_return(items or [], user_id=None, reason=f"Paiement annulé #{order_id[:8]}")
+
+    if order.get('voucher_code'):
+        execute_query(
+            "UPDATE vouchers SET used_count = GREATEST(0, used_count - 1) WHERE code=%s",
+            (order['voucher_code'],),
+            commit=True
+        )
+
+    if order.get('user_id') and order.get('loyalty_points_earned', 0) > 0:
+        execute_query(
+            "UPDATE users SET loyalty_points = GREATEST(0, loyalty_points - %s) WHERE id=%s",
+            (order['loyalty_points_earned'], order['user_id']),
+            commit=True
+        )
+
+    execute_query("DELETE FROM orders WHERE id=%s", (order_id,), commit=True)
 
 
 @bp.route('/ipn', methods=['POST'])
@@ -178,24 +214,7 @@ def payment_ipn():
         return "IPN OK", 200
 
     elif type_event == 'sale_canceled':
-        execute_query(
-            """UPDATE orders
-               SET status='cancelled', payment_status='failed'
-               WHERE id=%s AND status='pending'""",
-            (order_id,),
-            commit=True
-        )
-        execute_query(
-            "UPDATE payments SET status='canceled' WHERE payment_ref=%s",
-            (ref_command,),
-            commit=True
-        )
-        items_to_restore = execute_query(
-            "SELECT product_id, quantity FROM order_items WHERE order_id=%s",
-            (order_id,),
-            fetch_all=True
-        )
-        increase_stock_from_return(items_to_restore or [], user_id=None, reason=f"Paiement annulé #{order_id[:8]}")
+        _delete_pending_paytech_order(order_id)
         return "IPN OK", 200
 
     return "IPN KO - Unknown event", 400
@@ -203,25 +222,5 @@ def payment_ipn():
 
 @bp.route('/cancel-order/<order_id>', methods=['POST'])
 def cancel_order(order_id):
-    order = execute_query(
-        "SELECT id, status FROM orders WHERE id=%s",
-        (order_id,),
-        fetch_one=True
-    )
-    if not order or order['status'] in ('cancelled', 'confirmed', 'shipped', 'delivered'):
-        return jsonify({'success': True})
-
-    execute_query(
-        "UPDATE orders SET status='cancelled', payment_status='failed' WHERE id=%s",
-        (order_id,),
-        commit=True
-    )
-
-    items_to_restore = execute_query(
-        "SELECT product_id, quantity FROM order_items WHERE order_id=%s",
-        (order_id,),
-        fetch_all=True
-    )
-    increase_stock_from_return(items_to_restore or [], user_id=None, reason=f"Paiement annulé #{order_id[:8]}")
-
+    _delete_pending_paytech_order(order_id)
     return jsonify({'success': True})
