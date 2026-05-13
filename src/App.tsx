@@ -38,6 +38,7 @@ import OrderDetailUpdate from "./pages/admin/OrderUpdate";
 import OrdersManagement from "./pages/admin/OrdersManagement";
 import Overview from "./pages/admin/Overview";
 import ProductsManagement from "./pages/admin/ProductsManagement";
+import ProductForm from "./pages/admin/ProductForm";
 import SalesReports from "./pages/admin/SalesRapports";
 import StockManagement from "./pages/admin/StockManagement";
 import UsersManagement from "./pages/admin/UsersManagement";
@@ -88,6 +89,8 @@ const App = () => (
                 <Route path="/admin" element={<AdminDashboard />}>
                   <Route index element={<Overview />} />
                   <Route path="products" element={<ProductsManagement />} />
+                  <Route path="products/new" element={<ProductForm />} />
+                  <Route path="products/:productId/edit" element={<ProductForm />} />
                   <Route path="categories" element={<CategoriesManagement />} />
                   <Route path="orders" element={<OrdersManagement />} />
                   <Route path="orders/update/:id" element={<OrderDetailUpdate />} />

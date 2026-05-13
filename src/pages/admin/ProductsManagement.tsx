@@ -19,14 +19,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -45,16 +37,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Textarea } from "@/components/ui/textarea";
 import {
-  createProduct,
   deleteProduct,
   getCategories,
   getProducts,
-  updateProduct,
-  uploadProductImage,
   getImageUrl,
-  ProductPayload,
 } from "@/lib/api";
 import type { Category, Product } from "@/types";
 import { motion } from "framer-motion";
@@ -62,10 +49,7 @@ import {
   AlertCircle,
   ChevronLeft,
   ChevronRight,
-  Upload,
-  Eye,
   Filter,
-  ImageIcon,
   Loader2,
   Package,
   PackageOpen,
@@ -73,20 +57,18 @@ import {
   Plus,
   RefreshCw,
   Search,
-  Settings2,
-  Tag,
   Trash2,
   X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 const ProductsManagement = () => {
+  const navigate = useNavigate();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
@@ -95,28 +77,7 @@ const ProductsManagement = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalProducts, setTotalProducts] = useState(0);
-  const [uploadingIdx, setUploadingIdx] = useState<number | null>(null);
 
-  const [formData, setFormData] = useState({
-    name: "",
-    description: "",
-    price: "",
-    originalPrice: "",
-    category: "",
-    images: "",
-    stockQuantity: "",
-    brand: "",
-    colors: '',
-    sizes: '',
-    subcategoryIds: [] as string[],
-  });
-
-  const [specs, setSpecs] = useState<{ key: string; value: string }[]>([]);
-
-  const addSpec = () => setSpecs(prev => [...prev, { key: '', value: '' }]);
-  const removeSpec = (idx: number) => setSpecs(prev => prev.filter((_, i) => i !== idx));
-  const updateSpec = (idx: number, field: 'key' | 'value', val: string) =>
-    setSpecs(prev => prev.map((s, i) => i === idx ? { ...s, [field]: val } : s));
 
   useEffect(() => {
     loadInitialData();
@@ -155,128 +116,6 @@ const ProductsManagement = () => {
       toast.error("Erreur lors du chargement des produits");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleOpenDialog = (product?: Product) => {
-    if (product) {
-      setEditingProduct(product);
-      setFormData({
-        name: product.name,
-        description: product.description,
-        price: product.price.toString(),
-        originalPrice: product.originalPrice?.toString() || "",
-        category: product.category,
-        images: product.images.join(", "),
-        stockQuantity: product.stockQuantity.toString(),
-        brand: product.brand || "",
-        colors: (product.colors ?? []).join(', '),
-        sizes: (product.sizes ?? []).join(', '),
-        subcategoryIds: (product.subcategories ?? []).map((s) => s.id),
-      });
-      setSpecs(
-        Object.entries(product.specifications || {}).map(([key, value]) => ({ key, value: String(value) }))
-      );
-    } else {
-      setEditingProduct(null);
-      setFormData({
-        name: "",
-        description: "",
-        price: "",
-        originalPrice: "",
-        category: "",
-        images: "",
-        stockQuantity: "",
-        brand: "",
-        colors: "",
-        sizes: "",
-        subcategoryIds: [],
-      });
-      setSpecs([]);
-    }
-    setIsDialogOpen(true);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.name || !formData.price || !formData.category) {
-      toast.error("Veuillez remplir tous les champs obligatoires");
-      return;
-    }
-
-    try {
-      setSubmitting(true);
-      const productData: ProductPayload = {
-        name: formData.name.trim(),
-        description: formData.description.trim(),
-        price: parseFloat(formData.price),
-        originalPrice: formData.originalPrice
-          ? parseFloat(formData.originalPrice)
-          : undefined,
-        category: formData.category,
-        images: formData.images
-          .split(",")
-          .map((img) => img.trim())
-          .filter((img) => img),
-        image_url: formData.images.split(",")[0]?.trim() || "",
-        stockQuantity: parseInt(formData.stockQuantity),
-        brand: formData.brand.trim() || "",
-        specifications: Object.fromEntries(
-          specs.filter(s => s.key.trim()).map(s => [s.key.trim(), s.value.trim()])
-        ),
-        colors: formData.colors
-          ? formData.colors.split(",").map((c) => c.trim()).filter(Boolean)
-          : undefined,
-        sizes: formData.sizes
-          ? formData.sizes.split(",").map((s) => s.trim()).filter(Boolean)
-          : undefined,
-        subcategory_ids: formData.subcategoryIds,
-      };
-
-      if (editingProduct) {
-        await updateProduct(editingProduct.id, productData);
-        toast.success("Produit modifié avec succès ! ✅");
-      } else {
-        await createProduct(productData);
-        toast.success("Produit ajouté avec succès ! 🎉");
-      }
-      setIsDialogOpen(false);
-      loadProducts();
-    } catch (error: any) {
-      toast.error(error.response?.data?.error || "Erreur de sauvegarde");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleImageUpload = async (file: File, idx: number) => {
-    // Vérification de la taille du fichier (10 Mo max côté client pour être sûr)
-    const MAX_SIZE = 10 * 1024 * 1024;
-    if (file.size > MAX_SIZE) {
-      toast.error("L'image est trop volumineuse (max 10 Mo)");
-      return;
-    }
-
-    try {
-      setUploadingIdx(idx);
-      const data = await uploadProductImage(file);
-
-      const imagesArray = formData.images
-        ? formData.images.split(",").map((s) => s.trim())
-        : [""];
-
-      imagesArray[idx] = data.url;
-      setFormData({ ...formData, images: imagesArray.join(", ") });
-      toast.success("Image uploadée avec succès !");
-    } catch (error: any) {
-      console.error("Upload error:", error);
-      const errorMessage = error.response?.status === 413
-        ? "L'image est trop lourde pour le serveur. Veuillez la compresser."
-        : (error.response?.data?.error || "Erreur lors de l'upload de l'image");
-
-      toast.error(errorMessage);
-    } finally {
-      setUploadingIdx(null);
     }
   };
 
@@ -370,7 +209,7 @@ const ProductsManagement = () => {
             </div>
             <div className="flex gap-2 flex-wrap">
               <Button
-                onClick={() => handleOpenDialog()}
+                onClick={() => navigate('/admin/products/new')}
                 className="transition-all duration-300 hover:scale-105 hover:shadow-lg"
               >
                 <Plus className="mr-2 h-4 w-4" />
@@ -468,7 +307,7 @@ const ProductsManagement = () => {
                     : "Commencez par ajouter votre premier produit"}
                 </p>
                 {!searchTerm && selectedCategory === "all" && (
-                  <Button onClick={() => handleOpenDialog()}>
+                  <Button onClick={() => navigate('/admin/products/new')}>
                     <Plus className="mr-2 h-4 w-4" />
                     Ajouter un produit
                   </Button>
@@ -553,7 +392,7 @@ const ProductsManagement = () => {
                               <Button
                                 size="icon"
                                 variant="ghost"
-                                onClick={() => handleOpenDialog(product)}
+                                onClick={() => navigate(`/admin/products/${product.id}/edit`)}
                                 className="h-9 w-9 transition-all duration-300 hover:scale-110 hover:bg-primary/10 hover:text-primary"
                               >
                                 <Pencil className="h-4 w-4" />
@@ -632,7 +471,7 @@ const ProductsManagement = () => {
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => handleOpenDialog(product)}
+                              onClick={() => navigate(`/admin/products/${product.id}/edit`)}
                               className="flex-1 transition-all duration-300 hover:scale-105"
                             >
                               <Pencil className="h-4 w-4 mr-2" />
@@ -716,442 +555,6 @@ const ProductsManagement = () => {
         </CardContent>
       </Card>
 
-      {/* Dialog d'ajout/édition */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-2xl flex items-center gap-2">
-              {editingProduct ? (
-                <>
-                  <Pencil className="h-5 w-5 text-primary" />
-                  Modifier le produit
-                </>
-              ) : (
-                <>
-                  <Plus className="h-5 w-5 text-primary" />
-                  Ajouter un produit
-                </>
-              )}
-            </DialogTitle>
-            <DialogDescription>
-              Remplissez les informations du produit. Les champs marqués d'un * sont obligatoires.
-            </DialogDescription>
-          </DialogHeader>
-
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Informations de base */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
-                <Package className="h-4 w-4" />
-                Informations de base
-              </h3>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="md:col-span-2 space-y-2">
-                  <Label htmlFor="name">Nom du produit *</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="Ex: iPhone 15 Pro Max 256GB"
-                    required
-                    disabled={submitting}
-                    className="h-11"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="category">Catégorie *</Label>
-                  <Select
-                    value={formData.category}
-                    onValueChange={(v) => setFormData((prev) => ({ ...prev, category: v, subcategoryIds: [] }))}
-                    disabled={submitting}
-                    required
-                  >
-                    <SelectTrigger className="h-11">
-                      <SelectValue placeholder="Sélectionner une catégorie" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categories.map((cat) => (
-                        <SelectItem key={cat.id} value={cat.slug}>
-                          {cat.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Subcategory multi-select — only shown when selected category has subcategories */}
-                {(() => {
-                  const activeCat = categories.find(
-                    (c) => c.slug === formData.category
-                  );
-                  const subs = activeCat?.subcategories ?? [];
-                  if (subs.length === 0) return null;
-                  return (
-                    <div className="space-y-2">
-                      <Label>Sous-catégories</Label>
-                      <div className="flex flex-wrap gap-2 p-3 border rounded-md min-h-[44px]">
-                        {subs.map((sub) => {
-                          const selected = formData.subcategoryIds.includes(sub.id);
-                          return (
-                            <button
-                              key={sub.id}
-                              type="button"
-                              onClick={() =>
-                                setFormData((prev) => {
-                                  const isSelected = prev.subcategoryIds.includes(sub.id);
-                                  return {
-                                    ...prev,
-                                    subcategoryIds: isSelected
-                                      ? prev.subcategoryIds.filter((id) => id !== sub.id)
-                                      : [...prev.subcategoryIds, sub.id],
-                                  };
-                                })
-                              }
-                              className={`px-3 py-1 rounded-full text-xs border transition-colors ${
-                                selected
-                                  ? 'bg-primary text-primary-foreground border-primary'
-                                  : 'bg-background border-border hover:bg-muted'
-                              }`}
-                            >
-                              {sub.name}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                <div className="space-y-2">
-                  <Label htmlFor="brand">Marque</Label>
-                  <Input
-                    id="brand"
-                    value={formData.brand}
-                    onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
-                    placeholder="Ex: Apple, Samsung..."
-                    disabled={submitting}
-                    className="h-11"
-                  />
-                </div>
-
-                <div className="md:col-span-2 space-y-2">
-                  <Label htmlFor="description">Description *</Label>
-                  <Textarea
-                    id="description"
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    placeholder="Description détaillée du produit..."
-                    rows={4}
-                    required
-                    disabled={submitting}
-                    className="resize-none"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Prix et Stock */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
-                <Tag className="h-4 w-4" />
-                Prix et Stock
-              </h3>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="price">Prix de vente (FCFA) *</Label>
-                  <Input
-                    id="price"
-                    type="number"
-                    step="0.01"
-                    value={formData.price}
-                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                    placeholder="450000"
-                    required
-                    disabled={submitting}
-                    className="h-11"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="originalPrice">Prix original (FCFA)</Label>
-                  <Input
-                    id="originalPrice"
-                    type="number"
-                    step="0.01"
-                    value={formData.originalPrice}
-                    onChange={(e) => setFormData({ ...formData, originalPrice: e.target.value })}
-                    placeholder="500000"
-                    disabled={submitting}
-                    className="h-11"
-                  />
-                  <p className="text-xs text-muted-foreground">Pour afficher une réduction</p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="stock">Quantité en stock *</Label>
-                  <Input
-                    id="stock"
-                    type="number"
-                    min="0"
-                    value={formData.stockQuantity}
-                    onChange={(e) => setFormData({ ...formData, stockQuantity: e.target.value })}
-                    placeholder="50"
-                    required
-                    disabled={submitting}
-                    className="h-11"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Variantes */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                Variantes (optionnel)
-              </h3>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="colors">Couleurs</Label>
-                  <Input
-                    id="colors"
-                    value={formData.colors}
-                    onChange={(e) => setFormData({ ...formData, colors: e.target.value })}
-                    placeholder="Ex: noir, blanc, bleu"
-                    disabled={submitting}
-                    className="h-11"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Sépare par des virgules. Laisse vide si non applicable.
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="sizes">Tailles</Label>
-                  <Input
-                    id="sizes"
-                    value={formData.sizes}
-                    onChange={(e) => setFormData({ ...formData, sizes: e.target.value })}
-                    placeholder="Ex: S, M, L (ou 64Go, 128Go)"
-                    disabled={submitting}
-                    className="h-11"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Sépare par des virgules. Laisse vide si non applicable.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Spécifications techniques */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
-                <Settings2 className="h-4 w-4" />
-                Caractéristiques techniques
-              </h3>
-
-              <div className="space-y-2">
-                {specs.length === 0 && (
-                  <p className="text-xs text-muted-foreground italic">
-                    Aucune caractéristique. Clique sur le bouton ci-dessous pour en ajouter.
-                  </p>
-                )}
-                {specs.map((spec, idx) => (
-                  <div key={idx} className="flex gap-2 items-center">
-                    <Input
-                      placeholder="Nom (ex : RAM)"
-                      value={spec.key}
-                      onChange={(e) => updateSpec(idx, 'key', e.target.value)}
-                      disabled={submitting}
-                      className="h-9 w-2/5"
-                    />
-                    <Input
-                      placeholder="Valeur (ex : 8 Go)"
-                      value={spec.value}
-                      onChange={(e) => updateSpec(idx, 'value', e.target.value)}
-                      disabled={submitting}
-                      className="h-9 flex-1"
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-9 w-9 shrink-0 text-muted-foreground hover:text-destructive"
-                      onClick={() => removeSpec(idx)}
-                      disabled={submitting}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="gap-2 mt-1"
-                  onClick={addSpec}
-                  disabled={submitting}
-                >
-                  <Plus className="h-4 w-4" />
-                  Ajouter une caractéristique
-                </Button>
-              </div>
-            </div>
-
-            {/* Images */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
-                <ImageIcon className="h-4 w-4" />
-                Images du produit
-              </h3>
-
-              <div className="space-y-3">
-                {(() => {
-                  const imagesArray = formData.images
-                    ? formData.images.split(",").map((s) => s.trim())
-                    : [""];
-
-                  return (
-                    <>
-                      {imagesArray.map((img, idx) => (
-                        <div
-                          key={idx}
-                          className="flex flex-col sm:flex-row sm:items-center gap-2"
-                        >
-                          <div className="flex-1 flex flex-col sm:flex-row sm:items-center gap-2">
-                            <span className="text-sm font-medium text-muted-foreground sm:w-20">
-                              Image {idx + 1}
-                            </span>
-
-                            <div className="flex-1 flex gap-2">
-                              <Input
-                                value={img}
-                                onChange={(e) => {
-                                  const arr = [...imagesArray];
-                                  arr[idx] = e.target.value;
-                                  setFormData({ ...formData, images: arr.join(", ") });
-                                }}
-                                placeholder="URL de l'image ou upload"
-                                disabled={submitting || uploadingIdx === idx}
-                                className="h-11"
-                              />
-                              <div className="relative">
-                                <input
-                                  type="file"
-                                  id={`upload-${idx}`}
-                                  className="hidden"
-                                  accept="image/*"
-                                  onChange={(e) => {
-                                    const file = e.target.files?.[0];
-                                    if (file) handleImageUpload(file, idx);
-                                  }}
-                                  disabled={submitting || uploadingIdx === idx}
-                                />
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  className="h-11"
-                                  onClick={() => document.getElementById(`upload-${idx}`)?.click()}
-                                  disabled={submitting || uploadingIdx === idx}
-                                >
-                                  {uploadingIdx === idx ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                  ) : (
-                                    <Upload className="h-4 w-4" />
-                                  )}
-                                </Button>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="flex gap-1 justify-end">
-                            {imagesArray.length > 1 && (
-                              <Button
-                                type="button"
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => {
-                                  const arr = [...imagesArray];
-                                  arr.splice(idx, 1);
-                                  setFormData({ ...formData, images: arr.join(", ") });
-                                }}
-                                disabled={submitting || uploadingIdx !== null}
-                                className="h-11 w-11 text-destructive hover:bg-destructive/10"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            )}
-
-                            {idx === imagesArray.length - 1 && (
-                              <Button
-                                type="button"
-                                size="icon"
-                                variant="outline"
-                                onClick={() =>
-                                  setFormData({
-                                    ...formData,
-                                    images: [...imagesArray, ""].join(", "),
-                                  })
-                                }
-                                disabled={submitting || uploadingIdx !== null}
-                                className="h-11 w-11"
-                              >
-                                <Plus className="h-4 w-4" />
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-
-                      <p className="text-xs text-muted-foreground flex items-start gap-2">
-                        <Eye className="h-3 w-3 mt-0.5 flex-shrink-0" />
-                        La première image sera utilisée comme image principale du produit.
-                      </p>
-                    </>
-                  );
-                })()}
-              </div>
-            </div>
-
-            <DialogFooter className="gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsDialogOpen(false)}
-                disabled={submitting}
-              >
-                Annuler
-              </Button>
-
-              <Button type="submit" disabled={submitting} className="min-w-[120px]">
-                {submitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {editingProduct ? "Modification..." : "Ajout..."}
-                  </>
-                ) : (
-                  <>
-                    {editingProduct ? (
-                      <>
-                        <Pencil className="mr-2 h-4 w-4" />
-                        Modifier
-                      </>
-                    ) : (
-                      <>
-                        <Plus className="mr-2 h-4 w-4" />
-                        Ajouter
-                      </>
-                    )}
-                  </>
-                )}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
 
 
       {/* Dialog de confirmation de suppression */}
