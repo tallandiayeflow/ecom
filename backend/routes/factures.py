@@ -259,7 +259,7 @@ def update_facture(current_user, invoice_id):
 
     try:
         with conn.cursor() as cursor:
-            cursor.execute("SELECT * FROM invoices WHERE id=%s", (invoice_id,))
+            cursor.execute("SELECT * FROM invoices WHERE id=%s FOR UPDATE", (invoice_id,))
             old_invoice = cursor.fetchone()
 
             if not old_invoice:
@@ -384,6 +384,7 @@ def update_facture_complete(current_user, invoice_id):
                     unit_price = item.get('unitPrice') or item.get('unit_price')
                     quantity = item.get('quantity') or 1
                     if unit_price is None:
+                        conn.rollback()
                         return jsonify({'error': 'Chaque article doit avoir unitPrice'}), 400
                     subtotal += float(unit_price) * int(quantity)
 

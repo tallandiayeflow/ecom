@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from utils.database import execute_query
+from utils.database import execute_query, get_db_connection
 from utils.auth import token_required, admin_required
 import uuid
 import json
@@ -81,65 +81,61 @@ def create_order():
         loyalty_points = int(final_total / 5000)
 
     order_id = str(uuid.uuid4())
+    conn = get_db_connection()
     try:
-        execute_query(
-            """
-            INSERT INTO orders (id, user_id, total, discount, final_total,
-                                status, shipping_address, voucher_code, loyalty_points_earned, created_at)
-            VALUES (%s, %s, %s, %s, %s, 'pending', %s, %s, %s, NOW())
-            """,
-            (order_id, user_id, total, discount, final_total,
-             shipping_address, voucher_code, loyalty_points),
-            commit=True
-        )
-        for item in items:
-            item_id = str(uuid.uuid4())
-            product_name = item.get('name','')
-            product_image = ''
-            selected_color = item.get('selectedColor')
-            selected_size = item.get('selectedSize')
-
-            product = execute_query("SELECT image_url, images FROM products WHERE id=%s", (item['productId'],), fetch_one=True)
-            if product:
-                try:
-                    images = json.loads(product.get('images','[]'))
-                    product_image = images[0] if images else product.get('image_url','')
-                except:
-                    product_image = product.get('image_url','')
-            execute_query(
-                """
-                INSERT INTO order_items (
-                    id, order_id, product_id, product_name, product_image, price, quantity,
-                    selected_color, selected_size
-                )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                """,
-                (
-                    item_id,
-                    order_id,
-                    item['productId'],
-                    product_name,
-                    product_image,
-                    item['price'],
-                    item['quantity'],
-                    selected_color,
-                    selected_size,
-                ),
-                commit=True
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """INSERT INTO orders (id, user_id, total, discount, final_total,
+                                      status, shipping_address, voucher_code, loyalty_points_earned, created_at)
+                   VALUES (%s, %s, %s, %s, %s, 'pending', %s, %s, %s, NOW())""",
+                (order_id, user_id, total, discount, final_total,
+                 shipping_address, voucher_code, loyalty_points)
             )
+            for item in items:
+                item_id = str(uuid.uuid4())
+                product_name = item.get('name', '')
+                product_image = ''
+                selected_color = item.get('selectedColor')
+                selected_size = item.get('selectedSize')
 
-        if voucher_code:
-            execute_query("UPDATE vouchers SET used_count = used_count + 1 WHERE code=%s", (voucher_code,), commit=True)
-            
-        # Décrémenter automatiquement le stock pour chaque commande
-        decrease_stock_from_order(items, user_id, reason=f"Commande #{order_id[:8]}")
-        
-        if user_id and loyalty_points > 0:
-            execute_query("UPDATE users SET loyalty_points = loyalty_points + %s WHERE id=%s", (loyalty_points,user_id), commit=True)
+                cursor.execute("SELECT image_url, images FROM products WHERE id=%s", (item['productId'],))
+                product = cursor.fetchone()
+                if product:
+                    try:
+                        images = json.loads(product.get('images', '[]'))
+                        product_image = images[0] if images else product.get('image_url', '')
+                    except Exception:
+                        product_image = product.get('image_url', '')
+                cursor.execute(
+                    """INSERT INTO order_items (id, order_id, product_id, product_name, product_image,
+                           price, quantity, selected_color, selected_size)
+                       VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                    (item_id, order_id, item['productId'], product_name, product_image,
+                     item['price'], item['quantity'], selected_color, selected_size)
+                )
+
+            if voucher_code:
+                cursor.execute(
+                    "UPDATE vouchers SET used_count = used_count + 1 WHERE code=%s",
+                    (voucher_code,)
+                )
+
+            if user_id and loyalty_points > 0:
+                cursor.execute(
+                    "UPDATE users SET loyalty_points = loyalty_points + %s WHERE id=%s",
+                    (loyalty_points, user_id)
+                )
+
+            conn.commit()
 
     except Exception as e:
+        conn.rollback()
         print(f"Erreur création commande : {e}")
         return jsonify({'error': 'Erreur création commande'}), 500
+    finally:
+        conn.close()
+
+    decrease_stock_from_order(items, user_id, reason=f"Commande #{order_id[:8]}")
 
     return jsonify({'id': order_id, 'status': 'pending', 'loyaltyPointsEarned': loyalty_points}), 201
 
@@ -257,6 +253,13 @@ def delete_order(current_user, order_id):
     order = execute_query("SELECT id FROM orders WHERE id=%s", (order_id,), fetch_one=True)
     if not order:
         return jsonify({'error': 'Commande non trouvée'}), 404
+    order_items = execute_query(
+        "SELECT product_id, quantity FROM order_items WHERE order_id=%s",
+        (order_id,), fetch_all=True
+    )
+    if order_items:
+        increase_stock_from_return(order_items, current_user['user_id'],
+                                   reason=f"Suppression commande #{order_id[:8]}")
     execute_query("DELETE FROM order_items WHERE order_id=%s", (order_id,), commit=True)
     execute_query("DELETE FROM orders WHERE id=%s", (order_id,), commit=True)
     return jsonify({'message': 'Commande supprimée'}), 200

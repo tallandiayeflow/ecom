@@ -349,7 +349,7 @@ def update_product_stock(current_user, product_id):
     movement_id = str(uuid.uuid4())
     execute_query(
         """INSERT INTO stock_movements
-           (id, product_id, movement_type, quantity, previous_stock, new_stock, reason, user_id, updated_at)
+           (id, product_id, movement_type, quantity, previous_stock, new_stock, reason, user_id, created_at)
            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)""",
         (
             movement_id,
