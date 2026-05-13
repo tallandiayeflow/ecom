@@ -11,9 +11,11 @@ import { ArrowRight, Package, Shield, Star, Truck, Zap, MessageCircle } from "lu
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
+
 const fadeUp = {
   hidden: { opacity: 0, y: 32 },
-  visible: (i = 0) => ({ opacity: 1, y: 0, transition: { delay: i * 0.08, duration: 0.5, ease: [0.22, 1, 0.36, 1] } }),
+  visible: (i = 0) => ({ opacity: 1, y: 0, transition: { delay: i * 0.08, duration: 0.5, ease: EASE } }),
 };
 
 const STATS = [
@@ -79,7 +81,7 @@ const Index = () => {
 
       {/* ── HERO BANNER ── */}
       <section className="container mx-auto px-4 pt-4 pb-8 md:pt-6 md:pb-10">
-        <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}>
+        <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.6, ease: EASE }}>
           <BannerSlider />
         </motion.div>
       </section>

@@ -65,14 +65,18 @@ export const CategorySlider = () => {
   const scroll = (x: number) =>
     sliderRef.current?.scrollBy({ left: x, behavior: 'smooth' });
 
-  const items = useMemo(
-    () =>
-      categories.map(c => ({
-        ...c,
-        Icon: getIcon(c.name),
-      })),
-    [categories]
-  );
+  const items = useMemo(() => {
+    const flat: (Category & { Icon: LucideIcon })[] = [];
+    for (const cat of categories) {
+      flat.push({ ...cat, Icon: getIcon(cat.name) });
+      if ((cat as any).subcategories?.length) {
+        for (const sub of (cat as any).subcategories) {
+          flat.push({ ...sub, Icon: getIcon(sub.name) });
+        }
+      }
+    }
+    return flat;
+  }, [categories]);
 
   if (!items.length) return null;
 
