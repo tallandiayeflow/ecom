@@ -70,27 +70,43 @@ def ensure_unique_slug(base_slug, exclude_id=None):
 
 @bp.route('', methods=['GET'])
 def get_categories():
-    """Get all categories with product count"""
+    """Get all categories with hierarchical structure"""
     try:
-        categories = execute_query(
-            """SELECT c.*, COUNT(p.id) as product_count
+        rows = execute_query(
+            """SELECT c.id, c.name, c.slug, c.icon, c.parent_id,
+                  CASE
+                      WHEN c.parent_id IS NULL THEN
+                          (SELECT COUNT(*) FROM products p WHERE p.category_id = c.id)
+                      ELSE
+                          (SELECT COUNT(*) FROM product_subcategories ps WHERE ps.subcategory_id = c.id)
+                  END as product_count
                FROM categories c
-               LEFT JOIN products p ON c.id = p.category_id
-               GROUP BY c.id
-               ORDER BY c.name""",
+               ORDER BY c.parent_id IS NOT NULL, c.name""",
             fetch_all=True
         )
-        
-        formatted_categories = [{
-            'id': c['id'],
-            'name': c['name'],
-            'slug': c['slug'],
-            'icon': c['icon'],
-            'productCount': c['product_count']
-        } for c in categories]
-        
-        return jsonify(formatted_categories), 200
-        
+
+        sub_map = {}
+        root_list = []
+
+        for c in rows:
+            entry = {
+                'id': c['id'],
+                'name': c['name'],
+                'slug': c['slug'],
+                'icon': c['icon'],
+                'productCount': c['product_count'],
+                'parentId': c['parent_id'],
+            }
+            if c['parent_id']:
+                sub_map.setdefault(c['parent_id'], []).append(entry)
+            else:
+                root_list.append(entry)
+
+        for cat in root_list:
+            cat['subcategories'] = sub_map.get(cat['id'], [])
+
+        return jsonify(root_list), 200
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -98,31 +114,36 @@ def get_categories():
 @bp.route('', methods=['POST'])
 @admin_required
 def create_category(current_user):
-    """Create a new category (admin only)"""
+    """Create a new category or subcategory (admin only)"""
     try:
         data = request.get_json()
-        
-        # Validation
+
         name = data.get('name', '').strip()
         if not name:
             return jsonify({'error': 'Le nom est requis'}), 400
-        
+
         icon = data.get('icon', 'Folder')
-        
-        # 🔥 Générer un slug unique automatiquement
+        parent_id = data.get('parent_id') or None
+
+        if parent_id:
+            parent = execute_query(
+                "SELECT id FROM categories WHERE id = %s AND parent_id IS NULL",
+                (parent_id,),
+                fetch_one=True
+            )
+            if not parent:
+                return jsonify({'error': 'Catégorie parente invalide'}), 400
+
         base_slug = generate_slug(name)
         unique_slug = ensure_unique_slug(base_slug)
-        
-        # Générer un ID unique
         category_id = str(uuid.uuid4())
-        
-        # Insérer la catégorie
+
         execute_query(
-            "INSERT INTO categories (id, name, slug, icon) VALUES (%s, %s, %s, %s)",
-            (category_id, name, unique_slug, icon),
+            "INSERT INTO categories (id, name, slug, icon, parent_id) VALUES (%s, %s, %s, %s, %s)",
+            (category_id, name, unique_slug, icon, parent_id),
             commit=True
         )
-        
+
         return jsonify({
             'id': category_id,
             'message': 'Catégorie créée avec succès',
@@ -130,10 +151,11 @@ def create_category(current_user):
                 'id': category_id,
                 'name': name,
                 'slug': unique_slug,
-                'icon': icon
+                'icon': icon,
+                'parentId': parent_id
             }
         }), 201
-        
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -156,8 +178,8 @@ def update_category(current_user, category_id):
             return jsonify({'error': 'Catégorie non trouvée'}), 404
         
         # Récupérer les nouvelles valeurs
-        name = data.get('name', '').strip()
-        icon = data.get('icon')
+        name = (data.get('name') or '').strip() or category.get('name', '')
+        icon = data.get('icon', category.get('icon'))
         
         if not name:
             return jsonify({'error': 'Le nom est requis'}), 400
@@ -170,20 +192,43 @@ def update_category(current_user, category_id):
             # Garder le slug existant si le nom ne change pas
             unique_slug = category['slug']
         
-        # Mettre à jour la catégorie
+        if 'parent_id' in data:
+            parent_id = data['parent_id'] or None
+        else:
+            parent_id = category.get('parent_id')
+
+        if parent_id is not None:
+            if parent_id == category_id:
+                return jsonify({'error': 'Une catégorie ne peut pas être sa propre parente'}), 400
+            parent = execute_query(
+                "SELECT id FROM categories WHERE id = %s AND parent_id IS NULL",
+                (parent_id,),
+                fetch_one=True
+            )
+            if not parent:
+                return jsonify({'error': 'Catégorie parente invalide'}), 400
+            child_count = execute_query(
+                "SELECT COUNT(*) as count FROM categories WHERE parent_id = %s",
+                (category_id,),
+                fetch_one=True
+            )
+            if child_count['count'] > 0:
+                return jsonify({'error': 'Impossible de déplacer une catégorie qui a des sous-catégories'}), 400
+
         execute_query(
-            "UPDATE categories SET name = %s, slug = %s, icon = %s WHERE id = %s",
-            (name, unique_slug, icon, category_id),
+            "UPDATE categories SET name = %s, slug = %s, icon = %s, parent_id = %s WHERE id = %s",
+            (name, unique_slug, icon, parent_id, category_id),
             commit=True
         )
-        
+
         return jsonify({
             'message': 'Catégorie mise à jour avec succès',
             'category': {
                 'id': category_id,
                 'name': name,
                 'slug': unique_slug,
-                'icon': icon
+                'icon': icon,
+                'parentId': parent_id
             }
         }), 200
         
@@ -217,7 +262,18 @@ def delete_category(current_user, category_id):
             return jsonify({
                 'error': f'Impossible de supprimer cette catégorie car elle contient {product_count["count"]} produit(s)'
             }), 400
-        
+
+        # Block delete if category has subcategories
+        subcategory_count = execute_query(
+            "SELECT COUNT(*) as count FROM categories WHERE parent_id = %s",
+            (category_id,),
+            fetch_one=True
+        )
+        if subcategory_count['count'] > 0:
+            return jsonify({
+                'error': f'Impossible de supprimer cette catégorie car elle a {subcategory_count["count"]} sous-catégorie(s)'
+            }), 400
+
         # Supprimer la catégorie
         execute_query(
             "DELETE FROM categories WHERE id = %s",

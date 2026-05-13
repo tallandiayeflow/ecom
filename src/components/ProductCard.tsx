@@ -233,6 +233,25 @@ export const ProductCard = ({
               </div>
             )}
 
+            {/* Subcategory pills */}
+            {product.subcategories && product.subcategories.length > 0 && (
+              <div className="flex items-center gap-1 flex-wrap">
+                {product.subcategories.slice(0, 2).map((sub) => (
+                  <span
+                    key={sub.id}
+                    className="px-2 py-0.5 rounded-md bg-primary/10 text-primary text-xs"
+                  >
+                    {sub.name}
+                  </span>
+                ))}
+                {product.subcategories.length > 2 && (
+                  <span className="text-xs text-muted-foreground">
+                    +{product.subcategories.length - 2} autres
+                  </span>
+                )}
+              </div>
+            )}
+
             {/* Titre */}
             <h3 className="font-semibold text-lg line-clamp-2 min-h-[3.5rem] group-hover:text-primary transition-colors">
               {product.name}

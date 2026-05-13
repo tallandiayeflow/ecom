@@ -1,20 +1,26 @@
-// src/pages/PaymentSuccess.tsx
 import { Button } from "@/components/ui/button";
 import { CheckCircle2 } from "lucide-react";
-import { useLocation, useNavigate } from "react-router-dom";
-
-interface PaymentSuccessState {
-  orderId?: string;
-  amount?: number;
-}
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const PaymentSuccess = () => {
   const navigate = useNavigate();
-  const location = useLocation();
-  const state = (location.state || {}) as PaymentSuccessState;
+  const [orderId, setOrderId] = useState<string | undefined>();
+  const [amount, setAmount] = useState<number | undefined>();
 
-  const orderId = state.orderId;
-  const amount = state.amount;
+  useEffect(() => {
+    const raw = localStorage.getItem('pendingPayment');
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        setOrderId(parsed.orderId);
+        setAmount(parsed.amount);
+      } catch {
+        // malformed — ignore
+      }
+      localStorage.removeItem('pendingPayment');
+    }
+  }, []);
 
   return (
     <div className="min-h-[60vh] flex flex-col items-center justify-center px-4">
@@ -32,16 +38,14 @@ const PaymentSuccess = () => {
       {amount !== undefined && (
         <p className="mb-4">
           <span className="font-semibold">Montant payé :</span>{" "}
-          {amount.toFixed(2)} Fcfa
+          {amount.toLocaleString('fr-FR')} FCFA
         </p>
       )}
 
       <div className="flex gap-3 mt-4">
-        <Button onClick={() => navigate("/orders")}>
-          Voir mes commandes
-        </Button>
+        <Button onClick={() => navigate("/orders")}>Voir mes commandes</Button>
         <Button variant="outline" onClick={() => navigate("/")}>
-          Retour à l’accueil
+          Retour à l'accueil
         </Button>
       </div>
     </div>

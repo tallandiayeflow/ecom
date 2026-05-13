@@ -38,36 +38,31 @@ def decrease_stock_from_order(order_items, user_id, reason="Vente"):
         
         if not product:
             continue
-        
-        previous_stock = product['stock']
-        new_stock = max(0, previous_stock - quantity)
-        
-        # Mettre à jour le stock
+
+        # Atomic decrement — no race condition even with concurrent orders
         execute_query(
-            "UPDATE products SET stock = %s WHERE id = %s",
-            (new_stock, product_id),
+            "UPDATE products SET stock = GREATEST(0, stock - %s) WHERE id = %s",
+            (quantity, product_id),
             commit=True
         )
-        
-        # Créer le mouvement de stock
+
+        updated = execute_query(
+            "SELECT stock FROM products WHERE id = %s",
+            (product_id,),
+            fetch_one=True
+        )
+        new_stock = updated['stock']
+        previous_stock = new_stock + quantity
+
         movement_id = str(uuid.uuid4())
         execute_query(
             """INSERT INTO stock_movements
                (id, product_id, movement_type, quantity, previous_stock, new_stock, reason, user_id, created_at)
                VALUES (%s, %s, 'out', %s, %s, %s, %s, %s, %s)""",
-            (
-                movement_id,
-                product_id,
-                quantity,
-                previous_stock,
-                new_stock,
-                reason,
-                user_id,
-                datetime.now()
-            ),
+            (movement_id, product_id, quantity, previous_stock, new_stock, reason, user_id, datetime.now()),
             commit=True
         )
-        
+
         movements.append({
             'id': movement_id,
             'product_id': product_id,
@@ -113,36 +108,30 @@ def increase_stock_from_return(order_items, user_id, reason="Retour commande"):
         
         if not product:
             continue
-        
-        previous_stock = product['stock']
-        new_stock = previous_stock + quantity
-        
-        # Mettre à jour le stock
+
         execute_query(
-            "UPDATE products SET stock = %s WHERE id = %s",
-            (new_stock, product_id),
+            "UPDATE products SET stock = stock + %s WHERE id = %s",
+            (quantity, product_id),
             commit=True
         )
-        
-        # Créer le mouvement de stock
+
+        updated = execute_query(
+            "SELECT stock FROM products WHERE id = %s",
+            (product_id,),
+            fetch_one=True
+        )
+        new_stock = updated['stock']
+        previous_stock = new_stock - quantity
+
         movement_id = str(uuid.uuid4())
         execute_query(
             """INSERT INTO stock_movements
                (id, product_id, movement_type, quantity, previous_stock, new_stock, reason, user_id, created_at)
                VALUES (%s, %s, 'return', %s, %s, %s, %s, %s, %s)""",
-            (
-                movement_id,
-                product_id,
-                quantity,
-                previous_stock,
-                new_stock,
-                reason,
-                user_id,
-                datetime.now()
-            ),
+            (movement_id, product_id, quantity, previous_stock, new_stock, reason, user_id, datetime.now()),
             commit=True
         )
-        
+
         movements.append({
             'id': movement_id,
             'product_id': product_id,

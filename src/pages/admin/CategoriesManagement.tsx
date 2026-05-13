@@ -30,6 +30,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -49,6 +56,7 @@ import {
   deleteCategory,
   getCategories,
   updateCategory,
+  CategoryPayload,
 } from "@/lib/api";
 import type { Category } from "@/types";
 import { motion } from "framer-motion";
@@ -88,7 +96,7 @@ import {
   Wifi,
   X,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 // Collection d'icônes disponibles
@@ -135,6 +143,7 @@ const CategoriesManagement = () => {
   const [formData, setFormData] = useState({
     name: "",
     icon: "Folder",
+    parentId: '',
   });
 
   useEffect(() => {
@@ -159,10 +168,11 @@ const CategoriesManagement = () => {
       setFormData({
         name: category.name,
         icon: category.icon || "Folder",
+        parentId: category.parentId || '',
       });
     } else {
       setEditingCategory(null);
-      setFormData({ name: "", icon: "Folder" });
+      setFormData({ name: "", icon: "Folder", parentId: '' });
     }
     setIconSearchTerm("");
     setIsDialogOpen(true);
@@ -179,10 +189,10 @@ const CategoriesManagement = () => {
     try {
       setSubmitting(true);
 
-      const categoryData = {
-        name: formData.name.trim(),
-        slug: formData.name.toLowerCase().trim().replace(/[^\w\s-]/g, '').replace(/[\s_-]+/g, '-').replace(/^-+|-+$/g, ''),
+      const categoryData: CategoryPayload = {
+        name: formData.name,
         icon: formData.icon,
+        parent_id: formData.parentId || null,
       };
 
       if (editingCategory) {
@@ -217,8 +227,8 @@ const CategoriesManagement = () => {
       setIsDeleteDialogOpen(false);
       setDeletingCategory(null);
       loadCategories();
-    } catch {
-      toast.error("Erreur lors de la suppression");
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || "Erreur lors de la suppression");
     } finally {
       setSubmitting(false);
     }
@@ -268,7 +278,7 @@ const CategoriesManagement = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-orange-500">
-              {categories.reduce((sum, c) => sum + (c.productCount || 0), 0)}
+              {categories.reduce((sum, c) => sum + (c.productCount || 0) + (c.subcategories ?? []).reduce((s, sub) => s + (sub.productCount || 0), 0), 0)}
             </div>
             <p className="text-xs text-muted-foreground">Dans toutes catégories</p>
           </CardContent>
@@ -287,7 +297,7 @@ const CategoriesManagement = () => {
                 Gestion des Catégories
               </CardTitle>
               <CardDescription className="text-sm">
-                {categories.length} catégorie(s) • {categories.reduce((sum, c) => sum + (c.productCount || 0), 0)} produit(s)
+                {categories.length} catégorie(s) • {categories.reduce((sum, c) => sum + (c.productCount || 0) + (c.subcategories ?? []).reduce((s, sub) => s + (sub.productCount || 0), 0), 0)} produit(s)
               </CardDescription>
             </div>
             <div className="flex gap-2 flex-wrap">
@@ -353,79 +363,149 @@ const CategoriesManagement = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {categories.map((cat, index) => {
-                        const IconComponent = getIconComponent(cat.icon || "Folder");
-                        const hasProducts = (cat.productCount || 0) > 0;
+                      {categories
+                        .filter((c) => !c.parentId)
+                        .map((rootCat, index) => {
+                          const RootIconComponent = getIconComponent(rootCat.icon || "Folder");
+                          const rootHasProducts = (rootCat.productCount || 0) > 0;
 
-                        return (
-                          <motion.tr
-                            key={cat.id}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: index * 0.05 }}
-                            className="group hover:bg-accent/50 transition-all duration-200 border-b"
-                          >
-                            <TableCell>
-                              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center ring-2 ring-border transition-all duration-300 group-hover:ring-primary group-hover:scale-110">
-                                <IconComponent className="h-6 w-6 text-primary" />
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <p className="font-semibold group-hover:text-primary transition-colors">
-                                {cat.name}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                Slug: {cat.slug}
-                              </p>
-                            </TableCell>
-                            <TableCell>
-                              <Badge
-                                variant={hasProducts ? "default" : "secondary"}
-                                className={
-                                  hasProducts
-                                    ? "bg-green-500/10 text-green-500 hover:bg-green-500/20"
-                                    : ""
-                                }
+                          return (
+                            <React.Fragment key={rootCat.id}>
+                              <motion.tr
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: index * 0.05 }}
+                                className="group hover:bg-accent/50 transition-all duration-200 border-b"
                               >
-                                {cat.productCount || 0} produit(s)
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex justify-end gap-1">
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => handleOpenDialog(cat)}
-                                  className="h-9 w-9 transition-all duration-300 hover:scale-110 hover:bg-primary/10 hover:text-primary"
-                                >
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => handleOpenDeleteDialog(cat)}
-                                  disabled={hasProducts}
-                                  className="h-9 w-9 text-destructive transition-all duration-300 hover:scale-110 hover:bg-destructive/10 disabled:opacity-50"
-                                  title={
-                                    hasProducts
-                                      ? "Impossible de supprimer (contient des produits)"
-                                      : "Supprimer la catégorie"
-                                  }
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </motion.tr>
-                        );
-                      })}
+                                <TableCell>
+                                  <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center ring-2 ring-border transition-all duration-300 group-hover:ring-primary group-hover:scale-110">
+                                    <RootIconComponent className="h-6 w-6 text-primary" />
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <p className="font-semibold group-hover:text-primary transition-colors">
+                                    {rootCat.name}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    Slug: {rootCat.slug}
+                                  </p>
+                                </TableCell>
+                                <TableCell>
+                                  <Badge
+                                    variant={rootHasProducts ? "default" : "secondary"}
+                                    className={
+                                      rootHasProducts
+                                        ? "bg-green-500/10 text-green-500 hover:bg-green-500/20"
+                                        : ""
+                                    }
+                                  >
+                                    {rootCat.productCount || 0} produit(s)
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <div className="flex justify-end gap-1">
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      onClick={() => handleOpenDialog(rootCat)}
+                                      className="h-9 w-9 transition-all duration-300 hover:scale-110 hover:bg-primary/10 hover:text-primary"
+                                    >
+                                      <Pencil className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      onClick={() => handleOpenDeleteDialog(rootCat)}
+                                      disabled={rootHasProducts}
+                                      className="h-9 w-9 text-destructive transition-all duration-300 hover:scale-110 hover:bg-destructive/10 disabled:opacity-50"
+                                      title={
+                                        rootHasProducts
+                                          ? "Impossible de supprimer (contient des produits)"
+                                          : "Supprimer la catégorie"
+                                      }
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </motion.tr>
+                              {(rootCat.subcategories ?? []).map((sub, subIndex) => {
+                                const SubIconComponent = getIconComponent(sub.icon || "Folder");
+                                const subHasProducts = (sub.productCount || 0) > 0;
+
+                                return (
+                                  <motion.tr
+                                    key={sub.id}
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: (index * 0.05) + (subIndex * 0.03) }}
+                                    className="group hover:bg-accent/50 transition-all duration-200 border-b bg-muted/30"
+                                  >
+                                    <TableCell>
+                                      <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center ring-2 ring-border transition-all duration-300 group-hover:ring-primary group-hover:scale-110">
+                                        <SubIconComponent className="h-6 w-6 text-primary" />
+                                      </div>
+                                    </TableCell>
+                                    <TableCell>
+                                      <p className="font-semibold group-hover:text-primary transition-colors">
+                                        <span className="text-muted-foreground mr-1">↳</span>
+                                        {sub.name}
+                                      </p>
+                                      <p className="text-xs text-muted-foreground">
+                                        Slug: {sub.slug}
+                                      </p>
+                                    </TableCell>
+                                    <TableCell>
+                                      <Badge
+                                        variant={subHasProducts ? "default" : "secondary"}
+                                        className={
+                                          subHasProducts
+                                            ? "bg-green-500/10 text-green-500 hover:bg-green-500/20"
+                                            : ""
+                                        }
+                                      >
+                                        {sub.productCount || 0} produit(s)
+                                      </Badge>
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                      <div className="flex justify-end gap-1">
+                                        <Button
+                                          size="icon"
+                                          variant="ghost"
+                                          onClick={() => handleOpenDialog(sub)}
+                                          className="h-9 w-9 transition-all duration-300 hover:scale-110 hover:bg-primary/10 hover:text-primary"
+                                        >
+                                          <Pencil className="h-4 w-4" />
+                                        </Button>
+                                        <Button
+                                          size="icon"
+                                          variant="ghost"
+                                          onClick={() => handleOpenDeleteDialog(sub)}
+                                          disabled={subHasProducts}
+                                          className="h-9 w-9 text-destructive transition-all duration-300 hover:scale-110 hover:bg-destructive/10 disabled:opacity-50"
+                                          title={
+                                            subHasProducts
+                                              ? "Impossible de supprimer (contient des produits)"
+                                              : "Supprimer la catégorie"
+                                          }
+                                        >
+                                          <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                      </div>
+                                    </TableCell>
+                                  </motion.tr>
+                                );
+                              })}
+                            </React.Fragment>
+                          );
+                        })}
                     </TableBody>
                   </Table>
                 </div>
 
                 {/* Mobile Cards */}
                 <div className="md:hidden p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {categories.map((cat, index) => {
+                  {categories.flatMap(c => [c, ...(c.subcategories ?? [])]).map((cat, index) => {
                     const IconComponent = getIconComponent(cat.icon || "Folder");
                     const hasProducts = (cat.productCount || 0) > 0;
 
@@ -455,7 +535,10 @@ const CategoriesManagement = () => {
                             </div>
 
                             <div>
-                              <h3 className="font-semibold text-lg">{cat.name}</h3>
+                              <h3 className="font-semibold text-lg">
+                                {cat.parentId && <span className="text-muted-foreground mr-1">↳</span>}
+                                {cat.name}
+                              </h3>
                               <p className="text-xs text-muted-foreground">
                                 {cat.slug}
                               </p>
@@ -496,7 +579,7 @@ const CategoriesManagement = () => {
 
       {/* Dialog Ajouter / Modifier */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-2xl flex items-center gap-2">
               {editingCategory ? (
@@ -627,6 +710,30 @@ const CategoriesManagement = () => {
                 Sélectionnez une icône pour représenter cette catégorie
               </p>
             </div>
+
+                <div className="space-y-2">
+                  <Label>Catégorie parente (optionnel)</Label>
+                  <Select
+                    value={formData.parentId || 'none'}
+                    onValueChange={(v) =>
+                      setFormData((prev) => ({ ...prev, parentId: v === 'none' ? '' : v }))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Aucune (catégorie racine)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Aucune (catégorie racine)</SelectItem>
+                      {categories
+                        .filter((c) => !c.parentId && c.id !== editingCategory?.id)
+                        .map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.name}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
             <DialogFooter className="gap-2">
               <Button

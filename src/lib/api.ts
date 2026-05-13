@@ -257,6 +257,7 @@ export const resetPassword = async (
 // ==================== PRODUCTS ====================
 export interface ProductFilters {
   category?: string;
+  subcategory?: string;
   minPrice?: number;
   maxPrice?: number;
   search?: string;
@@ -270,6 +271,7 @@ export const getProducts = async (
 ): Promise<ProductsResponse> => {
   const params = new URLSearchParams();
   if (filters?.category) params.append('category', filters.category);
+  if (filters?.subcategory) params.append('subcategory', filters.subcategory);
   if (filters?.minPrice !== undefined)
     params.append('minPrice', filters.minPrice.toString());
   if (filters?.maxPrice !== undefined)
@@ -290,8 +292,12 @@ export const getProduct = async (id: string): Promise<Product> => {
   return response.data;
 };
 
+export interface ProductPayload extends Partial<Product> {
+  subcategory_ids?: string[];
+}
+
 export const createProduct = async (
-  productData: Partial<Product>
+  productData: ProductPayload
 ): Promise<Product> => {
   const response = await api.post('/products', productData);
   return response.data;
@@ -299,7 +305,7 @@ export const createProduct = async (
 
 export const updateProduct = async (
   id: string,
-  productData: Partial<Product>
+  productData: ProductPayload
 ): Promise<Product> => {
   const response = await api.put(`/products/${id}`, productData);
   return response.data;
@@ -330,8 +336,14 @@ export const getCategories = async (): Promise<Category[]> => {
   return response.data;
 };
 
+export interface CategoryPayload {
+  name: string;
+  icon?: string;
+  parent_id?: string | null;
+}
+
 export const createCategory = async (
-  categoryData: Partial<Category>
+  categoryData: CategoryPayload
 ): Promise<Category> => {
   const response = await api.post('/categories', categoryData);
   return response.data;
@@ -339,7 +351,7 @@ export const createCategory = async (
 
 export const updateCategory = async (
   id: string,
-  categoryData: Partial<Category>
+  categoryData: CategoryPayload
 ): Promise<Category> => {
   const response = await api.put(`/categories/${id}`, categoryData);
   return response.data;

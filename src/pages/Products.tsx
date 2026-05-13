@@ -55,6 +55,7 @@ const Products = () => {
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 500000]);
   const [inStockOnly, setInStockOnly] = useState(false);
   const [sortBy, setSortBy] = useState<string>('newest');
+  const [selectedSubcategory, setSelectedSubcategory] = useState('');
 
   useEffect(() => {
     loadCategories();
@@ -62,7 +63,7 @@ const Products = () => {
 
   useEffect(() => {
     loadProducts();
-  }, [currentPage, selectedCategory, priceRange, inStockOnly, searchParams]);
+  }, [currentPage, selectedCategory, priceRange, inStockOnly, searchParams, selectedSubcategory]);
 
   const loadCategories = async () => {
     try {
@@ -84,6 +85,7 @@ const Products = () => {
         minPrice: priceRange[0] > 0 ? priceRange[0] : undefined,
         maxPrice: priceRange[1] < 500000 ? priceRange[1] : undefined,
         inStock: inStockOnly || undefined,
+        subcategory: selectedSubcategory || undefined,
         page: currentPage,
         limit: 12,
       });
@@ -133,6 +135,7 @@ const Products = () => {
 
   const handleCategoryChange = (category: string) => {
     setSelectedCategory(category);
+    setSelectedSubcategory('');
     setCurrentPage(1);
   };
 
@@ -147,12 +150,14 @@ const Products = () => {
     setPriceRange([0, 500000]);
     setInStockOnly(false);
     setSortBy('newest');
+    setSelectedSubcategory('');
     setSearchParams({});
     setCurrentPage(1);
   };
 
   const hasActiveFilters =
     selectedCategory !== 'all' ||
+    selectedSubcategory !== '' ||
     priceRange[0] > 0 ||
     priceRange[1] < 500000 ||
     inStockOnly ||
@@ -177,6 +182,36 @@ const Products = () => {
           </SelectContent>
         </Select>
       </div>
+
+      {/* Subcategory Pills */}
+      {selectedCategory !== 'all' && (() => {
+        const activeCat = categories.find(c => c.slug === selectedCategory);
+        const subs = activeCat?.subcategories ?? [];
+        if (subs.length === 0) return null;
+        return (
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-muted-foreground">Sous-catégorie</Label>
+            <div className="flex flex-wrap gap-2">
+              {subs.map((sub) => (
+                <button
+                  key={sub.id}
+                  onClick={() => {
+                    setSelectedSubcategory(selectedSubcategory === sub.slug ? '' : sub.slug);
+                    setCurrentPage(1);
+                  }}
+                  className={`px-3 py-1 rounded-full text-xs border transition-colors ${
+                    selectedSubcategory === sub.slug
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-background border-border hover:bg-muted'
+                  }`}
+                >
+                  {sub.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Price Filter */}
       <div className="space-y-3">
@@ -308,6 +343,18 @@ const Products = () => {
               </button>
             </Badge>
           )}
+          {selectedSubcategory && (() => {
+            const activeCat = categories.find(c => c.slug === selectedCategory);
+            const subName = activeCat?.subcategories?.find(s => s.slug === selectedSubcategory)?.name;
+            return (
+              <Badge variant="secondary" className="gap-2">
+                Sous-cat: {subName}
+                <button onClick={() => setSelectedSubcategory('')}>
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            );
+          })()}
           {(priceRange[0] > 0 || priceRange[1] < 500000) && (
             <Badge variant="secondary" className="gap-2">
               Prix: {priceRange[0].toLocaleString()} - {priceRange[1].toLocaleString()} FCFA

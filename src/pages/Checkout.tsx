@@ -165,6 +165,11 @@ const Checkout = () => {
         const response = await requestPaytechPayment(orderData);
 
         if (response.success === 1 && response.redirect_url) {
+          localStorage.setItem(
+            'pendingPayment',
+            JSON.stringify({ orderId: response.order_id, amount: finalTotal })
+          );
+          await clearCart();
           window.location.href = response.redirect_url;
         } else {
           toast.error(
@@ -351,27 +356,39 @@ const Checkout = () => {
                   </h2>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Paiement en ligne (Temporairement désactivé) */}
+                    {/* Paiement en ligne */}
                     <button
                       type="button"
-                      disabled
-                      className="relative p-6 rounded-lg border-2 text-left transition-all border-gray-100 bg-gray-50/50 opacity-60 cursor-not-allowed"
+                      onClick={() => setPaymentMethod('online')}
+                      className={`relative p-6 rounded-lg border-2 text-left transition-all ${
+                        paymentMethod === 'online'
+                          ? 'border-primary bg-primary/5 shadow-lg'
+                          : 'border-gray-200 hover:border-gray-300 hover:shadow'
+                      }`}
                     >
                       <div className="flex items-start justify-between mb-3">
-                        <div className="h-12 w-12 rounded-full bg-gray-300 flex items-center justify-center">
-                          <Wallet className="h-6 w-6 text-gray-500" />
+                        <div className="h-12 w-12 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center">
+                          <Wallet className="h-6 w-6 text-white" />
                         </div>
-                        <Badge variant="outline" className="text-[10px] bg-red-50 text-red-600 border-red-200 uppercase tracking-wider">
-                          Hors service
-                        </Badge>
+                        <div
+                          className={`h-6 w-6 rounded-full border-2 flex items-center justify-center ${
+                            paymentMethod === 'online'
+                              ? 'border-primary bg-primary'
+                              : 'border-gray-300'
+                          }`}
+                        >
+                          {paymentMethod === 'online' && (
+                            <CheckCircle2 className="h-4 w-4 text-white" />
+                          )}
+                        </div>
                       </div>
-                      <div className="font-semibold text-lg mb-1 text-gray-400">Payer en ligne</div>
-                      <div className="text-sm text-gray-400 mb-3">
-                        Wave, Orange Money (Indisponible)
+                      <div className="font-semibold text-lg mb-1">Payer en ligne</div>
+                      <div className="text-sm text-muted-foreground mb-3">
+                        Wave, Orange Money, Carte bancaire
                       </div>
-                      <Badge variant="secondary" className="text-xs bg-gray-100 text-gray-400 border-none">
+                      <Badge variant="secondary" className="text-xs">
                         <Shield className="h-3 w-3 mr-1" />
-                        Temporairement indisponible
+                        Paiement sécurisé PayTech
                       </Badge>
                     </button>
 
